@@ -11,3 +11,5 @@ backend/app/__pycache__/
 project_doc/
 项目背景/
 面试数据集/
+.agent/
+.claude/
