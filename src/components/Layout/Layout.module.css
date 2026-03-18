@@ -1,0 +1,18 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  margin-left: 240px;
+  flex: 1;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.content-area {
+  padding: var(--sp-xl) var(--sp-2xl);
+  position: relative;
+  z-index: 2;
+}

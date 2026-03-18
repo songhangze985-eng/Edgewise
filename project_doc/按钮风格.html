@@ -1,0 +1,526 @@
+<html lang="en" vid="0"><head vid="1">
+<meta charset="UTF-8" vid="2">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+<title vid="4">System Baustein - Modular Block Shop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" vid="5">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" vid="6">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet" vid="7">
+<style vid="8">
+    :root {
+        
+        --casing-bg: #E3E4DF;
+        --casing-highlight: rgba(255,255,255,0.7);
+        --casing-shadow: rgba(0,0,0,0.08);
+        --panel-gap-dark: rgba(0,0,0,0.15);
+        --panel-gap-light: rgba(255,255,255,0.8);
+        
+        
+        --text-main: #1A1A1A;
+        --text-muted: #555555;
+        --text-label: #6A6B66;
+        
+        
+        --hole-fill: #1C1C1A;
+
+        
+        --color-red: #D03027;     --shade-red: #9B1C15;
+        --color-blue: #0055A4;    --shade-blue: #00366D;
+        --color-yellow: #F2A900;  --shade-yellow: #B88000;
+        --color-green: #00853E;   --shade-green: #005B2A;
+        --color-white: #F4F4F2;   --shade-white: #BDBDBD;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        background-color: #C8C9C4; 
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: 'Inter', sans-serif;
+        color: var(--text-main);
+        padding: 40px 20px;
+    }
+
+    
+    .device-panel {
+        background-color: var(--casing-bg);
+        width: 100%;
+        max-width: 860px;
+        border-radius: 12px;
+        position: relative;
+        
+        box-shadow: 
+            0 20px 50px rgba(0,0,0,0.15),
+            0 5px 15px rgba(0,0,0,0.05),
+            inset 1px 1px 2px var(--casing-highlight),
+            inset -1px -1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        padding: 40px 50px 0;
+    }
+
+    .brand {
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: -0.02em;
+        color: var(--text-main);
+    }
+
+    .model-number {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 12px;
+        color: var(--text-muted);
+        letter-spacing: 0.05em;
+    }
+
+    
+    .hero-section {
+        display: flex;
+        justify-content: center;
+        padding: 40px 0 20px;
+    }
+
+    .grille-svg {
+        width: 320px;
+        height: 320px;
+        overflow: visible;
+    }
+
+    .grille-hole {
+        fill: var(--hole-fill);
+    }
+
+    
+    .grille-block {
+        filter: drop-shadow(0px 4px 3px rgba(0,0,0,0.25));
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .grille-block-highlight {
+        fill: rgba(255,255,255,0.2);
+    }
+
+    
+    .controls-section {
+        display: flex;
+        justify-content: center;
+        gap: 35px;
+        padding: 30px 0 60px;
+        position: relative;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .control-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text-label);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    
+    .hardware-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        outline: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-well {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        
+        background: #DADBD4;
+        box-shadow: 
+            inset 2px 2px 4px rgba(0,0,0,0.1),
+            inset -2px -2px 4px rgba(255,255,255,0.7);
+        position: relative;
+        display: flex;
+        justify-content: center;
+    }
+
+    .btn-cap {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        position: absolute;
+        top: -2px; 
+        
+        background-color: var(--btn-color);
+        box-shadow: 
+            inset 0 2px 2px rgba(255,255,255,0.4),  
+            inset 0 -1px 3px rgba(0,0,0,0.2),       
+            0 5px 0 var(--btn-shade),               
+            0 8px 8px rgba(0,0,0,0.25);             
+        transition: all 0.08s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    
+    .hardware-btn:active .btn-cap,
+    .hardware-btn.is-active .btn-cap {
+        top: 3px; 
+        box-shadow: 
+            inset 0 1px 2px rgba(255,255,255,0.3),
+            inset 0 -1px 2px rgba(0,0,0,0.3),
+            0 0px 0 var(--btn-shade),               
+            0 2px 3px rgba(0,0,0,0.1);              
+    }
+
+    
+    .btn-red    { --btn-color: var(--color-red);    --btn-shade: var(--shade-red); }
+    .btn-blue   { --btn-color: var(--color-blue);   --btn-shade: var(--shade-blue); }
+    .btn-yellow { --btn-color: var(--color-yellow); --btn-shade: var(--shade-yellow); }
+    .btn-green  { --btn-color: var(--color-green);  --btn-shade: var(--shade-green); }
+    .btn-white  { --btn-color: var(--color-white);  --btn-shade: var(--shade-white); }
+
+    
+    .panel-divider {
+        height: 2px;
+        width: 100%;
+        
+        background: var(--panel-gap-dark);
+        border-bottom: 1px solid var(--panel-gap-light);
+    }
+
+    .inventory-section {
+        padding: 40px 50px 50px;
+        background: rgba(255,255,255,0.1);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+    }
+
+    .data-table th {
+        text-align: left;
+        padding-bottom: 20px;
+        color: var(--text-label);
+        font-weight: 500;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--panel-gap-dark);
+        box-shadow: 0 1px 0 var(--panel-gap-light);
+    }
+
+    .data-table td {
+        padding: 16px 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        vertical-align: middle;
+    }
+
+    .col-id { font-weight: 700; width: 20%; }
+    .col-type { color: var(--text-muted); width: 30%; }
+    .col-stock { text-align: right; width: 20%; padding-right: 20px; }
+    .col-action { width: 30%; text-align: right; }
+
+    .color-swatch {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    
+    .action-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-main);
+        background: #E8E8E4;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-top-color: rgba(255,255,255,0.8);
+        border-left-color: rgba(255,255,255,0.8);
+        padding: 6px 12px;
+        border-radius: 3px;
+        cursor: pointer;
+        box-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .action-btn:active {
+        background: #DFDFDB;
+        border-color: rgba(0,0,0,0.1);
+        border-bottom-color: rgba(255,255,255,0.8);
+        border-right-color: rgba(255,255,255,0.8);
+        box-shadow: inset 1px 1px 2px rgba(0,0,0,0.05);
+    }
+
+    
+    .panel-footer {
+        padding: 0 50px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+    
+    .footer-text {
+        font-weight: 500;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+    }
+
+    
+    @media (max-width: 600px) {
+        .device-panel { border-radius: 0; }
+        body { padding: 0; background: var(--casing-bg); }
+        .panel-header, .inventory-section, .panel-footer { padding-left: 20px; padding-right: 20px; }
+        .controls-section { gap: 15px; }
+        .grille-svg { transform: scale(0.85); }
+        .btn-well { transform: scale(0.9); }
+        .col-stock { display: none; }
+    }
+</style>
+</head>
+<body vid="9">
+
+<main class="device-panel" vid="10">
+    
+    <header class="panel-header" vid="11">
+        <div class="brand" vid="12">SYSTEM / BAUSTEIN</div>
+        <div class="model-number" vid="13">VOL.01</div>
+    </header>
+
+    <section class="hero-section" vid="14">
+        
+        <svg class="grille-svg" id="hero-grille" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" vid="15">
+            <defs vid="16">
+                
+                <radialGradient id="block-light" cx="30%" cy="30%" r="70%" vid="17">
+                    <stop offset="0%" stop-color="rgba(255,255,255,0.5)" vid="18"></stop>
+                    <stop offset="100%" stop-color="rgba(0,0,0,0)" vid="19"></stop>
+                </radialGradient>
+            </defs>
+            <g id="grille-pattern" vid="20"></g>
+        </svg>
+    </section>
+
+    <section class="controls-section" vid="21">
+        <div class="control-group" vid="22">
+            <span class="control-label" vid="23">R-30</span>
+            <button class="hardware-btn btn-red" aria-label="Filter Red Blocks" onclick="triggerHardware(this, 'red')" vid="24">
+                <div class="btn-well" vid="25"><div class="btn-cap" vid="26"></div></div>
+            </button>
+        </div>
+        <div class="control-group" vid="27">
+            <span class="control-label" vid="28">B-55</span>
+            <button class="hardware-btn btn-blue" aria-label="Filter Blue Blocks" onclick="triggerHardware(this, 'blue')" vid="29">
+                <div class="btn-well" vid="30"><div class="btn-cap" vid="31"></div></div>
+            </button>
+        </div>
+        <div class="control-group" vid="32">
+            <span class="control-label" vid="33">Y-A9</span>
+            <button class="hardware-btn btn-yellow" aria-label="Filter Yellow Blocks" onclick="triggerHardware(this, 'yellow')" vid="34">
+                <div class="btn-well" vid="35"><div class="btn-cap" vid="36"></div></div>
+            </button>
+        </div>
+        <div class="control-group" vid="37">
+            <span class="control-label" vid="38">G-85</span>
+            <button class="hardware-btn btn-green" aria-label="Filter Green Blocks" onclick="triggerHardware(this, 'green')" vid="39">
+                <div class="btn-well" vid="40"><div class="btn-cap" vid="41"></div></div>
+            </button>
+        </div>
+        <div class="control-group" vid="42">
+            <span class="control-label" vid="43">W-F4</span>
+            <button class="hardware-btn btn-white" aria-label="Filter White Blocks" onclick="triggerHardware(this, 'white')" vid="44">
+                <div class="btn-well" vid="45"><div class="btn-cap" vid="46"></div></div>
+            </button>
+        </div>
+    </section>
+
+    <div class="panel-divider" vid="47"></div>
+
+    <section class="inventory-section" vid="48">
+        <table class="data-table" vid="49">
+            <thead vid="50">
+                <tr vid="51">
+                    <th vid="52">Ident Nr.</th>
+                    <th vid="53">Specification</th>
+                    <th class="col-stock" vid="54">Stock</th>
+                    <th class="col-action" vid="55">Requisition</th>
+                </tr>
+            </thead>
+            <tbody vid="56">
+                <tr class="inv-row" data-color="red" vid="57">
+                    <td class="col-id" vid="58"><span class="color-swatch" style="background: var(--color-red);" vid="59"></span> 3001-R</td>
+                    <td class="col-type" vid="60">2x4 Standard Baustein</td>
+                    <td class="col-stock" vid="61">14,020</td>
+                    <td class="col-action" vid="62"><button class="action-btn" vid="63">[ ADD ]</button></td>
+                </tr>
+                <tr class="inv-row" data-color="blue" vid="64">
+                    <td class="col-id" vid="65"><span class="color-swatch" style="background: var(--color-blue);" vid="66"></span> 3002-B</td>
+                    <td class="col-type" vid="67">2x3 Standard Baustein</td>
+                    <td class="col-stock" vid="68">8,450</td>
+                    <td class="col-action" vid="69"><button class="action-btn" vid="70">[ ADD ]</button></td>
+                </tr>
+                <tr class="inv-row" data-color="yellow" vid="71">
+                    <td class="col-id" vid="72"><span class="color-swatch" style="background: var(--color-yellow);" vid="73"></span> 3003-Y</td>
+                    <td class="col-type" vid="74">2x2 Standard Baustein</td>
+                    <td class="col-stock" vid="75">22,100</td>
+                    <td class="col-action" vid="76"><button class="action-btn" vid="77">[ ADD ]</button></td>
+                </tr>
+                <tr class="inv-row" data-color="green" vid="78">
+                    <td class="col-id" vid="79"><span class="color-swatch" style="background: var(--color-green);" vid="80"></span> 3004-G</td>
+                    <td class="col-type" vid="81">1x2 Standard Baustein</td>
+                    <td class="col-stock" vid="82">19,005</td>
+                    <td class="col-action" vid="83"><button class="action-btn" vid="84">[ ADD ]</button></td>
+                </tr>
+                 <tr class="inv-row" data-color="white" vid="85">
+                    <td class="col-id" vid="86"><span class="color-swatch" style="background: var(--color-white);" vid="87"></span> 3005-W</td>
+                    <td class="col-type" vid="88">1x4 Standard Baustein</td>
+                    <td class="col-stock" vid="89">6,300</td>
+                    <td class="col-action" vid="90"><button class="action-btn" vid="91">[ ADD ]</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <footer class="panel-footer" vid="92">
+        <div class="footer-text" vid="93">Modul-Katalog</div>
+        <div class="model-number" vid="94">DR-68</div>
+    </footer>
+
+</main>
+
+<script vid="95">
+    
+    const colors = {
+        'red': 'var(--color-red)',
+        'blue': 'var(--color-blue)',
+        'yellow': 'var(--color-yellow)',
+        'green': 'var(--color-green)',
+        'white': 'var(--color-white)'
+    };
+    const colorKeys = Object.keys(colors);
+
+    
+    const svgGroup = document.getElementById('grille-pattern');
+    const cx = 160, cy = 160;
+    const holeRadius = 5.5;
+    
+    
+    const rings = [
+        { r: 0, count: 1 },
+        { r: 22, count: 6 },
+        { r: 44, count: 12 },
+        { r: 66, count: 18 },
+        { r: 88, count: 24 },
+        { r: 110, count: 30 },
+        { r: 132, count: 36 }
+    ];
+
+    
+    
+    const totalDots = rings.reduce((sum, ring) => sum + ring.count, 0);
+    const blockIndices = [8, 14, 27, 42, 65, 88, 104, 115, 120, 50, 75]; 
+
+    let dotIndex = 0;
+    let svgContent = '';
+
+    rings.forEach(ring => {
+        for(let i=0; i<ring.count; i++) {
+            
+            let angleOffset = (ring.r === 44 || ring.r === 88 || ring.r === 132) ? (Math.PI / ring.count) : 0;
+            let angle = (i / ring.count) * Math.PI * 2 + angleOffset;
+            
+            let x = cx + ring.r * Math.cos(angle);
+            let y = cy + ring.r * Math.sin(angle);
+
+            let isBlock = blockIndices.includes(dotIndex);
+            
+            if (isBlock) {
+                
+                let colorKey = colorKeys[dotIndex % colorKeys.length];
+                let fill = colors[colorKey];
+                
+                
+                svgContent += `
+                    <g class="grille-block" data-block-color="${colorKey}" style="transform-origin: ${x}px ${y}px">
+                        <circle cx="${x}" cy="${y}" r="${holeRadius + 0.5}" fill="${fill}" />
+                        <circle cx="${x}" cy="${y}" r="${holeRadius + 0.5}" fill="url(#block-light)" />
+                    </g>
+                `;
+            } else {
+                
+                svgContent += `<circle cx="${x}" cy="${y}" r="${holeRadius}" class="grille-hole" />`;
+            }
+            dotIndex++;
+        }
+    });
+
+    svgGroup.innerHTML = svgContent;
+
+    
+    function triggerHardware(btnElement, targetColor) {
+        
+        const allBtns = document.querySelectorAll('.hardware-btn');
+        let isActivating = !btnElement.classList.contains('is-active');
+        
+        allBtns.forEach(btn => btn.classList.remove('is-active'));
+        if (isActivating) {
+            btnElement.classList.add('is-active');
+        }
+
+        
+        const rows = document.querySelectorAll('.inv-row');
+        rows.forEach(row => {
+            if (!isActivating) {
+                row.style.display = 'table-row'; 
+            } else {
+                if (row.getAttribute('data-color') === targetColor) {
+                    row.style.display = 'table-row';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+
+        
+        const blocks = document.querySelectorAll('.grille-block');
+        blocks.forEach(block => {
+            if (isActivating && block.getAttribute('data-block-color') !== targetColor) {
+                block.style.opacity = '0.3';
+                block.style.transform = 'scale(0.9)';
+            } else {
+                block.style.opacity = '1';
+                block.style.transform = 'scale(1)';
+                
+                if (isActivating && block.getAttribute('data-block-color') === targetColor) {
+                    block.style.transform = 'scale(1.15)';
+                    setTimeout(() => block.style.transform = 'scale(1)', 150);
+                }
+            }
+        });
+    }
+</script>
+
+</body></html>

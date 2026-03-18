@@ -1,0 +1,755 @@
+<html lang="en" vid="0">
+
+<head vid="1">
+    <meta charset="UTF-8" vid="2">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+    <title vid="4">10OOM | Ten Orders of Magnitude</title>
+
+
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" vid="5">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" vid="6">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&amp;family=Teko:wght@400;600&amp;display=swap"
+        rel="stylesheet" vid="7">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" vid="8"></script>
+
+    <style vid="9">
+        :root {
+            --bg: #161521;
+            --chalk: rgba(226, 224, 229, 0.85);
+            --chalk-dim: rgba(226, 224, 229, 0.4);
+            --chalk-faint: rgba(226, 224, 229, 0.15);
+            --red: #d45c5c;
+            --blue: #5a8ac4;
+            --purple: #9b6fc7;
+
+            --font-mono: 'Space Mono', monospace;
+            --font-head: 'Teko', sans-serif;
+
+            --border: 1px solid var(--chalk-dim);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--chalk);
+            font-family: var(--font-mono);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            cursor: crosshair;
+        }
+
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+
+        #svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .connector-line {
+            fill: none;
+            stroke: var(--chalk-dim);
+            stroke-width: 1px;
+            stroke-dasharray: 4 4;
+            transition: stroke 0.3s, stroke-width 0.3s;
+        }
+
+
+        #schematic-board {
+            position: relative;
+            z-index: 2;
+            width: 95vw;
+            max-width: 1600px;
+            height: 90vh;
+            border: 1px solid var(--chalk-faint);
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto 1fr auto;
+            padding: 2rem;
+            pointer-events: none;
+        }
+
+
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+
+
+        h1,
+        h2,
+        h3 {
+            font-family: var(--font-head);
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            line-height: 1;
+        }
+
+        .text-block {
+            border: var(--border);
+            padding: 1rem;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            background: rgba(22, 21, 33, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .label-sm {
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            color: var(--chalk-dim);
+            text-transform: uppercase;
+        }
+
+
+        .top-theory {
+            grid-column: 1 / -1;
+            grid-row: 1;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .top-theory h1 {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            word-spacing: 0.5em;
+            margin-bottom: 0.5rem;
+            color: var(--chalk);
+        }
+
+        .top-theory p {
+            font-family: var(--font-head);
+            font-size: clamp(1rem, 2vw, 1.5rem);
+            color: var(--chalk-dim);
+            letter-spacing: 0.15em;
+        }
+
+
+        .nodes-container {
+            grid-column: 1 / -1;
+            grid-row: 2;
+            position: relative;
+        }
+
+        .node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-decoration: none;
+            color: var(--chalk);
+            transition: all 0.2s ease;
+        }
+
+        .node:hover {
+            color: #fff;
+            transform: scale(1.02);
+        }
+
+        .node-id {
+            font-size: 0.7rem;
+            color: var(--chalk-dim);
+            margin-bottom: 0.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .node-id::after {
+            content: '';
+            display: block;
+            width: 30px;
+            height: 1px;
+            background: var(--chalk-dim);
+        }
+
+        .node:hover .node-id {
+            color: var(--blue);
+        }
+
+        .node:hover .node-id::after {
+            background: var(--blue);
+        }
+
+        .node-title {
+            font-family: var(--font-head);
+            font-size: 2.5rem;
+            letter-spacing: 0.05em;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .node-sub {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            max-width: 180px;
+            margin-top: 0.2rem;
+        }
+
+
+        #node-center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            align-items: center;
+        }
+
+        #node-center .node-id {
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        #node-center .node-id::after {
+            display: none;
+        }
+
+        #node-center .node-title {
+            font-size: 4rem;
+            color: var(--purple);
+        }
+
+        #node-center:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        #node-tenth {
+            top: 15%;
+            left: 10%;
+        }
+
+        #node-51folds {
+            top: 75%;
+            left: 15%;
+        }
+
+        #node-apps {
+            top: 20%;
+            right: 10%;
+            align-items: flex-end;
+        }
+
+        #node-apps .node-id {
+            flex-direction: row-reverse;
+        }
+
+        #node-apps .node-sub {
+            text-align: right;
+        }
+
+        #node-social {
+            top: 80%;
+            right: 15%;
+            align-items: flex-end;
+        }
+
+        #node-social .node-id {
+            flex-direction: row-reverse;
+        }
+
+        #node-social .node-sub {
+            text-align: right;
+        }
+
+
+        .bottom-left-legend {
+            grid-column: 1;
+            grid-row: 3;
+            align-self: end;
+            max-width: 300px;
+        }
+
+        .bottom-right-legend {
+            grid-column: 3;
+            grid-row: 3;
+            align-self: end;
+            justify-self: end;
+            max-width: 320px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--chalk-faint);
+            padding-bottom: 0.2rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+
+        .scale-cycle {
+            grid-column: 2;
+            grid-row: 3;
+            align-self: end;
+            justify-self: center;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border: var(--border);
+            padding: 0.5rem 2rem;
+            border-radius: 40px;
+            background: rgba(22, 21, 33, 0.8);
+        }
+
+        .scale-point {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .scale-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            border: 1px solid var(--chalk);
+        }
+
+        .scale-dot.red {
+            border-color: var(--red);
+            box-shadow: 0 0 5px var(--red);
+        }
+
+        .scale-dot.blue {
+            border-color: var(--blue);
+            box-shadow: 0 0 5px var(--blue);
+        }
+
+        .scale-dot.purple {
+            border-color: var(--purple);
+            background: var(--purple);
+        }
+
+        .scale-line {
+            width: 40px;
+            height: 1px;
+            background: var(--chalk-dim);
+        }
+
+
+        .hide {
+            display: none;
+        }
+
+        @media (max-width: 1024px) {
+            #schematic-board {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: 90vh;
+                overflow-y: auto;
+                pointer-events: auto;
+            }
+
+            .nodes-container {
+                height: 60vh;
+            }
+
+            #node-tenth {
+                top: 5%;
+                left: 5%;
+            }
+
+            #node-51folds {
+                top: 85%;
+                left: 5%;
+            }
+
+            #node-apps {
+                top: 5%;
+                right: 5%;
+            }
+
+            #node-social {
+                top: 85%;
+                right: 5%;
+            }
+
+            .scale-cycle {
+                display: none;
+            }
+
+            .bottom-left-legend,
+            .bottom-right-legend {
+                grid-column: 1;
+                margin-top: 2rem;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body vid="10">
+
+
+    <div id="canvas-container" vid="11"></div>
+
+
+    <svg id="svg-layer" vid="12">
+        <defs vid="13">
+            <marker id="arrow-red" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6"
+                orient="auto-start-reverse" vid="14">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)" vid="15"></path>
+            </marker>
+            <marker id="arrow-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6"
+                orient="auto-start-reverse" vid="16">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--blue)" vid="17"></path>
+            </marker>
+            <marker id="arrow-chalk" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4"
+                orient="auto-start-reverse" vid="18">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--chalk-dim)" vid="19"></path>
+            </marker>
+        </defs>
+
+    </svg>
+
+
+    <main id="schematic-board" vid="20">
+
+        <div class="top-theory" vid="21">
+            <h1 vid="22">TEN ORDERS OF MAGNITUDE WAVES WIND THE CREATIVE CLOCK CENTRIPETALLY.</h1>
+            <p vid="23">ANODE TRANSVERSE WAVES UNWIND IT CENTRIFUGALLY - -</p>
+        </div>
+
+        <div class="nodes-container" vid="24">
+
+            <a href="#" class="node pointer-events-auto" id="node-center" data-target="center" vid="25">
+                <span class="node-id" vid="26">SYSTEM HUB [10^0]</span>
+                <span class="node-title" vid="27">10OOM</span>
+                <span class="label-sm" style="text-align:center;" vid="28">CENTRAL AGGREGATION POINT</span>
+            </a>
+
+
+            <a href="https://thetenthorder.com" target="_blank" class="node pointer-events-auto" id="node-tenth"
+                data-target="tenth" vid="29">
+                <span class="node-id" vid="30">[N-A] MAGNITUDE</span>
+                <span class="node-title" vid="31">THE TENTH ORDER</span>
+                <span class="node-sub" vid="32">Primary creative vector. Conceptual and visual exploration at
+                    scale.</span>
+            </a>
+
+            <a href="https://51folds.ai" target="_blank" class="node pointer-events-auto" id="node-51folds"
+                data-target="folds" vid="33">
+                <span class="node-id" vid="34">[N-B] SYNTHESIS</span>
+                <span class="node-title" vid="35">51FOLDS.AI</span>
+                <span class="node-sub" vid="36">Generative architecture. Folding high-dimensional data into
+                    structure.</span>
+            </a>
+
+            <a href="#" class="node pointer-events-auto" id="node-apps" data-target="apps" vid="37">
+                <span class="node-id" vid="38">CONSTRUCTS [N-C]</span>
+                <span class="node-title" vid="39">APPARATUS</span>
+                <span class="node-sub" vid="40">Functional utilities, tools, and executable environments.</span>
+            </a>
+
+            <a href="#" class="node pointer-events-auto" id="node-social" data-target="social" vid="41">
+                <span class="node-id" vid="42">VECTORS [N-D]</span>
+                <span class="node-title" vid="43">TRANSMISSIONS</span>
+                <span class="node-sub" vid="44">Outward propagation across external social networks.</span>
+            </a>
+        </div>
+
+
+        <div class="text-block pointer-events-auto bottom-left-legend" vid="45">
+            <div class="label-sm" style="margin-bottom:0.5rem; color:var(--red);" vid="46">WHEN CATHODE WAVES COLLIDE
+            </div>
+            <p style="margin-bottom: 0.5rem;" vid="47">AT MAXIMUM COMPRESSION POINTS AT WAVE CRESTS OR TROUGHS THEY ARE
+                EQUALLY BALANCED BY EQUAL EXPANSION AT OPPOSITE INTERCHANGING POINTS.</p>
+            <div class="data-row" vid="48">
+                <span vid="49">A. CENTRIPETAL</span>
+                <span vid="50">AGGREGATE [10OOM]</span>
+            </div>
+            <div class="data-row" vid="51">
+                <span vid="52">B. CENTRIFUGAL</span>
+                <span vid="53">DISPERSE [NODES]</span>
+            </div>
+        </div>
+
+        <div class="scale-cycle pointer-events-auto" vid="54">
+            <span class="label-sm" vid="55">THE WAVE CYCLE.</span>
+            <div class="scale-point" vid="56">
+                <div class="scale-dot red" vid="57"></div><span class="label-sm" vid="58">10^-10</span>
+            </div>
+            <div class="scale-line" vid="59"></div>
+            <div class="scale-point" vid="60">
+                <div class="scale-dot blue" vid="61"></div><span class="label-sm" vid="62">10^-5</span>
+            </div>
+            <div class="scale-line" vid="63"></div>
+            <div class="scale-point" vid="64">
+                <div class="scale-dot purple" vid="65"></div><span class="label-sm" vid="66">10^0</span>
+            </div>
+            <div class="scale-line" vid="67"></div>
+            <div class="scale-point" vid="68">
+                <div class="scale-dot blue" vid="69"></div><span class="label-sm" vid="70">10^5</span>
+            </div>
+            <div class="scale-line" vid="71"></div>
+            <div class="scale-point" vid="72">
+                <div class="scale-dot red" vid="73"></div><span class="label-sm" vid="74">10^10</span>
+            </div>
+        </div>
+
+        <div class="text-block pointer-events-auto bottom-right-legend" vid="75">
+            <p vid="76">10OOM GENERATES DENSITY BY MULTIPLYING FOCUS ALONG CUBE DYNAMETERS - NODE TRANSVERSE WAVES
+                RADIATE DATA BY DIVIDING GRAVITY AND RETURNING TO ZERO VIA DIAGONALS.</p>
+            <div style="margin-top: 1rem; text-align: right; font-family: var(--font-head); letter-spacing: 0.2em; font-size: 1.2rem; color: var(--chalk-dim);"
+                vid="77">
+                V. 1.0.0
+            </div>
+        </div>
+
+    </main>
+
+    <script vid="78">
+
+        const scene = new THREE.Scene();
+
+        const aspect = window.innerWidth / window.innerHeight;
+        const d = 10;
+        const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        camera.position.set(20, 20, 20);
+        camera.lookAt(scene.position);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+
+        const c_chalk = 0xe2e0e5;
+        const c_red = 0xd45c5c;
+        const c_blue = 0x5a8ac4;
+        const c_purple = 0x9b6fc7;
+
+        const group = new THREE.Group();
+        scene.add(group);
+
+
+        const mat = (color, opacity = 0.4) => new THREE.LineBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: opacity,
+            linewidth: 1
+        });
+
+
+        const cubeGeo = new THREE.BoxGeometry(8, 8, 8);
+        const cubeEdges = new THREE.EdgesGeometry(cubeGeo);
+        const cube1 = new THREE.LineSegments(cubeEdges, mat(c_chalk, 0.2));
+        group.add(cube1);
+
+        const cube2 = new THREE.LineSegments(cubeEdges, mat(c_chalk, 0.1));
+        cube2.rotation.set(Math.PI / 4, Math.PI / 4, 0);
+        cube2.scale.set(1.5, 1.5, 1.5);
+        group.add(cube2);
+
+
+        const octGeo = new THREE.OctahedronGeometry(6);
+        const octEdges = new THREE.EdgesGeometry(octGeo);
+        const octahedron = new THREE.LineSegments(octEdges, mat(c_purple, 0.3));
+        octahedron.position.set(12, -4, -5);
+        group.add(octahedron);
+
+
+        const circleGroup = new THREE.Group();
+        for (let i = 1; i <= 6; i++) {
+            const circleGeo = new THREE.CircleGeometry(i * 1.2, 64);
+            const edges = new THREE.EdgesGeometry(circleGeo);
+            const circle = new THREE.LineSegments(edges, mat(i % 2 == 0 ? c_purple : c_chalk, 0.4));
+            circleGroup.add(circle);
+        }
+        circleGroup.position.set(-10, 5, 0);
+        circleGroup.rotation.x = Math.PI / 3;
+        group.add(circleGroup);
+
+
+        function createWave(color, amplitude, frequency, offset, length) {
+            const points = [];
+            for (let i = -length / 2; i <= length / 2; i += 0.2) {
+                points.push(new THREE.Vector3(i, Math.sin(i * frequency + offset) * amplitude, Math.cos(i * frequency + offset) * amplitude));
+            }
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            return new THREE.Line(geo, mat(color, 0.6));
+        }
+
+        const waveRed = createWave(c_red, 3, 0.5, 0, 30);
+        waveRed.rotation.z = Math.PI / 4;
+        group.add(waveRed);
+
+        const waveBlue = createWave(c_blue, 3, 0.5, Math.PI, 30);
+        waveBlue.rotation.z = Math.PI / 4;
+        group.add(waveBlue);
+
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+
+
+            group.rotation.y = Math.sin(t * 0.05) * 0.2;
+            group.rotation.x = Math.cos(t * 0.05) * 0.1;
+
+            cube1.rotation.x = t * 0.1;
+            cube1.rotation.y = t * 0.15;
+
+            octahedron.rotation.y = -t * 0.2;
+
+
+            waveRed.rotation.x = t * 0.5;
+            waveBlue.rotation.x = t * 0.5;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+
+        const svgLayer = document.getElementById('svg-layer');
+        const nodes = {
+            center: document.getElementById('node-center'),
+            tenth: document.getElementById('node-tenth'),
+            folds: document.getElementById('node-51folds'),
+            apps: document.getElementById('node-apps'),
+            social: document.getElementById('node-social')
+        };
+
+        let paths = {};
+
+        function getCenter(el) {
+            const rect = el.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+        }
+
+        function createPath(id, color, isDashed = true) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('id', `path-${id}`);
+            path.setAttribute('class', 'connector-line');
+            if (!isDashed) path.style.strokeDasharray = 'none';
+            path.style.stroke = `var(--${color})`;
+
+
+            let markerId = color === 'chalk' || color === 'chalk-dim' ? 'arrow-chalk' : `arrow-${color}`;
+            path.setAttribute('marker-end', `url(#${markerId})`);
+
+            svgLayer.appendChild(path);
+            return path;
+        }
+
+
+        paths.tenth = createPath('tenth', 'blue');
+        paths.folds = createPath('folds', 'red');
+        paths.apps = createPath('apps', 'chalk-dim');
+        paths.social = createPath('social', 'chalk-dim');
+
+        function updateConnections() {
+            const cPos = getCenter(nodes.center);
+
+            for (const [key, path] of Object.entries(paths)) {
+                if (!nodes[key]) continue;
+                const nPos = getCenter(nodes[key]);
+
+
+
+                const dx = Math.abs(nPos.x - cPos.x) * 0.5;
+                const dPath = `M ${cPos.x} ${cPos.y} 
+                               C ${cPos.x + (nPos.x > cPos.x ? dx : -dx)} ${cPos.y}, 
+                                 ${nPos.x - (nPos.x > cPos.x ? dx : -dx)} ${nPos.y}, 
+                                 ${nPos.x} ${nPos.y}`;
+
+                path.setAttribute('d', dPath);
+            }
+        }
+
+
+        updateConnections();
+        window.addEventListener('resize', () => {
+
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.left = -d * aspect;
+            camera.right = d * aspect;
+            camera.top = d;
+            camera.bottom = -d;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+
+            updateConnections();
+        });
+
+
+        const allNodes = document.querySelectorAll('.node');
+        allNodes.forEach(node => {
+            node.addEventListener('mouseenter', (e) => {
+                const target = e.currentTarget.dataset.target;
+                if (target !== 'center' && paths[target]) {
+                    paths[target].style.strokeWidth = '2px';
+                    paths[target].style.strokeDasharray = 'none';
+                    paths[target].style.stroke = 'var(--chalk)';
+                } else if (target === 'center') {
+
+                    Object.values(paths).forEach(p => {
+                        p.style.strokeWidth = '1.5px';
+                        p.style.stroke = 'var(--purple)';
+                    });
+                }
+            });
+            node.addEventListener('mouseleave', (e) => {
+                const target = e.currentTarget.dataset.target;
+                if (target !== 'center' && paths[target]) {
+
+                    let color = 'var(--chalk-dim)';
+                    if (target === 'tenth') color = 'var(--blue)';
+                    if (target === 'folds') color = 'var(--red)';
+
+                    paths[target].style.strokeWidth = '1px';
+                    paths[target].style.strokeDasharray = '4 4';
+                    paths[target].style.stroke = color;
+                } else if (target === 'center') {
+
+                    paths.tenth.style.stroke = 'var(--blue)';
+                    paths.folds.style.stroke = 'var(--red)';
+                    paths.apps.style.stroke = 'var(--chalk-dim)';
+                    paths.social.style.stroke = 'var(--chalk-dim)';
+                    Object.values(paths).forEach(p => {
+                        p.style.strokeWidth = '1px';
+                        p.style.strokeDasharray = '4 4';
+                    });
+                }
+            });
+        });
+
+    </script>
+
+</body>
+
+</html>
