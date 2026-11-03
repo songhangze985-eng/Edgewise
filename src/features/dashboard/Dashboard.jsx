@@ -42,13 +42,18 @@ const RADAR_DIMENSION_TIPS = {
 
 function FlipUnit({ value, label }) {
   const prevRef = useRef(value)
+  const [prevValue, setPrevValue] = useState(value)
   const [flipping, setFlipping] = useState(false)
 
   useEffect(() => {
     if (prevRef.current !== value) {
+      setPrevValue(prevRef.current)
       prevRef.current = value
       setFlipping(true)
-      const timer = window.setTimeout(() => setFlipping(false), 460)
+      const timer = window.setTimeout(() => {
+        setFlipping(false)
+        setPrevValue(value)
+      }, 460)
       return () => window.clearTimeout(timer)
     }
     return undefined
@@ -61,8 +66,18 @@ function FlipUnit({ value, label }) {
           <span>{value}</span>
         </div>
         <div className={styles['flip-lower']}>
-          <span>{value}</span>
+          <span>{flipping ? prevValue : value}</span>
         </div>
+        {flipping && (
+          <>
+            <div className={`${styles['flip-upper']} ${styles['flip-leaf-front']}`} aria-hidden="true">
+              <span>{prevValue}</span>
+            </div>
+            <div className={`${styles['flip-lower']} ${styles['flip-leaf-back']}`} aria-hidden="true">
+              <span>{value}</span>
+            </div>
+          </>
+        )}
         <div className={styles['flip-hinge']} aria-hidden="true">
           <span className={styles['flip-notch-left']} />
           <span className={styles['flip-notch-right']} />
@@ -99,11 +114,11 @@ function MechanicalFlipClock() {
   )
 }
 
-function RadarCornerTick({ payload, x, y, cx, cy }) {
+function RadarCornerTick({ payload, x, y, cx, cy, onHoverAxis }) {
   const dx = x - cx
   const dy = y - cy
   const dist = Math.hypot(dx, dy) || 1
-  const offset = 18
+  const offset = 20
   const nx = x + (dx / dist) * offset
   const ny = y + (dy / dist) * offset
   let textAnchor = 'middle'
@@ -111,7 +126,12 @@ function RadarCornerTick({ payload, x, y, cx, cy }) {
   else if (dx < -16) textAnchor = 'end'
 
   return (
-    <g transform={`translate(${nx},${ny})`}>
+    <g
+      transform={`translate(${nx},${ny})`}
+      className={styles['radar-corner-tick-group']}
+      onMouseEnter={() => onHoverAxis?.(payload.value)}
+      onMouseLeave={() => onHoverAxis?.(null)}
+    >
       <text
         x={0}
         y={0}
@@ -162,6 +182,10 @@ function Dashboard() {
   const savedSessions = getRecentSessions(4)
   const rank = rankFromAvgScore(stats.avgScore || 0)
   const credits = stats.credits || user?.credits || 0
+  const [hoveredCornerAxis, setHoveredCornerAxis] = useState(null)
+  const hoveredCornerItem = hoveredCornerAxis
+    ? radarData.find((d) => d.axis === hoveredCornerAxis) || null
+    : null
 
   useEffect(() => {
     refresh().catch(() => {})
@@ -267,12 +291,12 @@ function Dashboard() {
               <RadarChart
                 data={radarData}
                 outerRadius="64%"
-                margin={{ top: 28, right: 48, bottom: 28, left: 48 }}
+                margin={{ top: 28, right: 52, bottom: 28, left: 52 }}
               >
                 <PolarGrid stroke="var(--line)" />
                 <PolarAngleAxis
                   dataKey="axis"
-                  tick={(props) => <RadarCornerTick {...props} />}
+                  tick={(props) => <RadarCornerTick {...props} onHoverAxis={setHoveredCornerAxis} />}
                 />
                 <PolarRadiusAxis
                   angle={90}
@@ -296,6 +320,11 @@ function Dashboard() {
                 />
               </RadarChart>
             </ResponsiveContainer>
+            {hoveredCornerItem && (
+              <div className={styles['radar-corner-popup-overlay']}>
+                <RadarHoverPopup active={true} payload={[{ payload: hoveredCornerItem }]} />
+              </div>
+            )}
           </div>
         </div>
 

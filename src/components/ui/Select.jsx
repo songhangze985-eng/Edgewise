@@ -41,6 +41,7 @@ export const Select = forwardRef(function Select(
         <select
           ref={ref}
           id={id}
+          data-custom-select="true"
           disabled={disabled}
           aria-invalid={Boolean(error) || undefined}
           aria-describedby={errorId}

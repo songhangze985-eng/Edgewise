@@ -207,9 +207,9 @@
 .jd-textarea {
   width: 100%;
   min-height: 120px;
-  background: rgba(22, 21, 33, 0.6);
+  background-color: var(--bg-elevated);
   border: var(--border);
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-md, 10px);
   padding: var(--sp-md);
   color: var(--chalk);
   font-family: var(--font-mono);
@@ -217,6 +217,7 @@
   line-height: 1.6;
   resize: vertical;
   outline: none;
+  box-sizing: border-box;
   transition: border-color 0.3s ease;
 }
 
@@ -237,7 +238,7 @@
   font-size: 0.72rem;
   font-weight: 500;
   padding: 10px 20px;
-  border-radius: 7px;
+  border-radius: var(--radius-md, 10px);
   cursor: pointer;
   letter-spacing: 0.05em;
   position: relative;
@@ -300,7 +301,7 @@
 .match-bar-bg {
   flex: 1;
   height: 8px;
-  background: rgba(22, 21, 33, 0.8);
+  background-color: var(--bg-elevated);
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--chalk-faint);
@@ -421,14 +422,14 @@
 .experience-card {
   padding: var(--sp-md);
   border: var(--border);
-  border-radius: var(--r-sm);
-  background: rgba(22, 21, 33, 0.5);
+  border-radius: var(--radius-md, 10px);
+  background-color: var(--bg-elevated);
   transition: all 0.2s ease;
 }
 
 .experience-card:hover {
   border-color: var(--purple);
-  background: rgba(155, 111, 199, 0.04);
+  background-color: rgba(155, 111, 199, 0.06);
 }
 
 .exp-header {
@@ -499,14 +500,14 @@
 .project-card {
   padding: var(--sp-md);
   border: var(--border);
-  border-radius: var(--r-sm);
-  background: rgba(22, 21, 33, 0.5);
+  border-radius: var(--radius-md, 10px);
+  background-color: var(--bg-elevated);
   transition: all 0.2s ease;
 }
 
 .project-card:hover {
   border-color: var(--blue);
-  background: rgba(90, 138, 196, 0.04);
+  background-color: rgba(90, 138, 196, 0.06);
 }
 
 .project-name {
@@ -712,7 +713,7 @@
 
 .btn-well {
   border-radius: 8px;
-  background: rgba(22, 21, 33, 0.8);
+  background-color: var(--bg-elevated);
   box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.3), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
   position: relative;
   display: inline-flex;
@@ -762,9 +763,9 @@
 
 /* Streaming Text Area */
 .streaming-output {
-  background: rgba(22, 21, 33, 0.6);
+  background-color: var(--bg-elevated);
   border: var(--border);
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-md, 10px);
   padding: var(--sp-xl);
   min-height: 200px;
   max-height: 500px;
@@ -934,7 +935,7 @@
   font-family: var(--font-mono);
   font-size: 0.72rem;
   padding: 8px 14px;
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-md, 10px);
   border: 1px solid var(--chalk-faint);
   background: transparent;
   color: var(--chalk-dim);
@@ -953,14 +954,16 @@
 
 .jd-select {
   width: 100%;
+  height: 40px;
   margin-top: var(--sp-xs);
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
+  padding: 0 38px 0 12px;
+  border-radius: var(--radius-md, 10px);
   border: var(--border);
-  background: rgba(22, 21, 33, 0.6);
+  background-color: var(--bg-elevated);
   color: var(--chalk);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  box-sizing: border-box;
 }
 
 .jd-inline-warn {
@@ -1026,29 +1029,34 @@
 
 .kw-add-row {
   display: flex;
+  align-items: center;
   gap: var(--sp-sm);
   margin-top: var(--sp-sm);
 }
 
 .kw-add-input {
   flex: 1;
-  padding: 6px 10px;
-  border-radius: var(--r-sm);
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-md, 10px);
   border: var(--border);
-  background: rgba(22, 21, 33, 0.5);
+  background-color: var(--bg-elevated);
   color: var(--chalk);
   font-size: 0.72rem;
+  box-sizing: border-box;
 }
 
 .kw-add-btn {
+  height: 40px;
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  padding: 6px 12px;
-  border-radius: var(--r-sm);
+  padding: 0 14px;
+  border-radius: var(--radius-md, 10px);
   border: 1px solid var(--chalk-faint);
-  background: transparent;
+  background-color: var(--bg-elevated);
   color: var(--chalk);
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .target-jobs-list {

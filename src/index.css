@@ -197,6 +197,30 @@ a:hover {
    Global Form Controls: Rounded Rectangle + Left-Shifted Select Chevron
    + Unified Row/Column Sizing
    ========================================================================== */
+:where(
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  textarea
+) {
+  border: 1px solid var(--line);
+  background-color: var(--bg-elevated);
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: var(--text-sub, 13px);
+}
+
+:where(textarea) {
+  padding: 10px 12px;
+}
+
+:where(
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"])
+) {
+  height: 40px;
+  min-height: 40px;
+}
+
 select,
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
 textarea {
@@ -215,20 +239,20 @@ select {
 }
 
 /* Global Select Downward Arrow: shifted left (right 14px) so it never hugs the edge */
-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
+select:not([data-custom-select="true"]) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
   padding-right: 38px !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 14px 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 14px 14px !important;
   cursor: pointer;
 }
 
-[data-theme="light"] select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+[data-theme="light"] select:not([data-custom-select="true"]) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
 }
 
 /* Unified sizing for controls in the same row or column */

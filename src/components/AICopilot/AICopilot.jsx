@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './AICopilot.module.css'
 import { postCopilotMicroDone, postCopilotTriage } from '../../api/copilot'
@@ -18,10 +18,14 @@ const TRIAGE_SHORTCUTS = [
  * - Left & bottom edges naturally cropped by canvas frame; ample dark negative space at top-right
  * - Large round chubby face, no mouth, no nose, no eyebrows
  * - Pair of flat low-saturation coral/apricot oval cheek blushes
- * - Two solid near-black vertical capsule eyes (height ~2.8x width, stadium pill shape, no highlights)
+ * - Two solid near-black vertical capsule eyes (height 2.75x width, stadium pill shape, no highlights)
+ * - Generous empty forehead/face space around the eyes and blushes
  * - Chunky flat bangs/side-locks in 2 flat tones + minimal geometric bot ear/fin accents
  */
 export function GrokBotIcon({ className }) {
+  const rawId = useId()
+  const clipId = `grok-bot-canvas-clip-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`
+
   return (
     <svg
       className={className}
@@ -31,12 +35,12 @@ export function GrokBotIcon({ className }) {
       aria-label="AI Copilot"
     >
       <defs>
-        <clipPath id="grok-bot-canvas-clip">
+        <clipPath id={clipId}>
           <rect x="0" y="0" width="100" height="100" rx="22" ry="22" />
         </clipPath>
       </defs>
 
-      <g clipPath="url(#grok-bot-canvas-clip)">
+      <g clipPath={`url(#${clipId})`}>
         {/* Solid dark charcoal background (#121316) with generous top-right negative space */}
         <rect x="0" y="0" width="100" height="100" fill="#121316" />
 
@@ -65,25 +69,25 @@ export function GrokBotIcon({ className }) {
           {/* Large round chubby face — main flat plane */}
           <ellipse cx="1" cy="2" rx="34" ry="31" fill="#F4DDD3" />
 
-          {/* Side hair / bangs shadow layer (1-step darker flat tone) */}
+          {/* Side hair / high bangs shadow layer (leaves generous open forehead above eyes) */}
           <path
-            d="M -38 14 C -40 -16, -24 -38, 4 -38 C 24 -38, 37 -24, 38 -4 C 31 -12, 22 -16, 12 -14 C 4 -22, -10 -22, -18 -12 C -26 -4, -31 6, -38 14 Z"
+            d="M -38 14 C -40 -16, -24 -39, 4 -39 C 24 -39, 37 -25, 38 -6 C 32 -15, 24 -20, 14 -19 C 5 -25, -9 -25, -18 -18 C -26 -10, -31 2, -38 14 Z"
             fill="#B7C2D2"
           />
 
-          {/* Chunky simplified flat bangs & side locks (main flat tone, soft rounded tips) */}
+          {/* Chunky simplified flat bangs & side locks (main flat tone, soft rounded tips high on forehead y <= -15) */}
           <path
-            d="M -36 6 C -36 -22, -18 -40, 6 -40 C 26 -40, 38 -25, 38 -6 C 38 2, 33 5, 29 0 C 25 -8, 19 -14, 12 -14 C 8 -5, 1 -3, -4 -11 C -11 -4, -19 -4, -23 -12 C -27 -2, -33 6, -36 6 Z"
+            d="M -36 6 C -36 -22, -18 -41, 6 -41 C 26 -41, 38 -26, 38 -8 C 38 0, 33 3, 29 -2 C 26 -12, 20 -18, 13 -18 C 8 -14, 1 -14, -4 -19 C -10 -14, -18 -14, -22 -19 C -27 -8, -33 6, -36 6 Z"
             fill="#D9E1EC"
           />
 
           {/* Low-saturation coral/apricot flat oval cheek blushes */}
-          <ellipse cx="-16" cy="14" rx="6.5" ry="3.6" fill="#E0948E" />
-          <ellipse cx="22" cy="14" rx="6.5" ry="3.6" fill="#E0948E" />
+          <ellipse cx="-17" cy="14" rx="6.2" ry="3.5" fill="#E0948E" />
+          <ellipse cx="22" cy="14" rx="6.2" ry="3.5" fill="#E0948E" />
 
-          {/* Two large vertical capsule eyes (height ~2.85x width, pure solid near-black, no highlights/eyebrows) */}
-          <rect x="-11.2" y="-9" width="8.4" height="24" rx="4.2" ry="4.2" fill="#101114" />
-          <rect x="7.8" y="-9" width="8.4" height="24" rx="4.2" ry="4.2" fill="#101114" />
+          {/* Two large vertical capsule eyes (height 2.75x width, pure solid near-black, unobstructed by bangs) */}
+          <rect x="-10.5" y="-6" width="8" height="22" rx="4" ry="4" fill="#101114" />
+          <rect x="7.5" y="-6" width="8" height="22" rx="4" ry="4" fill="#101114" />
         </g>
       </g>
     </svg>

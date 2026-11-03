@@ -261,26 +261,73 @@
   right: 0;
   height: 50%;
   overflow: hidden;
-  display: flex;
-  justify-content: center;
   font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 700;
   color: #f4f6fb;
   letter-spacing: 0.03em;
-  line-height: 32px;
+  backface-visibility: hidden;
+}
+
+.flip-upper > span,
+.flip-lower > span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .flip-upper {
   top: 0;
   background: linear-gradient(180deg, #232736 0%, #171a24 100%);
-  align-items: flex-start;
+}
+
+.flip-upper > span {
+  top: 0;
 }
 
 .flip-lower {
   bottom: 0;
   background: linear-gradient(180deg, #13151e 0%, #1d212f 100%);
-  align-items: flex-end;
+}
+
+.flip-lower > span {
+  top: -100%;
+}
+
+.flip-leaf-front {
+  z-index: 3;
+  transform-origin: 50% 100%;
+  animation: flapUpperFold 230ms ease-in forwards;
+}
+
+.flip-leaf-back {
+  z-index: 3;
+  transform-origin: 50% 0%;
+  transform: rotateX(90deg);
+  animation: flapLowerUnfold 230ms 230ms ease-out forwards;
+}
+
+@keyframes flapUpperFold {
+  0% {
+    transform: rotateX(0deg);
+  }
+  100% {
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flapLowerUnfold {
+  0% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
 }
 
 .flip-hinge {
@@ -526,6 +573,7 @@
 
 /* ---- Radar ---- */
 .radar-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -534,12 +582,30 @@
   margin: -6px 0;
 }
 
+.radar-corner-tick-group {
+  cursor: pointer;
+}
+
 .radar-corner-label {
   fill: var(--ink);
   font-family: var(--font-sans);
   font-size: 14.5px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  transition: fill 0.15s ease;
+}
+
+.radar-corner-tick-group:hover .radar-corner-label {
+  fill: var(--accent);
+}
+
+.radar-corner-popup-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  pointer-events: none;
 }
 
 .radar-tooltip-popup {

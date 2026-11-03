@@ -244,12 +244,15 @@
 }
 
 .result-select {
-  min-width: 132px;
-  height: 36px;
-  padding: 0 36px 0 12px;
+  width: 148px;
+  min-width: 148px;
+  height: 40px;
+  padding: 0 38px 0 12px;
   border: 1px solid var(--chalk-faint);
+  border-radius: var(--radius-md, 10px);
   background-color: var(--bg-elevated);
   color: var(--chalk);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  box-sizing: border-box;
 }

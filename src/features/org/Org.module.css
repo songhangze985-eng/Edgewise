@@ -13,9 +13,9 @@
 
 .panel {
   border: 1px solid var(--chalk-faint);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-md, 10px);
   padding: var(--sp-lg);
-  background: rgba(0, 0, 0, 0.35);
+  background-color: var(--bg-card);
   margin-bottom: var(--sp-md);
 }
 
@@ -48,13 +48,26 @@
 .field select,
 .field textarea {
   width: 100%;
+  height: 40px;
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  padding: 10px 12px;
-  border-radius: var(--r-sm);
+  padding: 0 14px;
+  border-radius: var(--radius-md, 10px);
   border: 1px solid var(--chalk-faint);
-  background: rgba(0, 0, 0, 0.45);
+  background-color: var(--bg-elevated);
   color: var(--chalk);
+  box-sizing: border-box;
+}
+
+.field select {
+  padding-right: 38px;
+}
+
+.field textarea {
+  height: auto;
+  min-height: 96px;
+  padding: 10px 14px;
+  resize: vertical;
 }
 
 .checkboxRow {

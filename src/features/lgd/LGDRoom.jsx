@@ -102,6 +102,7 @@ export default function LGDRoom() {
   const advanceUserStatementRef = useRef(null)
   const userSpokeInSummaryRef = useRef(false)
   const finalizedRef = useRef(false)
+  const turnEpochRef = useRef(0)
 
   const ttsEnabledSetting = useSettingsStore((s) => s.ttsEnabled)
   const captionsEnabled = useSettingsStore((s) => s.captionsEnabled)
@@ -224,6 +225,7 @@ export default function LGDRoom() {
     if (!mountedRef.current) return
     const state = useLgdStore.getState()
 
+    turnEpochRef.current += 1
     stopTts()
     clearTimeout(simulationRef.current)
     clearInterval(typewriterRef.current)
@@ -335,6 +337,7 @@ export default function LGDRoom() {
   async function finalizeLgdSession() {
     if (finalizedRef.current) return
     finalizedRef.current = true
+    turnEpochRef.current += 1
     const lgdState = useLgdStore.getState()
     const transcript = buildTranscriptFromMessages(lgdState.messages)
     const role = roomMetaRef.current.userRole || userRole
@@ -468,15 +471,16 @@ export default function LGDRoom() {
         return
       }
 
+      const turnEpoch = turnEpochRef.current
       setTypingAgent(agent)
       state.setCurrentSpeaker(agent.id)
       simulationRef.current = setTimeout(async () => {
-        if (!mountedRef.current) return
+        if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'personal_statement') return
         const content = await resolveSandboxAgentLine(agent, 'personal_statement', fallbackContent, idx)
-        if (!mountedRef.current) return
+        if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'personal_statement') return
         setTypingAgent(null)
         deliverAgentLine(agent, content, () => {
-          if (!mountedRef.current) return
+          if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'personal_statement') return
           useLgdStore.getState().setCurrentSpeaker(null)
           statementIndexRef.current += 1
           simulationRef.current = setTimeout(speakNext, 900)
@@ -517,16 +521,19 @@ export default function LGDRoom() {
           return
         }
 
+        const turnEpoch = turnEpochRef.current
         setTypingAgent(agent)
         st.setCurrentSpeaker(agent.id)
 
         simulationRef.current = setTimeout(async () => {
-          if (!mountedRef.current || useLgdStore.getState().micGranted) return
+          const cur = useLgdStore.getState()
+          if (!mountedRef.current || turnEpochRef.current !== turnEpoch || cur.phase !== 'free_discussion' || cur.micGranted) return
           const content = await resolveSandboxAgentLine(agent, 'free_discussion', fallbackContent, idx)
-          if (!mountedRef.current || useLgdStore.getState().micGranted) return
+          const after = useLgdStore.getState()
+          if (!mountedRef.current || turnEpochRef.current !== turnEpoch || after.phase !== 'free_discussion' || after.micGranted) return
           setTypingAgent(null)
           deliverAgentLine(agent, content, () => {
-            if (!mountedRef.current) return
+            if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'free_discussion') return
             useLgdStore.getState().setCurrentSpeaker(null)
             scheduleNext()
           }, { interruption: agent.behavior === 'interrupt', sandbox: `${agent.seat}号沙箱` })
@@ -561,18 +568,19 @@ export default function LGDRoom() {
     const reporterAgent = AGENTS.find((a) => a.id === 'logician') || AGENTS[0]
     const pool = RESPONSES.summary_report[reporterAgent.id] || []
     const fallbackContent = pool[0]
+    const turnEpoch = turnEpochRef.current
     setTypingAgent(reporterAgent)
     useLgdStore.getState().setCurrentSpeaker(reporterAgent.id)
     simulationRef.current = setTimeout(async () => {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'summary_report') return
       const content = await resolveSandboxAgentLine(reporterAgent, 'summary_report', fallbackContent, 0)
-      if (!mountedRef.current) return
+      if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'summary_report') return
       setTypingAgent(null)
       deliverAgentLine(
         reporterAgent,
         content,
         () => {
-          if (!mountedRef.current) return
+          if (!mountedRef.current || turnEpochRef.current !== turnEpoch || useLgdStore.getState().phase !== 'summary_report') return
           useLgdStore.getState().setCurrentSpeaker(null)
           finalizeLgdSession()
         },
@@ -582,6 +590,7 @@ export default function LGDRoom() {
   }
 
   function stopAgentSpeech() {
+    turnEpochRef.current += 1
     stopTts()
     clearInterval(typewriterRef.current)
     setDisplayingMessage(null)

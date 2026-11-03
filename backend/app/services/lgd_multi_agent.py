@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -397,6 +398,17 @@ def _synthesize_sandbox_script_line(
     return pool[turn_index % len(pool)]
 
 
+def _normalize_openai_completions_url(base_url: str) -> str:
+    """Normalize and validate an OpenAI-compatible base_url for LGD agent turns."""
+    cleaned = (base_url or "").strip().rstrip("/")
+    parsed = urllib.parse.urlparse(cleaned)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError("Invalid base_url: only http:// and https:// URLs with a valid host are allowed")
+    if cleaned.endswith("/chat/completions"):
+        return cleaned
+    return cleaned + "/chat/completions"
+
+
 def _call_openai_compatible_sync(
     *,
     api_key: str,
@@ -407,7 +419,7 @@ def _call_openai_compatible_sync(
     phase: str,
 ) -> str:
     """Call an OpenAI-compatible chat completion API exclusively for LGD roleplay."""
-    url = base_url.rstrip("/") + "/chat/completions"
+    url = _normalize_openai_completions_url(base_url)
     history_lines = []
     for item in visible_window:
         speaker = item.get("speaker") or item.get("senderName") or "候选人"
@@ -443,12 +455,11 @@ def _call_openai_compatible_sync(
     )
     with urllib.request.urlopen(req, timeout=8.0) as resp:
         data = json.loads(resp.read().decode("utf-8"))
-        content = (
-            data.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-            .strip()
-        )
+        choices = data.get("choices") if isinstance(data, dict) else None
+        first_choice = choices[0] if isinstance(choices, list) and choices else {}
+        message = (first_choice.get("message") if isinstance(first_choice, dict) else None) or {}
+        raw_content = message.get("content") if isinstance(message, dict) else ""
+        content = str(raw_content or "").strip()
         if not content:
             raise ValueError("Empty LLM response")
         return content

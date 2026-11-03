@@ -920,49 +920,54 @@ export default function InterviewLobby() {
               <div className={styles['section-label']}>
                 第 {idx + 1} 轮 · {DEFAULT_ROUND_NAMES[idx] || '自定义'}
               </div>
-              <input
-                type="text"
-                className={styles['pos-input']}
-                value={round.name}
-                onChange={(e) => updateRound(idx, { name: e.target.value })}
-                placeholder="轮次名称"
-              />
-              <div className={styles['inline-note']}>
-                轮次类型
-                <select
-                  className={styles['pos-input']}
-                  value={round.type || 'standard'}
-                  disabled={experimentPracticeLocked}
-                  onChange={(e) => {
-                    const type = e.target.value
-                    const patch = { type }
-                    if (type === 'negotiation' && !round.name?.includes('谈薪')) {
-                      patch.name = '谈薪 · 模拟'
-                    }
-                    if (type === 'hr' && !round.name?.includes('HR')) {
-                      patch.name = 'HR 面'
-                    }
-                    if (type === 'case' && !round.name?.includes('Case')) {
-                      patch.name = 'Case · 商业分析'
-                      patch.question_count = 1
-                    }
-                    if (type === 'system_design' && !round.name?.includes('系统')) {
-                      patch.name = '系统设计 · 白板'
-                      patch.question_count = 1
-                    }
-                    updateRound(idx, patch)
-                  }}
-                >
-                  {ROUND_TYPE_OPTIONS.map((opt) => (
-                    <option
-                      key={opt.id}
-                      value={opt.id}
-                      disabled={experimentPracticeLocked && (opt.id === 'hr' || opt.id === 'negotiation')}
-                    >
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+              <div className={styles['round-fields-row']}>
+                <label className={styles['round-field']}>
+                  <span className={styles['round-field-label']}>轮次名称</span>
+                  <input
+                    type="text"
+                    className={styles['pos-input']}
+                    value={round.name}
+                    onChange={(e) => updateRound(idx, { name: e.target.value })}
+                    placeholder="轮次名称"
+                  />
+                </label>
+                <label className={styles['round-field']}>
+                  <span className={styles['round-field-label']}>轮次类型</span>
+                  <select
+                    className={styles['pos-input']}
+                    value={round.type || 'standard'}
+                    disabled={experimentPracticeLocked}
+                    onChange={(e) => {
+                      const type = e.target.value
+                      const patch = { type }
+                      if (type === 'negotiation' && !round.name?.includes('谈薪')) {
+                        patch.name = '谈薪 · 模拟'
+                      }
+                      if (type === 'hr' && !round.name?.includes('HR')) {
+                        patch.name = 'HR 面'
+                      }
+                      if (type === 'case' && !round.name?.includes('Case')) {
+                        patch.name = 'Case · 商业分析'
+                        patch.question_count = 1
+                      }
+                      if (type === 'system_design' && !round.name?.includes('系统')) {
+                        patch.name = '系统设计 · 白板'
+                        patch.question_count = 1
+                      }
+                      updateRound(idx, patch)
+                    }}
+                  >
+                    {ROUND_TYPE_OPTIONS.map((opt) => (
+                      <option
+                        key={opt.id}
+                        value={opt.id}
+                        disabled={experimentPracticeLocked && (opt.id === 'hr' || opt.id === 'negotiation')}
+                      >
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <label className={styles['resume-toggle']}>
                 <input
