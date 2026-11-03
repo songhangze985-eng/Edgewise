@@ -11,6 +11,8 @@ from redis.asyncio import Redis
 
 from app.api.deps import get_current_user, get_redis
 from app.core.redis_client import get_json, set_json
+from app.services.document_parse import EMAIL_PATTERN, extract_text_from_upload
+from app.services.resume_questions import regenerate_user_resume_questions
 from app.models.schemas import (
     ResumeParsedData,
     ResumeProjectItem,
@@ -21,7 +23,6 @@ from app.models.schemas import (
 
 router = APIRouter(prefix="/resume", tags=["resume"])
 
-EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?86[-\s]?)?1[3-9]\d{9}(?!\d)")
 SKILL_KEYWORDS = [
     "Python",
@@ -35,17 +36,6 @@ SKILL_KEYWORDS = [
     "机器学习",
     "沟通协作",
 ]
-
-
-def _decode_text(file_bytes: bytes) -> str | None:
-    for encoding in ("utf-8", "gb18030", "gbk"):
-        try:
-            decoded = file_bytes.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-        if decoded.strip():
-            return decoded[:4000]
-    return None
 
 
 def _extract_name(preview_text: str | None, file_name: str, fallback_name: str) -> str:
@@ -183,7 +173,11 @@ def _build_resume_record(
     file_bytes: bytes,
     current_user: UserInDB,
 ) -> dict:
-    preview_text = _decode_text(file_bytes)
+    preview_text, emphasized_keywords = extract_text_from_upload(
+        file_name,
+        content_type,
+        file_bytes,
+    )
     email_match = EMAIL_PATTERN.search(preview_text) if preview_text else None
     phone_match = PHONE_PATTERN.search(preview_text) if preview_text else None
     parsed_data = ResumeParsedData(
@@ -199,6 +193,10 @@ def _build_resume_record(
 
     upload_time = datetime.now(timezone.utc).isoformat()
     size_in_mb = max(len(file_bytes) / (1024 * 1024), 0.01)
+
+    record_metadata: dict[str, object] = {}
+    if emphasized_keywords:
+        record_metadata["emphasized_keywords"] = emphasized_keywords
 
     return {
         "id": uuid4().hex,
@@ -216,6 +214,7 @@ def _build_resume_record(
         "optimized_text": optimized_text,
         "jd_match_score": None,
         "jd_keywords": [],
+        "metadata": record_metadata,
     }
 
 
@@ -240,6 +239,7 @@ async def upload_resume(
     )
     await set_json(redis, f"resume:{resume_record['id']}", resume_record)
     await redis.sadd(f"user:{current_user.id}:resumes", resume_record["id"])
+    await regenerate_user_resume_questions(redis, current_user.id, resume_record["id"])
     return ResumeResponse.model_validate(resume_record)
 
 

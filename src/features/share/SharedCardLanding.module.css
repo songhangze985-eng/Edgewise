@@ -1,0 +1,83 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg-deep, #0f0e12);
+  color: var(--chalk, #e2e0e5);
+  padding: 2rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.topLink {
+  align-self: flex-start;
+  margin-bottom: 1.5rem;
+  color: var(--chalk-dim);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.topLink:hover {
+  color: var(--chalk);
+}
+
+.center {
+  width: 100%;
+  max-width: 480px;
+}
+
+.revoked {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 1rem;
+  color: rgba(226, 224, 229, 0.75);
+}
+
+.probePanel {
+  margin-top: 1.75rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 224, 229, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.probePanel h2 {
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 224, 229, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  font-size: 0.88rem;
+  resize: vertical;
+}
+
+.btn {
+  margin-top: 0.75rem;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(155, 111, 199, 0.45);
+  background: rgba(155, 111, 199, 0.18);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.note {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--chalk-dim);
+  line-height: 1.5;
+}
+
+.status {
+  font-size: 0.85rem;
+  color: var(--chalk-dim);
+  text-align: center;
+  padding: 2rem;
+}

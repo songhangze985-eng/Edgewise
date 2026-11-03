@@ -1,0 +1,252 @@
+.page {
+  animation: fadeInUp 0.5s ease;
+}
+
+.coverage-panel {
+  margin-bottom: var(--sp-xl);
+  padding: var(--sp-lg);
+  border: 1px solid var(--chalk-faint);
+}
+
+.coverage-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+  margin-bottom: var(--sp-md);
+}
+
+.coverage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.coverage-table th,
+.coverage-table td {
+  text-align: left;
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid rgba(226, 224, 229, 0.08);
+}
+
+.coverage-table th {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--chalk-dim);
+  font-weight: 500;
+}
+
+.count-ok {
+  color: var(--success, #6fcf97);
+}
+
+.count-miss {
+  color: var(--chalk-dim);
+}
+
+.practice-link {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--accent, #c9a227);
+  text-decoration: none;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: var(--sp-lg);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.list-panel {
+  border: 1px solid var(--chalk-faint);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.list-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-md);
+  border: none;
+  border-bottom: 1px solid rgba(226, 224, 229, 0.06);
+  background: transparent;
+  color: var(--chalk);
+  cursor: pointer;
+}
+
+.list-item:hover,
+.list-item-active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.list-item-title {
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.list-item-meta {
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+}
+
+.editor {
+  border: 1px solid var(--chalk-faint);
+  padding: var(--sp-lg);
+}
+
+.editor-empty {
+  color: var(--chalk-dim);
+  padding: var(--sp-xl);
+  text-align: center;
+}
+
+.form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: var(--sp-md);
+  font-size: 0.85rem;
+}
+
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+  font-weight: normal;
+}
+
+.form-input,
+.form-textarea {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid var(--chalk-faint);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--chalk);
+  resize: vertical;
+}
+
+.theme-picker {
+  border: none;
+  margin: var(--sp-md) 0;
+  padding: 0;
+}
+
+.theme-picker legend {
+  font-size: 0.85rem;
+  margin-bottom: var(--sp-sm);
+}
+
+.theme-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+}
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: var(--sp-xs) var(--sp-sm);
+  border: 1px solid var(--chalk-faint);
+  background: transparent;
+  color: var(--chalk-dim);
+  cursor: pointer;
+}
+
+.chip-active {
+  border-color: var(--accent, #c9a227);
+  color: var(--accent, #c9a227);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-lg);
+}
+
+.primary-btn,
+.ghost-btn,
+.danger-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid var(--chalk-faint);
+  background: transparent;
+  color: var(--chalk);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.primary-btn {
+  border-color: var(--accent, #c9a227);
+  color: var(--accent, #c9a227);
+}
+
+.danger-btn {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.empty {
+  color: var(--chalk-dim);
+  padding: var(--sp-lg);
+  font-size: 0.85rem;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-lg);
+}
+
+.dialog {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--chalk-faint);
+  border-radius: var(--r-lg);
+  padding: var(--sp-lg);
+}
+
+.dialog-header h2 {
+  margin: 0 0 var(--sp-xs);
+  font-size: 1.1rem;
+}
+
+.dialog-sub {
+  margin: 0 0 var(--sp-md);
+  font-size: 0.8rem;
+  color: var(--chalk-dim);
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}

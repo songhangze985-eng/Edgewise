@@ -7,6 +7,160 @@
   animation: fadeInUp 0.5s ease;
 }
 
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-lg);
+  padding: 10px 14px;
+  border: 1px solid rgba(212, 92, 92, 0.35);
+  background: rgba(212, 92, 92, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--chalk);
+}
+
+.error-banner button {
+  cursor: pointer;
+  border: 1px solid var(--chalk-faint);
+  background: transparent;
+  color: var(--chalk);
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  font-size: 0.72rem;
+}
+
+.schedule-card {
+  margin-bottom: var(--sp-lg);
+  padding: var(--sp-lg);
+  border: 1px solid rgba(91, 141, 184, 0.28);
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.schedule-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-bottom: 8px;
+}
+
+.schedule-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--blue, #5b8db8);
+}
+
+.schedule-manage {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--chalk-dim);
+  text-decoration: none;
+}
+
+.schedule-manage:hover {
+  color: var(--primary-light);
+}
+
+.schedule-title {
+  font-family: var(--font-head);
+  font-size: 1.05rem;
+  color: var(--chalk);
+  margin-bottom: 4px;
+}
+
+.schedule-meta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+}
+
+.schedule-countdown {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--primary-light);
+}
+
+.schedule-rec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+  padding-top: var(--sp-sm);
+  border-top: 1px solid rgba(226, 224, 229, 0.08);
+  text-decoration: none;
+  color: inherit;
+}
+
+.schedule-rec-label {
+  font-size: 0.76rem;
+  color: var(--chalk);
+}
+
+.schedule-rec-cta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--primary-light);
+}
+
+.schedule-hint {
+  margin: var(--sp-md) 0 0;
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+  line-height: 1.5;
+}
+
+.next-card {
+  display: block;
+  margin-bottom: var(--sp-xl);
+  padding: var(--sp-lg);
+  border: 1px solid rgba(155, 111, 199, 0.25);
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.35);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.next-card:hover {
+  border-color: rgba(155, 111, 199, 0.55);
+  box-shadow: 0 0 24px rgba(155, 111, 199, 0.12);
+}
+
+.next-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--purple);
+  margin-bottom: 6px;
+}
+
+.next-title {
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  color: var(--chalk);
+  margin-bottom: 6px;
+}
+
+.next-desc {
+  font-size: 0.78rem;
+  color: var(--chalk-dim);
+  line-height: 1.6;
+  margin-bottom: var(--sp-sm);
+}
+
+.next-cta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--primary-light);
+}
+
 /* ---- Hero Header ---- */
 .hero {
   display: flex;
@@ -57,6 +211,12 @@
   font-size: 2.4rem;
   color: var(--purple);
   line-height: 1;
+}
+
+.header-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .streak-label {

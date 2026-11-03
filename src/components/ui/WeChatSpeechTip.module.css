@@ -1,0 +1,10 @@
+.tip {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--warning);
+  background: rgba(255, 176, 32, 0.1);
+  border: 1px solid rgba(255, 176, 32, 0.35);
+  border-radius: var(--r-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  margin: 0 0 var(--sp-sm);
+}

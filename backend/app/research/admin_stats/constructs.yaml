@@ -1,0 +1,40 @@
+constructs:
+  prior_ability:
+    items: [A7a, A7b, A7c]
+    reliability: alpha
+  entry_continuity:
+    items: [C4, C5, C6]
+    reliability: alpha
+  diagnosticity:
+    items: [D1, D2, D3, D5, D6]
+    reliability: alpha
+  agent_relevance:
+    items: [E1, E2]
+    reliability: spearman_brown
+  feedback_quality:
+    items: [F3a, F3b, F3c]
+    reliability: alpha
+  expectation_fit:
+    items: [F4a, F4b]
+    reliability: spearman_brown
+  progress:
+    items: [F5a, F5b, F5c]
+    reliability: alpha
+    cross_time: true
+  process_trust:
+    items: [I1, I2, I3, I4]
+    reliability: alpha
+
+behavior_indices:
+  task_rebuild_cost:
+    fields:
+      - steps_to_first_answer
+      - time_to_first_answer_sec
+      - entry_reselect_count
+      - agent_repeat_explain
+  active_processing:
+    fields:
+      - answered_before_feedback
+      - revision_action
+      - variant_followups_done
+      - passive_time_ratio

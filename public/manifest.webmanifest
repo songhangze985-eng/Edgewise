@@ -1,0 +1,19 @@
+{
+  "name": "谈锋 Edgewise",
+  "short_name": "谈锋",
+  "description": "AI 面试助手 — 模拟面试、题库与复盘",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#161521",
+  "theme_color": "#002FA7",
+  "lang": "zh-CN",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

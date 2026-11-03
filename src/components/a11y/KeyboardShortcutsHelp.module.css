@@ -1,0 +1,82 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-lg);
+}
+
+.dialog {
+  width: min(420px, 100%);
+  background: var(--bg-elevated);
+  border: var(--border-active);
+  border-radius: var(--r-md);
+  padding: var(--sp-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-sm);
+}
+
+.title {
+  font-size: max(12px, 0.95rem);
+  letter-spacing: 0.06em;
+}
+
+.close {
+  border: var(--border);
+  background: transparent;
+  color: var(--chalk);
+  border-radius: var(--r-sm);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: max(12px, 0.85rem);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.note {
+  font-size: max(12px, 0.75rem);
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-md);
+  line-height: 1.5;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-md);
+  font-size: max(12px, 0.8rem);
+  color: var(--chalk);
+}
+
+.kbd {
+  flex-shrink: 0;
+  min-width: 7rem;
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  border: var(--border-active);
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: max(12px, 0.72rem);
+  color: var(--text-primary);
+}

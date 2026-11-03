@@ -1,0 +1,135 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(8, 6, 12, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.card {
+  width: min(520px, 100%);
+  max-height: min(90vh, 640px);
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(155, 111, 199, 0.35);
+  background: linear-gradient(165deg, rgba(28, 22, 38, 0.98), rgba(18, 14, 26, 0.98));
+  padding: 1.35rem 1.5rem;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(196, 168, 232, 0.75);
+  margin-bottom: 0.35rem;
+}
+
+.title {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #f3eef8;
+}
+
+.quote {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(155, 111, 199, 0.12);
+  border-left: 3px solid #9b6fc7;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: rgba(243, 238, 248, 0.92);
+}
+
+.feedback {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(226, 224, 229, 0.88);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 88px;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(155, 111, 199, 0.35);
+  background: rgba(12, 10, 18, 0.6);
+  color: #f3eef8;
+  font-size: 0.9rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #9b6fc7;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.actions button {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(155, 111, 199, 0.45);
+  background: rgba(155, 111, 199, 0.2);
+  color: #f3eef8;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.actions button.primary {
+  background: #9b6fc7;
+  border-color: #9b6fc7;
+  color: #fff;
+}
+
+.link {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: rgba(196, 168, 232, 0.85) !important;
+  text-decoration: underline;
+}
+
+.error {
+  color: #f4a4a4;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.probe {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(155, 111, 199, 0.2);
+}
+
+.probe q {
+  display: block;
+  font-style: normal;
+  font-weight: 500;
+  color: #e8dff5;
+  margin-bottom: 0.5rem;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: rgba(196, 168, 232, 0.7);
+  margin: 0 0 0.5rem;
+}

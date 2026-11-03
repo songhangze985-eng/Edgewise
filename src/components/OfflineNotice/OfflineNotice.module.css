@@ -1,0 +1,36 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-lg);
+  background: rgba(22, 21, 33, 0.88);
+  backdrop-filter: blur(6px);
+}
+
+.card {
+  max-width: 360px;
+  width: 100%;
+  padding: var(--sp-xl);
+  background: var(--bg-elevated);
+  border: var(--border);
+  border-radius: var(--r-lg);
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.title {
+  font-family: var(--font-head);
+  font-size: 1.4rem;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-sm);
+}
+
+.desc {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--chalk-dim);
+}

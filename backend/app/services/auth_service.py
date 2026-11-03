@@ -11,6 +11,9 @@ from app.config import settings
 from app.core.redis_client import get_json, set_json
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.schemas import TokenResponse, UserInDB, UserLogin, UserPublic, UserRegister
+from app.services.referral_service import ensure_user_invite_code
+from app.research.pipeline import emit_server_event
+from app.services.research_service import hydrate_public_user_fields
 
 DEFAULT_TIER = "Free"
 DEFAULT_TIER_LABEL = "青铜免费版"
@@ -34,17 +37,22 @@ def _build_initials(name: str) -> str:
     return compact_name[:2].upper()
 
 
+def _user_record_for_model(user_data: dict[str, Any]) -> dict[str, Any]:
+    allowed = set(UserInDB.model_fields.keys())
+    return {key: user_data[key] for key in allowed if key in user_data}
+
+
 def _to_public_user(user_data: dict[str, Any]) -> UserPublic:
-    return UserPublic.model_validate(
-        {key: value for key, value in user_data.items() if key != "password_hash"}
-    )
+    allowed = set(UserPublic.model_fields.keys())
+    public_payload = {key: user_data[key] for key in allowed if key in user_data}
+    return UserPublic.model_validate(public_payload)
 
 
 async def get_user_by_id(redis: Redis, user_id: str) -> UserInDB | None:
     user_data = await get_json(redis, f"user:{user_id}")
     if user_data is None:
         return None
-    return UserInDB.model_validate(user_data)
+    return UserInDB.model_validate(_user_record_for_model(user_data))
 
 
 async def get_user_by_email(redis: Redis, email: str) -> UserInDB | None:
@@ -93,6 +101,8 @@ async def register_user(redis: Redis, payload: UserRegister) -> UserPublic:
     await set_json(redis, f"user:{user_id}", user_record)
     await redis.set(f"user:email:{normalized_email}", user_id)
     await redis.sadd("users:all", user_id)
+    await ensure_user_invite_code(redis, user_record)
+    await emit_server_event(redis, user_id, "auth.register", {"email_domain": normalized_email.split("@")[-1]})
 
     return _to_public_user(user_record)
 
@@ -111,8 +121,11 @@ async def authenticate_user(redis: Redis, payload: UserLogin) -> TokenResponse:
         is_admin=user.is_admin,
     )
 
-    user_record = user.model_dump()
+    user_record = await get_json(redis, f"user:{user.id}")
+    if user_record is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     user_record["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await hydrate_public_user_fields(redis, user_record)
     await set_json(redis, f"user:{user.id}", user_record)
 
     return TokenResponse(

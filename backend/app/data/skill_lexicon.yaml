@@ -1,0 +1,52 @@
+# Canonical skill / requirement terms for JD & resume matching (case-insensitive substring match).
+entries:
+  - term: Python
+    aliases: [python, py, django, flask]
+  - term: Java
+    aliases: [java, spring, springboot]
+  - term: JavaScript
+    aliases: [javascript, js, typescript, ts, node.js, nodejs]
+  - term: React
+    aliases: [react, reactjs, frontend, 前端]
+  - term: Vue
+    aliases: [vue, vuejs]
+  - term: Go
+    aliases: [golang, go语言]
+  - term: SQL
+    aliases: [sql, mysql, postgresql, postgres, 数据库]
+  - term: Redis
+    aliases: [redis, 缓存]
+  - term: FastAPI
+    aliases: [fastapi]
+  - term: Kubernetes
+    aliases: [kubernetes, k8s, 容器编排]
+  - term: Docker
+    aliases: [docker, 容器化]
+  - term: 数据分析
+    aliases: [数据挖掘, data analysis, analyst, 分析能力]
+  - term: 机器学习
+    aliases: [machine learning, ml, 深度学习, deep learning]
+  - term: 产品设计
+    aliases: [产品经理, product manager, pm, 需求分析]
+  - term: 用户研究
+    aliases: [用户调研, user research, 访谈]
+  - term: A/B测试
+    aliases: [ab test, ab测试, 实验设计]
+  - term: 项目管理
+    aliases: [project management, 敏捷, agile, scrum]
+  - term: 沟通协作
+    aliases: [跨部门, 沟通能力, teamwork]
+  - term: 搜索推荐
+    aliases: [推荐系统, 搜索引擎, recommendation]
+  - term: 用户增长
+    aliases: [growth, 增长黑客, 留存]
+  - term: 战略咨询
+    aliases: [consulting, 咨询, case interview]
+  - term: 投资银行
+    aliases: [投行, ibd, financial modeling]
+  - term: 运营管理
+    aliases: [运营, operations]
+  - term: 人力资源
+    aliases: [hr, 招聘, talent]
+  - term: 市场营销
+    aliases: [marketing, 品牌, 投放]

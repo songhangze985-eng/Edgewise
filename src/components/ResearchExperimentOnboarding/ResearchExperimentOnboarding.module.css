@@ -1,0 +1,65 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(8, 10, 18, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.modal {
+  width: min(520px, 100%);
+  background: var(--panel-bg, #12151f);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem 1.65rem;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--chalk-dim);
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.list {
+  margin: 0 0 1.25rem;
+  padding-left: 1.1rem;
+  color: var(--chalk-dim);
+  line-height: 1.55;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.primary,
+.secondary {
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.primary {
+  background: var(--accent-purple);
+  color: #fff;
+}
+
+.secondary {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--chalk);
+}

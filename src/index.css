@@ -75,6 +75,12 @@
   --shadow-glow: 0 0 20px var(--primary-glow);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5);
   --shadow-purple: 0 0 16px var(--purple-glow);
+
+  /* — Responsive breakpoints — */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --mobile-tab-height: 56px;
 }
 
 /* ---- Reset & Base ---- */
@@ -288,5 +294,45 @@ a:hover {
   }
   50% {
     border-color: var(--chalk-dim);
+  }
+}
+
+/* ---- Mobile utilities ---- */
+html.a11y-large-font {
+  font-size: calc(16px * 1.15);
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 767px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .modal-actions,
+  .composer-row,
+  .action-row,
+  .filter-row,
+  .toolbar-row {
+    flex-wrap: wrap;
   }
 }

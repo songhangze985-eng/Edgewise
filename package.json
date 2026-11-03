@@ -4,13 +4,20 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node scripts/build-tasks.mjs && vite",
+    "build": "node scripts/build-tasks.mjs && vite build",
+    "preview": "vite preview",
+    "build:tasks": "node scripts/build-tasks.mjs"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
+    "@mediapipe/tasks-vision": "^1.2.0",
+    "@monaco-editor/react": "^4.7.0",
     "@react-three/fiber": "^9.5.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "axios": "^1.21.0",
+    "html-to-image": "^1.11.13",
+    "monaco-editor": "^0.57.0",
     "page-agent": "^1.5.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -19,5 +26,8 @@
     "three": "^0.183.2",
     "vite": "^8.0.0",
     "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "vite-plugin-pwa": "^2.0.0"
   }
 }

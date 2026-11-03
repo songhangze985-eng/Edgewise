@@ -1,0 +1,389 @@
+version: "2026-11-03-v1"
+items:
+  - id: A1
+    text: 你目前的求职阶段是？
+    type: single
+    options:
+      - 在校未开始
+      - 首次求职
+      - 在职考虑换工作
+      - 转行或换岗位方向
+      - 其他
+    trigger: consent_granted
+    priority: 100
+
+  - id: A2
+    text: 离你最近一场面试还有多久？
+    type: single
+    options:
+      - 一周内
+      - 1–4 周
+      - 1 个月以上
+      - 暂时没有
+    trigger: consent_granted
+    priority: 99
+
+  - id: A3
+    text: 你这次最想解决的准备问题是？
+    type: single
+    options:
+      - 不知道哪些经历值得讲
+      - 有答案但经不起追问
+      - 讲不清个人贡献
+      - 解释不清转行
+      - 不会讲失败经历
+      - 其他
+    trigger: consent_granted
+    priority: 98
+
+  - id: A5
+    text: 在此之前用过其他 AI 面试练习产品吗？
+    type: single
+    options:
+      - 从没
+      - 听说过
+      - 用过 1–2 次
+      - 经常
+    trigger: consent_granted
+    priority: 97
+
+  - id: A7a
+    text: 我能清楚说明自己在团队项目中承担的具体责任。
+    type: likert7
+    trigger: consent_granted
+    priority: 96
+
+  - id: A7b
+    text: 面对没准备过的追问，我能临场组织出有条理的回答。
+    type: likert7
+    trigger: consent_granted
+    priority: 95
+
+  - id: A7c
+    text: 我知道面试官追问一段经历时主要想确认什么。
+    type: likert7
+    trigger: consent_granted
+    priority: 94
+
+  - id: B3
+    text: 你认为谈锋主要承诺帮你做到什么？
+    type: single
+    options:
+      - 直接生成完美答案
+      - 找出空白并练习应对追问
+      - 保证提高录用率
+      - 模拟企业筛选打分
+      - 不清楚
+    trigger: consent_granted
+    priority: 93
+
+  - id: B4
+    text: 这个承诺你觉得可信吗？
+    type: likert7
+    trigger: consent_granted
+    priority: 92
+
+  - id: F2b
+    text: 我理解反馈指出的问题为什么成立。
+    type: likert7
+    trigger: feedback_view_first
+    priority: 80
+
+  - id: F3a
+    text: 反馈指出的是我原文里能具体定位的问题。
+    type: likert7
+    trigger: feedback_view_first
+    priority: 79
+
+  - id: C1
+    text: 【操纵检验】进入产品后，我不需要重新选择功能，就能直接练习之前关心的那个问题。
+    type: likert7
+    trigger: report_view_first
+    priority: 70
+
+  - id: C4
+    text: 我在外部内容里看到的问题，和产品里让我练习的任务是同一件事。
+    type: likert7
+    trigger: report_view_first
+    priority: 69
+
+  - id: F1
+    text: 【操纵检验】这次体验中，我主要是：
+    type: single
+    options:
+      - 自己作答再修改
+      - 观看理想答案示范
+      - 两者都有
+      - 不记得
+    trigger: report_view_first
+    priority: 68
+
+  - id: F4a
+    text: 练习需要我自己回忆和修改，这和我来之前的预期一致。
+    type: likert7
+    trigger: report_dwell_or_reopen
+    priority: 60
+
+  - id: F4b
+    text: 需要我自己动脑的部分，让我觉得产品没兑现承诺。
+    type: likert7
+    reverse: true
+    trigger: report_dwell_or_reopen
+    priority: 59
+
+  - id: F5a
+    text: 我能具体说出这次练习让我改进了哪一点。
+    type: likert7
+    trigger: report_dwell_or_reopen
+    priority: 58
+
+  - id: F3b
+    text: 反馈没有把我没做过的事写成我做过的。
+    type: likert7
+    trigger: second_session_complete
+    priority: 50
+
+  - id: F3c
+    text: 反馈坦白说明了哪些地方信息不足、它判断不了。
+    type: likert7
+    trigger: second_session_complete
+    priority: 49
+
+  - id: F5b
+    text: 我分得清「回答变得更通顺」和「我真的更会回答了」。
+    type: likert7
+    trigger: second_session_complete
+    priority: 48
+
+  - id: D1
+    text: 这些内容让我能判断谈锋是否适合我当前的问题。
+    type: likert7
+    trigger: channel_creator_video
+    condition: entry_channel_in:creator,video
+    priority: 45
+
+  - id: D3
+    text: 这些内容只是在重复「这个产品很好用」。
+    type: likert7
+    reverse: true
+    trigger: channel_creator_video
+    condition: entry_channel_in:creator,video
+    priority: 44
+
+  - id: D4
+    text: 我能分辨哪些内容是合作推广、哪些是个人经验分享。
+    type: likert7
+    trigger: channel_creator_video
+    condition: entry_channel_in:creator,video
+    priority: 43
+
+  - id: D2
+    text: 在进入产品前，你最后看到的一条相关内容是在讲什么问题？
+    type: open
+    trigger: channel_creator_video_day2
+    condition: entry_channel_in:creator,video
+    priority: 42
+
+  - id: D5
+    text: 我觉得这些创作者在表达自己的真实判断，而不只是念统一的宣传话术。
+    type: likert7
+    trigger: channel_creator_video_day2
+    condition: entry_channel_in:creator,video
+    priority: 41
+
+  - id: D6
+    text: 看完内容后，我知道自己该先练哪类问题。
+    type: likert7
+    trigger: channel_creator_video_day2
+    condition: entry_channel_in:creator,video
+    priority: 40
+
+  - id: E1
+    text: 智能体第一次回复就识别出了我真正的困难。
+    type: likert7
+    trigger: channel_agent
+    condition: entry_channel_eq:agent OR agent_used
+    priority: 38
+
+  - id: E2
+    text: 它给的建议是我马上就能动手做的。
+    type: likert7
+    trigger: channel_agent
+    condition: entry_channel_eq:agent OR agent_used
+    priority: 37
+
+  - id: E7
+    text: 这次互动的时机和方式让我觉得被打扰了。
+    type: likert7
+    reverse: true
+    trigger: channel_agent
+    condition: entry_channel_eq:agent OR agent_used
+    priority: 36
+
+  - id: I5a
+    text: 如果不是机构组织，我自己不会来试。
+    type: likert7
+    trigger: institution
+    condition: institution_id_present
+    priority: 35
+
+  - id: I5b
+    text: 我参与主要是因为免费或费用低。
+    type: likert7
+    trigger: institution
+    condition: institution_id_present
+    priority: 34
+
+  - id: I5c
+    text: 我参与主要是因为有老师或就业指导的帮助。
+    type: likert7
+    trigger: institution
+    condition: institution_id_present
+    priority: 33
+
+  - id: I5d
+    text: 我介意机构看到我的个人练习内容。
+    type: likert7
+    trigger: institution
+    condition: institution_id_present
+    priority: 32
+
+  - id: G4
+    text: 让别人知道我在准备面试或求职，会让我有顾虑。
+    type: likert7
+    trigger: share_click
+    priority: 30
+
+  - id: H4
+    text: 最近没来练习，主要是因为？
+    type: single
+    options:
+      - 面试已结束或任务完成了
+      - 效果不明显
+      - 价格太高
+      - 遇到技术问题
+      - 太花时间
+      - 其他
+      - 我还会继续用
+    trigger: inactive_3d
+    priority: 20
+
+  - id: J2
+    text: 你对刚才这次回答满意吗？
+    type: likert7
+    trigger: posttest_day7
+    priority: 10
+
+  - id: F5c
+    text: 离开这个工具之后，我也能用学到的方法回答类似问题。
+    type: likert7
+    trigger: posttest_day7
+    priority: 9
+
+  - id: F6
+    text: 用一句话写下你学到的方法。
+    type: open
+    trigger: posttest_day7
+    priority: 8
+
+  - id: G1
+    text: 谈锋对我当前的准备任务有用。
+    type: likert7
+    trigger: posttest_day7
+    priority: 7
+
+  - id: G2
+    text: 我愿意把谈锋推荐给有类似需要的朋友。
+    type: likert7
+    trigger: posttest_day7
+    priority: 6
+
+  - id: G3
+    text: 我愿意公开分享自己的练习结果。
+    type: likert7
+    trigger: posttest_day7
+    priority: 5
+
+  - id: G5
+    text: 如果要分享，你最愿意分享哪种内容？
+    type: single
+    options:
+      - 一条方法
+      - 答案修订卡
+      - 双人追问练习
+      - 评分或报告
+      - 都不愿意
+    trigger: posttest_day7
+    priority: 4
+
+  - id: G6
+    text: 哪种奖励最能让你去邀请别人？
+    type: single
+    options:
+      - 现金返利
+      - 练习权益
+      - 不需要奖励
+      - 都不会邀请
+    trigger: posttest_day7
+    priority: 3
+
+  - id: H3
+    text: 你能接受的月费区间是？
+    type: single
+    options:
+      - 不付费
+      - 30 元内
+      - 30–60 元
+      - 60–100 元
+      - 100 元以上
+    trigger: posttest_day7
+    priority: 2
+
+  - id: I1
+    text: 我了解谈锋是根据什么给出反馈和评分的。
+    type: likert7
+    trigger: posttest_day7
+    priority: 1
+
+  - id: I2
+    text: 我觉得它的反馈对我是公平的。
+    type: likert7
+    trigger: posttest_day7
+    priority: 0
+
+  - id: I3
+    text: 我担心练习内容被用于我不知道的用途。
+    type: likert7
+    reverse: true
+    trigger: posttest_day7
+    priority: -1
+
+  - id: I4
+    text: 我知道谁能看到我的原始回答。
+    type: likert7
+    trigger: posttest_day7
+    priority: -2
+
+  - id: C5
+    text: 进入产品前的理解，和实际体验基本一致。
+    type: likert7
+    trigger: posttest_day7
+    priority: -3
+
+  - id: C6
+    text: 从知道谈锋到开始第一次练习，过程顺畅。
+    type: likert7
+    trigger: posttest_day7
+    priority: -4
+
+  - id: K1
+    text: 从看到谈锋相关内容到完成练习，哪一步最让你想放弃？
+    type: open
+    trigger: posttest_day7
+    priority: -5
+
+  - id: K2
+    text: 你会用一句什么话向朋友介绍谈锋？
+    type: open
+    trigger: posttest_day7
+    priority: -6

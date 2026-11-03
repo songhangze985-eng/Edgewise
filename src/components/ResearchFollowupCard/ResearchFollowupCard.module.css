@@ -1,0 +1,105 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(8, 10, 18, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1.5rem;
+  pointer-events: auto;
+}
+
+.card {
+  width: min(480px, 100%);
+  background: var(--bg-elevated, #1a1d2e);
+  border: 1px solid var(--chalk-faint);
+  border-radius: 12px 12px 8px 8px;
+  padding: 1.25rem 1.35rem;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--chalk-dim);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+}
+
+.desc {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--chalk-dim);
+  margin: 0 0 1rem;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.72rem;
+  margin-bottom: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.actions button {
+  border-radius: 7px;
+  padding: 0.5rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+}
+
+.actions button.link {
+  background: transparent;
+  color: var(--chalk-dim);
+  text-decoration: underline;
+}
+
+.reasonBlock {
+  margin-top: 0.25rem;
+}
+
+.reasonHint {
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+  margin: 0 0 0.5rem;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.reasonChip {
+  background: transparent;
+  border: 1px solid var(--chalk-faint);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.reasonChip.selected {
+  border-color: var(--primary);
+  color: var(--primary);
+}

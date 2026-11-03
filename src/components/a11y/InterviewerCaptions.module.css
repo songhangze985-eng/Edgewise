@@ -1,0 +1,31 @@
+.captions {
+  margin-top: var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-sm);
+  border: var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: max(12px, 0.8rem);
+  line-height: 1.65;
+  color: var(--chalk);
+}
+
+.sentence {
+  color: var(--text-secondary);
+}
+
+.sentence + .sentence::before {
+  content: ' ';
+}
+
+.active {
+  color: var(--text-primary);
+  background: rgba(0, 47, 167, 0.22);
+  border-radius: 3px;
+  padding: 0 2px;
+  box-decoration-break: clone;
+}
+
+.active + .sentence::before,
+.sentence + .active::before {
+  content: ' ';
+}

@@ -1,0 +1,124 @@
+.peek-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  padding: var(--sp-md) var(--sp-sm);
+  border: 1px solid var(--chalk-faint);
+  border-right: none;
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  background: var(--bg-card);
+  color: var(--chalk-dim);
+  cursor: pointer;
+}
+
+.peek {
+  position: fixed;
+  right: var(--sp-md);
+  top: calc(var(--sp-xl) + 3rem);
+  bottom: var(--sp-xl);
+  width: min(280px, 38vw);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--chalk-faint);
+  border-radius: var(--r-lg);
+  background: rgba(12, 10, 16, 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.peek-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-sm) var(--sp-md);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--chalk-faint);
+}
+
+.peek-close {
+  border: none;
+  background: transparent;
+  color: var(--chalk-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.peek-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-sm);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.peek-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--chalk);
+  font-size: 0.82rem;
+  padding: var(--sp-sm);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+
+.peek-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.peek-body {
+  font-size: 0.75rem;
+  color: var(--chalk-dim);
+  line-height: 1.55;
+  padding: 0 var(--sp-sm) var(--sp-sm);
+}
+
+.peek-body p {
+  margin: 0 0 0.35rem;
+}
+
+.peek-muted,
+.peek-error {
+  font-size: 0.75rem;
+  padding: var(--sp-sm) var(--sp-md);
+  margin: 0;
+}
+
+.peek-error {
+  color: var(--danger);
+}
+
+.peek-link {
+  color: var(--accent, #c9a227);
+  margin-left: 0.25rem;
+}
+
+.peek-foot {
+  display: block;
+  text-align: center;
+  padding: var(--sp-sm);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  border-top: 1px solid var(--chalk-faint);
+  color: var(--accent, #c9a227);
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .peek {
+    width: min(260px, 72vw);
+  }
+}

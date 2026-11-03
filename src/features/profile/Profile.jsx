@@ -1,8 +1,21 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 import useAuthStore from '../../stores/authStore'
 import useSessionStore from '../../stores/sessionStore'
+import ResearchConsentModal from '../../components/ResearchConsentModal/ResearchConsentModal'
+import { fetchResearchInvite, submitResearchConsent } from '../../api/research'
+import {
+  completeOrgWorkshop,
+  fetchOrgMembership,
+  shareSessionWithMentor,
+  updateOrgConsent,
+} from '../../api/org'
+import { getErrorMessage } from '../../api/client'
+import { showToast } from '../../stores/toastStore'
+import { formatAvgScore, rankFromAvgScore, rankProgressFromScore } from '../../utils/userStats'
+import PageBar from '../../components/ui/PageBar'
+import MobileMoreLinks from '../../components/Layout/MobileMoreLinks'
 import styles from './Profile.module.css'
 
 const DEFAULT_USER_DATA = {
@@ -14,15 +27,6 @@ const DEFAULT_USER_DATA = {
   tier: 'Pro',
   tierLabel: '黄金专业版',
   tierExpiry: '2026-06-15',
-}
-
-const rankData = {
-  current: '铂金',
-  icon: '◇',
-  exp: 2820,
-  nextRank: '钻石',
-  nextExp: 3000,
-  progress: 94,
 }
 
 const memberStats = {
@@ -62,58 +66,117 @@ const activityLog = [
 export default function Profile() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const { stats: sessionStats } = useSessionStore()
+  const sessionStats = useSessionStore((s) => s.stats)
+  const sessions = useSessionStore((s) => s.sessions)
+  const storeRadar = useSessionStore((s) => s.radarData)
+  const refresh = useSessionStore((s) => s.refresh)
+  const loading = useSessionStore((s) => s.loading)
+  const sessionError = useSessionStore((s) => s.error)
   const [activeTab, setActiveTab] = useState('overview')
+  const [inviteInfo, setInviteInfo] = useState(null)
+  const [consentModal, setConsentModal] = useState(null)
+  const [orgMembership, setOrgMembership] = useState(null)
+  const [orgShareBusy, setOrgShareBusy] = useState(null)
+
+  useEffect(() => {
+    fetchResearchInvite()
+      .then(setInviteInfo)
+      .catch(() => {})
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchOrgMembership()
+      .then(setOrgMembership)
+      .catch(() => setOrgMembership(null))
+  }, [user?.id])
+
+  useEffect(() => {
+    refresh().catch(() => {})
+  }, [refresh])
+
+  const loadError = sessionError ? getErrorMessage(sessionError, '加载练习数据失败') : ''
 
   const userData = {
     ...DEFAULT_USER_DATA,
     name: user?.name || DEFAULT_USER_DATA.name,
     initials: user?.initials || DEFAULT_USER_DATA.initials,
     email: user?.email || DEFAULT_USER_DATA.email,
+    joinDate: user?.joinDate || DEFAULT_USER_DATA.joinDate,
     tier: user?.tier || DEFAULT_USER_DATA.tier,
     tierLabel: user?.tierLabel || DEFAULT_USER_DATA.tierLabel,
   }
 
+  const scores = sessions.filter((s) => typeof s.score === 'number').map((s) => s.score)
+  const rankInfo = rankFromAvgScore(sessionStats.avgScore || 0)
+  const rankProgress = rankProgressFromScore(sessionStats.avgScore || 0)
+
   const dynamicMemberStats = {
     ...memberStats,
-    totalSessions: sessionStats.totalSessions || memberStats.totalSessions,
-    avgScore: sessionStats.avgScore || memberStats.avgScore,
-    streak: sessionStats.streak || memberStats.streak,
+    totalSessions: sessionStats.totalSessions || 0,
+    totalHours: Number(((sessionStats.totalDuration || 0) / 60).toFixed(1)),
+    avgScore: formatAvgScore(sessionStats.avgScore || 0),
+    credits: sessionStats.credits || user?.credits || 0,
+    streak: sessionStats.streak || 0,
+    bestScore: scores.length ? Math.max(...scores) : 0,
+  }
+
+  const liveRadar = storeRadar?.some((d) => d.value > 0) ? storeRadar : radarData
+  const liveActivity = sessions.slice(0, 5).map((s) => ({
+    date: s.date,
+    action: s.type === 'lgd' ? 'LGD 群面练习' : s.type === 'interview' ? '1v1 模拟面试' : s.type,
+    detail: s.topic,
+    score: s.score,
+  }))
+
+  if (loading && sessions.length === 0) {
+    return (
+      <div className={styles.profile}>
+        <p style={{ padding: '2rem', color: 'var(--chalk-dim)', fontFamily: 'var(--font-mono)' }}>
+          正在加载个人数据…
+        </p>
+      </div>
+    )
   }
 
   return (
     <div className={styles.profile}>
-      {/* Profile Header */}
-      <div className={styles.header}>
-        <div className={styles['header-left']}>
-          <div className={styles.avatar}>
-            <span>{userData.initials}</span>
-          </div>
-          <div className={styles['header-info']}>
-            <h1>{userData.name}</h1>
-            <div className={styles['header-meta']}>
-              <span className={styles['tier-badge']}>{userData.tier}</span>
-              <span className={styles['header-email']}>{userData.email}</span>
-            </div>
-            <div className={styles['header-join']}>
-              加入于 {userData.joinDate} · {userData.tierLabel}（有效期至 {userData.tierExpiry}）
-            </div>
-          </div>
-        </div>
-        <div className={styles['header-right']}>
+      {loadError && (
+        <p style={{ color: 'var(--danger)', padding: '0 0 1rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+          {loadError}
+        </p>
+      )}
+      <PageBar
+        title={userData.name}
+        context={`${userData.tier} · ${userData.email}`}
+        actions={
           <div className={styles['rank-display']}>
-            <div className={styles['rank-icon']}>{rankData.icon}</div>
+            <div className={styles['rank-icon']}>◇</div>
             <div className={styles['rank-info']}>
-              <div className={styles['rank-name']}>{rankData.current}</div>
-              <div className={styles['rank-exp']}>{rankData.exp} / {rankData.nextExp} EXP</div>
+              <div className={styles['rank-name']}>{rankInfo.name}</div>
+              <div className={styles['rank-exp']}>{rankProgress.exp} / {rankProgress.nextExp} EXP</div>
               <div className={styles['rank-bar']}>
-                <div className={styles['rank-fill']} style={{ width: `${rankData.progress}%` }} />
+                <div className={styles['rank-fill']} style={{ width: `${rankProgress.progress}%` }} />
               </div>
-              <div className={styles['rank-next']}>距 {rankData.nextRank} 还需 {rankData.nextExp - rankData.exp} EXP</div>
+              <div className={styles['rank-next']}>
+                {rankProgress.nextRank
+                  ? `距 ${rankProgress.nextRank} 还需 ${Math.max(0, rankProgress.nextExp - rankProgress.exp)} EXP`
+                  : '已达当前最高段位'}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
+
+      <MobileMoreLinks />
+
+      <p style={{ margin: '0 0 1rem', fontSize: '0.85rem' }}>
+        <Link to="/stories" style={{ color: 'var(--accent, #c9a227)', fontFamily: 'var(--font-mono)' }}>
+          STAR 故事库 →
+        </Link>
+        <span style={{ color: 'var(--chalk-dim)', marginLeft: '0.5rem' }}>
+          沉淀修订后的经历，行为面多题复用
+        </span>
+      </p>
 
       {/* Tab Navigation */}
       <div className={styles['tab-bar']}>
@@ -161,7 +224,7 @@ export default function Profile() {
               <div className={styles['panel-title']}>能力画像</div>
               <div className={styles['radar-wrap']}>
                 <ResponsiveContainer width="100%" height={220}>
-                  <RadarChart data={radarData} outerRadius="72%">
+                  <RadarChart data={liveRadar} outerRadius="72%">
                     <PolarGrid stroke="rgba(226,224,229,0.08)" />
                     <PolarAngleAxis
                       dataKey="axis"
@@ -184,7 +247,7 @@ export default function Profile() {
             <div className={styles.panel}>
               <div className={styles['panel-title']}>最近动态</div>
               <div className={styles['activity-list']}>
-                {activityLog.map((a, i) => (
+                {(liveActivity.length ? liveActivity : activityLog).map((a, i) => (
                   <div key={i} className={styles['activity-row']}>
                     <div className={styles['activity-date']}>{a.date}</div>
                     <div className={styles['activity-body']}>
@@ -267,6 +330,172 @@ export default function Profile() {
               </div>
             </div>
 
+            <div className={styles.panel}>
+              <div className={styles['panel-title']}>研究与邀请</div>
+              <div className={styles['settings-list']}>
+                <div className={styles['setting-row']}>
+                  <span className={styles['setting-label']}>研究同意</span>
+                  <span className={styles['setting-value']}>
+                    {user?.researchConsent?.accepted ? '已同意' : user?.researchConsent === null ? '未选择' : '未参与 / 已撤回'}
+                  </span>
+                </div>
+                {user?.experimentAssignment?.arm && (
+                  <div className={styles['setting-row']}>
+                    <span className={styles['setting-label']}>实验分组</span>
+                    <span className={styles['setting-value']}>Arm {user.experimentAssignment.arm}</span>
+                  </div>
+                )}
+                {inviteInfo && (
+                  <div className={styles['setting-row']}>
+                    <span className={styles['setting-label']}>邀请链接</span>
+                    <span className={styles['setting-value']} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>
+                      {typeof window !== 'undefined' ? `${window.location.origin}${inviteInfo.invite_path}` : inviteInfo.invite_path}
+                    </span>
+                  </div>
+                )}
+                <div className={styles['actions-list']} style={{ marginTop: '0.75rem' }}>
+                  {user?.researchConsent?.accepted ? (
+                    <button type="button" className={styles['action-btn']} onClick={() => setConsentModal('withdraw')}>
+                      撤回研究同意
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles['action-btn']}
+                      onClick={async () => {
+                        try {
+                          await submitResearchConsent(true)
+                          await useAuthStore.getState().fetchMe()
+                          showToast('已重新确认研究同意', 'success')
+                        } catch (err) {
+                          showToast(getErrorMessage(err, '操作失败'), 'error')
+                        }
+                      }}
+                    >
+                      重新同意参与研究
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {orgMembership?.org_id && (
+              <div className={styles.panel}>
+                <div className={styles['panel-title']}>机构工作坊 · {orgMembership.org_name}</div>
+                <div className={styles['settings-list']}>
+                  <div className={styles['setting-row']}>
+                    <span className={styles['setting-label']}>与指导者分享</span>
+                    <span className={styles['setting-value']}>
+                      {orgMembership.consent?.share_with_mentor ? '已开启' : '未开启'}
+                    </span>
+                  </div>
+                  <div className={styles['actions-list']} style={{ marginTop: '0.75rem' }}>
+                    <button
+                      type="button"
+                      className={styles['action-btn']}
+                      onClick={async () => {
+                        try {
+                          await updateOrgConsent({
+                            share_with_mentor: !orgMembership.consent?.share_with_mentor,
+                          })
+                          const next = await fetchOrgMembership()
+                          setOrgMembership(next)
+                          showToast('机构分享设置已更新', 'success')
+                        } catch (err) {
+                          showToast(getErrorMessage(err, '更新失败'), 'error')
+                        }
+                      }}
+                    >
+                      {orgMembership.consent?.share_with_mentor ? '关闭指导者分享' : '开启指导者分享'}
+                    </button>
+                    {orgMembership.role === 'admin' && (
+                      <button
+                        type="button"
+                        className={styles['action-btn']}
+                        onClick={() => navigate(`/org/dashboard/${orgMembership.org_id}`)}
+                      >
+                        机构看板
+                      </button>
+                    )}
+                    {orgMembership.role === 'mentor' && (
+                      <button type="button" className={styles['action-btn']} onClick={() => navigate('/org/mentor')}>
+                        指导者视图
+                      </button>
+                    )}
+                  </div>
+                  {orgMembership.workshops?.length > 0 && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <div className={styles['setting-label']} style={{ marginBottom: 6 }}>工作坊任务</div>
+                      {orgMembership.workshops.map((ws) => (
+                        <div key={ws.id} className={styles['setting-row']} style={{ flexWrap: 'wrap', gap: 8 }}>
+                          <span className={styles['setting-value']}>
+                            {ws.title}
+                            {' · '}
+                            {ws.mode === 'pair' ? '双人追问' : '修订闭环'}
+                            {ws.completed ? ' · 已完成' : ''}
+                          </span>
+                          {!ws.completed && (
+                            <button
+                              type="button"
+                              className={styles['action-btn']}
+                              onClick={async () => {
+                                try {
+                                  await completeOrgWorkshop(ws.id)
+                                  const next = await fetchOrgMembership()
+                                  setOrgMembership(next)
+                                  showToast('工作坊已标记完成', 'success')
+                                } catch (err) {
+                                  showToast(getErrorMessage(err, '操作失败'), 'error')
+                                }
+                              }}
+                            >
+                              标记完成
+                            </button>
+                          )}
+                          {ws.task_slug && (
+                            <button
+                              type="button"
+                              className={styles['action-btn']}
+                              onClick={() => navigate(`/tasks/${ws.task_slug}`)}
+                            >
+                              去做任务
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {orgMembership.consent?.share_with_mentor && sessions?.length > 0 && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <div className={styles['setting-label']} style={{ marginBottom: 6 }}>分享指定练习给指导者</div>
+                      {sessions.slice(0, 8).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={styles['action-btn']}
+                          style={{ display: 'block', marginBottom: 6, width: '100%' }}
+                          disabled={orgShareBusy === s.id}
+                          onClick={async () => {
+                            setOrgShareBusy(s.id)
+                            try {
+                              await shareSessionWithMentor(s.id)
+                              showToast('已分享给指导者', 'success')
+                            } catch (err) {
+                              showToast(getErrorMessage(err, '分享失败'), 'error')
+                            } finally {
+                              setOrgShareBusy(null)
+                            }
+                          }}
+                        >
+                          {orgShareBusy === s.id ? '分享中…' : `分享场次 ${s.id.slice(0, 8)}…`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Preferences */}
             <div className={styles.panel}>
               <div className={styles['panel-title']}>偏好设置</div>
@@ -295,12 +524,21 @@ export default function Profile() {
               <div className={styles['panel-title']}>账户操作</div>
               <div className={styles['actions-list']}>
                 <button className={styles['action-btn']}>修改密码</button>
-                <button className={styles['action-btn']} onClick={() => { useAuthStore.getState().logout(); navigate('/login') }}>退出登录</button>
+                <button className={styles['action-btn']} onClick={() => { useAuthStore.getState().logout().finally(() => navigate('/login')) }}>退出登录</button>
                 <button className={`${styles['action-btn']} ${styles.danger}`}>注销账户</button>
               </div>
             </div>
           </div>
         </div>
+      )}
+      {consentModal === 'withdraw' && (
+        <ResearchConsentModal
+          mode="withdraw"
+          onResolved={() => {
+            setConsentModal(null)
+            useAuthStore.getState().fetchMe().catch(() => {})
+          }}
+        />
       )}
     </div>
   )

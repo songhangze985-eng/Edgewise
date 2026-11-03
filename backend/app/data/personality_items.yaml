@@ -1,0 +1,47 @@
+# 谈锋自编练习题 — 迫选题（一致性检验用，无标准「正确答案」）
+meta:
+  author: 谈锋 Edgewise
+  disclaimer: 自编迫选样题，仅用于练习作答一致性与第一反应，不对应任何商业性格测评量表。
+
+items:
+  - id: p01
+    consistency_pair: cp_planning
+    option_a: "做一件新事情前，我习惯先把步骤列清楚"
+    option_b: "做一件新事情前，我习惯先动手试一小步再看情况"
+    a_pole: structured
+    b_pole: exploratory
+
+  - id: p02
+    consistency_pair: cp_planning
+    option_a: "面对不确定任务，我更喜欢先有一份可执行的清单"
+    option_b: "面对不确定任务，我更喜欢在尝试中逐步调整方向"
+    a_pole: structured
+    b_pole: exploratory
+
+  - id: p03
+    consistency_pair: cp_social
+    option_a: "在陌生场合，我通常先观察再开口"
+    option_b: "在陌生场合，我通常主动找人寒暄打开局面"
+    a_pole: reserved
+    b_pole: outgoing
+
+  - id: p04
+    consistency_pair: cp_social
+    option_a: "小组讨论里，我倾向于等别人说完再补充"
+    option_b: "小组讨论里，我倾向于尽早说出自己的想法"
+    a_pole: reserved
+    b_pole: outgoing
+
+  - id: p05
+    consistency_pair: cp_stress
+    option_a: "时间紧时，我会优先保证关键部分完成"
+    option_b: "时间紧时，我会尽量把每个环节都做到差不多"
+    a_pole: prioritize
+    b_pole: even
+
+  - id: p06
+    consistency_pair: cp_stress
+    option_a: "截止日期临近，我更愿意砍掉次要细节"
+    option_b: "截止日期临近，我更愿意加班把细节补齐"
+    a_pole: prioritize
+    b_pole: even

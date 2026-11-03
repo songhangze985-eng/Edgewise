@@ -5,7 +5,9 @@ from redis.asyncio import Redis
 
 from app.api.deps import get_current_token_payload, get_current_user, get_redis
 from app.models.schemas import MessageResponse, TokenResponse, UserLogin, UserPublic, UserRegister
-from app.services.auth_service import authenticate_user, invalidate_token, register_user
+from app.core.redis_client import get_json
+from app.services.auth_service import _to_public_user, authenticate_user, invalidate_token, register_user
+from app.services.research_service import hydrate_public_user_fields
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,8 +29,15 @@ async def login(
 
 
 @router.get("/me", response_model=UserPublic)
-async def me(current_user=Depends(get_current_user)) -> UserPublic:
-    return UserPublic.model_validate(current_user.model_dump())
+async def me(
+    current_user=Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> UserPublic:
+    user_data = await get_json(redis, f"user:{current_user.id}")
+    if user_data:
+        await hydrate_public_user_fields(redis, user_data)
+        return _to_public_user(user_data)
+    return UserPublic.model_validate(current_user.model_dump(exclude={"password_hash"}))
 
 
 @router.post("/logout", response_model=MessageResponse)

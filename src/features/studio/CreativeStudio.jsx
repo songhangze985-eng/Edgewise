@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import PageBar from '../../components/ui/PageBar'
 import styles from './CreativeStudio.module.css'
 
 const INTERVIEW_STYLES = [
@@ -60,17 +61,21 @@ export default function CreativeStudio() {
 
   const enabledEventCount = events.filter((e) => e.enabled).length
 
+  const lobbyQuery = useMemo(() => {
+    const params = new URLSearchParams({
+      source: 'studio',
+      type: interviewStyle === 'pressure' ? 'semi' : interviewStyle,
+      difficulty: strictness >= 4 ? 'hard' : strictness <= 2 ? 'easy' : 'medium',
+    })
+    if (customPrompt.trim()) params.set('position', customPrompt.trim().slice(0, 40))
+    return params.toString()
+  }, [interviewStyle, strictness, customPrompt])
+
   const styleFill = (value) => ({ '--fill': `${((value - 1) / 4) * 100}%` })
 
   return (
     <div className={styles.page}>
-      {/* Page Header */}
-      <div className={styles['page-header']}>
-        <h1>沙盒定制工坊</h1>
-        <div className={styles['page-sub']}>
-          <span>Creative Studio</span> / 高自由度自定义工具
-        </div>
-      </div>
+      <PageBar title="沙盒定制工坊" />
 
       {/* Three-Column Panels */}
       <div className={styles.columns}>
@@ -270,7 +275,7 @@ export default function CreativeStudio() {
             <span className={styles['summary-value']}>{enabledEventCount} 项</span>
           </div>
         </div>
-        <Link to="/interview/room/custom" className={styles['btn-start']}>
+        <Link to={`/interview/lobby?${lobbyQuery}`} className={styles['btn-start']}>
           开始定制面试
           <span className={styles['btn-start-arrow']}>&rarr;</span>
         </Link>

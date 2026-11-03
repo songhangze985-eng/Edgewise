@@ -245,6 +245,17 @@
 }
 
 /* ---- Session Cards ---- */
+.delivery-trend-empty {
+  margin: 0;
+  padding: 0.5rem 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--chalk-dim, rgba(226, 224, 229, 0.55));
+}
+
+.delivery-trend-chart {
+  padding: 0.25rem 0 0.5rem;
+}
+
 .sessions-list {
   display: flex;
   flex-direction: column;
@@ -337,6 +348,17 @@
   font-family: var(--font-head);
   font-size: 1.3rem;
   line-height: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.session-grade-label {
+  font-family: var(--font-mono);
+  font-size: max(12px, 0.62rem);
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
 }
 
 .session-score.excellent { color: var(--success); }

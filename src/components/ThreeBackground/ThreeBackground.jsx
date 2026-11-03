@@ -99,25 +99,35 @@ function SceneContent() {
   )
 }
 
-export default function ThreeBackground() {
+export default function ThreeBackground({ mode = 'active', opacity = 0.25 }) {
+  if (mode === 'off') return null
+
+  const effectiveOpacity = mode === 'static' ? opacity * 0.5 : opacity
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      zIndex: 0,
-      pointerEvents: 'none',
-    }}>
-      <Canvas
-        orthographic
-        camera={{ zoom: 40, position: [20, 20, 20], near: 1, far: 1000 }}
-        style={{ background: 'transparent' }}
-        gl={{ antialias: true, alpha: true }}
-      >
-        <SceneContent />
-      </Canvas>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        pointerEvents: 'none',
+        opacity: effectiveOpacity,
+      }}
+      aria-hidden="true"
+    >
+      {mode === 'active' ? (
+        <Canvas
+          orthographic
+          camera={{ zoom: 40, position: [20, 20, 20], near: 1, far: 1000 }}
+          style={{ background: 'transparent' }}
+          gl={{ antialias: true, alpha: true }}
+        >
+          <SceneContent />
+        </Canvas>
+      ) : null}
     </div>
   )
 }

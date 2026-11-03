@@ -1,9 +1,21 @@
 import { create } from 'zustand'
+import { PHASE_DEFS } from '../features/lgd/lgdScripts'
+
+const DEFAULT_PHASE_SECONDS = {
+  reading: 90,
+  personal_statement: 480,
+  free_discussion: 600,
+  summary_report: 180,
+  completed: 0,
+}
 
 const INITIAL_STATE = {
   phase: 'lobby',
   topic: '',
   material: '',
+  topicType: null,
+  userRole: 'member',
+  phasePlan: [],
   messages: [],
   agents: [],
   currentSpeaker: null,
@@ -13,35 +25,39 @@ const INITIAL_STATE = {
   micGranted: false,
   votes: {},
   score: null,
+  lgdMetrics: null,
   isSimulating: false,
+}
+
+function secondsForPhase(phasePlan, phase) {
+  const row = (phasePlan || []).find((p) => p.name === phase)
+  if (row && row.seconds) return row.seconds
+  return DEFAULT_PHASE_SECONDS[phase] ?? 0
 }
 
 const useLgdStore = create((set, get) => ({
   ...INITIAL_STATE,
 
-  initRoom(topic, material) {
+  initRoom(topic, material, options = {}) {
+    const phasePlan = options.phases?.length ? options.phases : []
     set({
       ...INITIAL_STATE,
       phase: 'reading',
       topic,
       material,
-      remainingSeconds: 30,
+      topicType: options.topicType || null,
+      userRole: options.userRole || 'member',
+      phasePlan,
+      remainingSeconds: secondsForPhase(phasePlan, 'reading') || DEFAULT_PHASE_SECONDS.reading,
       isSimulating: true,
     })
   },
 
   setPhase(phase) {
-    const durations = {
-      reading: 30,
-      sequential: 300,
-      free_discussion: 180,
-      voting: 60,
-      summary: 60,
-      completed: 0,
-    }
+    const { phasePlan } = get()
     set({
       phase,
-      remainingSeconds: durations[phase] ?? 0,
+      remainingSeconds: secondsForPhase(phasePlan, phase),
     })
   },
 
@@ -49,7 +65,12 @@ const useLgdStore = create((set, get) => ({
     set((state) => ({
       messages: [
         ...state.messages,
-        { ...msg, id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, timestamp: Date.now() },
+        {
+          ...msg,
+          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: Date.now(),
+          phase: msg.phase || state.phase,
+        },
       ],
     }))
   },
@@ -100,9 +121,14 @@ const useLgdStore = create((set, get) => ({
     set({ score })
   },
 
+  setLgdMetrics(metrics) {
+    set({ lgdMetrics: metrics })
+  },
+
   reset() {
     set(INITIAL_STATE)
   },
 }))
 
+export { PHASE_DEFS, DEFAULT_PHASE_SECONDS }
 export default useLgdStore

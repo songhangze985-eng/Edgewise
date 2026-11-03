@@ -1,6 +1,15 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
+.venv/
+backend/.venv/
+dump.rdb
+*.rdb
+credentials.json
+*.pem
+secrets/
 .DS_Store
 *.log
 __pycache__/

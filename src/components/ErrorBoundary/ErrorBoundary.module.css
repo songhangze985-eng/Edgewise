@@ -1,0 +1,32 @@
+.wrap {
+  padding: var(--sp-2xl);
+  text-align: center;
+  color: var(--chalk);
+}
+
+.title {
+  font-family: var(--font-head);
+  font-size: 1.75rem;
+  margin-bottom: var(--sp-md);
+}
+
+.desc {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--chalk-dim);
+  margin-bottom: var(--sp-lg);
+}
+
+.btn {
+  font-family: var(--font-mono);
+  padding: var(--sp-sm) var(--sp-lg);
+  border-radius: var(--r-md);
+  border: 1px solid var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--chalk);
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--purple);
+}

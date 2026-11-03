@@ -4,7 +4,31 @@
    ============================================ */
 
 .page {
+  padding-bottom: var(--sp-2xl, 96px);
   animation: fadeInUp 0.5s ease;
+}
+
+/* Shared typography inside selectable cards / rows */
+.card-title,
+.style-card-name,
+.scene-name,
+.event-name {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.card-desc,
+.scene-desc,
+.event-desc {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  color: var(--chalk-dim);
 }
 
 /* ---- Page Header ---- */
@@ -35,13 +59,17 @@
 /* ---- Three-Column Layout ---- */
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-lg);
   margin-bottom: var(--sp-xl);
+  align-items: stretch;
 }
 
 /* ---- Panel ---- */
 .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--bg-card);
   backdrop-filter: blur(8px);
   border: var(--border);
@@ -60,11 +88,11 @@
 
 .panel-title {
   font-family: var(--font-head);
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   color: var(--text-primary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: var(--sp-lg);
+  margin-bottom: var(--sp-md);
   display: flex;
   align-items: center;
   gap: var(--sp-sm);
@@ -88,7 +116,7 @@
 
 /* ---- Slider Control ---- */
 .slider-group {
-  margin-bottom: var(--sp-lg);
+  margin-bottom: var(--sp-md);
 }
 
 .slider-header {
@@ -106,8 +134,9 @@
 }
 
 .slider-value {
-  font-family: var(--font-head);
-  font-size: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--purple);
   min-width: 20px;
   text-align: right;
@@ -202,14 +231,22 @@
 
 /* ---- Style Cards ---- */
 .style-cards {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, minmax(42px, 1fr));
+  flex: 1;
+  min-height: 0;
   gap: var(--sp-sm);
-  margin-bottom: var(--sp-lg);
+  margin-bottom: var(--sp-md);
 }
 
 .style-card {
-  padding: 10px var(--sp-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  padding: var(--sp-sm) var(--sp-md);
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--chalk-faint);
   border-radius: var(--r-sm);
@@ -235,10 +272,9 @@
 }
 
 .style-card-name {
-  font-family: var(--font-head);
-  font-size: 1.05rem;
-  color: var(--text-primary);
-  letter-spacing: 0.04em;
+  flex: 1;
+  width: 100%;
+  text-align: center;
 }
 
 .style-card.selected .style-card-name {
@@ -247,13 +283,22 @@
 
 /* ---- Textarea ---- */
 .textarea-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   margin-bottom: 0;
+}
+
+.textarea-group .textarea {
+  flex: 1;
+  min-height: 72px;
 }
 
 .textarea {
   width: 100%;
-  min-height: 80px;
-  padding: var(--sp-md);
+  min-height: 72px;
+  padding: var(--sp-sm) var(--sp-md);
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--chalk-faint);
   border-radius: var(--r-sm);
@@ -283,12 +328,22 @@
 .scene-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  flex: 1;
+  min-height: 0;
   gap: var(--sp-sm);
-  margin-bottom: var(--sp-lg);
+  margin-bottom: var(--sp-md);
 }
 
 .scene-card {
-  padding: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  min-height: 82px;
+  padding: var(--sp-sm) var(--sp-md);
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--chalk-faint);
   border-radius: var(--r-sm);
@@ -315,16 +370,14 @@
 }
 
 .scene-emoji {
-  font-size: 1.6rem;
-  margin-bottom: 4px;
+  font-size: 1.25rem;
+  line-height: 1;
   display: block;
+  flex-shrink: 0;
 }
 
 .scene-name {
-  font-family: var(--font-head);
-  font-size: 1rem;
-  color: var(--text-primary);
-  letter-spacing: 0.04em;
+  width: 100%;
 }
 
 .scene-card.selected .scene-name {
@@ -332,9 +385,7 @@
 }
 
 .scene-desc {
-  font-size: 0.5rem;
-  color: var(--chalk-dim);
-  letter-spacing: 0.02em;
+  width: 100%;
 }
 
 /* ---- Divider ---- */
@@ -369,7 +420,7 @@
 
 .ai-generate-row .textarea {
   flex: 1;
-  min-height: 60px;
+  min-height: 56px;
 }
 
 .btn-generate {
@@ -426,36 +477,38 @@
 .event-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  gap: var(--sp-sm);
 }
 
 .event-row {
   display: flex;
+  flex: 1;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: 4px;
-  transition: background 0.15s ease;
+  gap: var(--sp-sm);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-sm) var(--sp-md);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--chalk-faint);
+  border-radius: var(--r-sm);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .event-row:hover {
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.32);
+  border-color: var(--chalk-dim);
 }
 
 .event-info {
   flex: 1;
   min-width: 0;
-}
-
-.event-name {
-  font-size: 0.7rem;
-  color: var(--text-primary);
-}
-
-.event-desc {
-  font-size: 0.5rem;
-  color: var(--chalk-dim);
-  letter-spacing: 0.02em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 
 /* Toggle Switch - matching Profile.jsx */
@@ -526,21 +579,22 @@
 }
 
 .summary-value {
-  font-family: var(--font-head);
-  font-size: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--purple);
   letter-spacing: 0.04em;
 }
 
 /* ---- Start Button ---- */
 .btn-start {
-  padding: 14px 32px;
+  padding: 12px 28px;
   background: var(--primary);
   color: #fff;
   border: none;
   border-radius: var(--r-sm);
   font-family: var(--font-head);
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;

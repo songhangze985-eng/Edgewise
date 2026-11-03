@@ -1,0 +1,57 @@
+# Layer templates: L1 clarify, L2 application/choice, L3 complex/reflect
+# Vars allowed: question_title, gap_label, keyword, resume_snippet, user_excerpt
+layers:
+  1:
+    label: clarify
+    gaps:
+      contribution:
+        with_vars: "你提到「{user_excerpt}」，在这段经历里你个人具体负责哪一部分？"
+        no_vars: "请具体说明：你个人在这段经历中负责哪一部分、采取了哪些行动？"
+      evidence:
+        with_vars: "关于「{question_title}」，能否补充一个可核查的结果（数字、周期或规模）？"
+        no_vars: "能否补充一个可核查的结果（数字、周期、规模或具体方法）？"
+      structure:
+        with_vars: "请围绕「{question_title}」按「背景 → 你的任务 → 行动 → 结果」简要重述一遍。"
+        no_vars: "请按「背景 → 你的任务 → 行动 → 结果」简要重述一遍。"
+      causality:
+        with_vars: "针对「{user_excerpt}」，当时的关键决策是什么？因为什么、所以做了什么？"
+        no_vars: "当时的关键决策是什么？请说明因果链条。"
+      relevance:
+        with_vars: "「{question_title}」这一题的核心在考察什么？请先点明题眼再举例。"
+        no_vars: "请先点明题目在问什么，再给出与题眼直接相关的事例。"
+  2:
+    label: application
+    gaps:
+      contribution:
+        with_vars: "若「{keyword}」相关资源减半，你会如何调整你的分工与交付？"
+        no_vars: "若相关资源减半，你会如何调整你的分工与交付？"
+      evidence:
+        with_vars: "如果无法拿到精确数据，你会用什么替代指标证明「{question_title}」上的成效？"
+        no_vars: "如果无法拿到精确数据，你会用什么替代指标证明成效？"
+      structure:
+        with_vars: "把同一经历压缩成 30 秒版本，你会保留哪两句？"
+        no_vars: "把同一经历压缩成 30 秒版本，你会保留哪两句？"
+      causality:
+        with_vars: "若当时关键假设不成立，你的备选方案是什么？"
+        no_vars: "若当时关键假设不成立，你的备选方案是什么？"
+      relevance:
+        with_vars: "同一事例换到「{keyword}」场景，你会强调哪一点？"
+        no_vars: "同一事例换到另一业务场景，你会强调哪一点？"
+  3:
+    label: reflect
+    gaps:
+      contribution:
+        with_vars: "回看「{user_excerpt}」，你个人最大的失误或盲区是什么？"
+        no_vars: "回看这段经历，你个人最大的失误或盲区是什么？"
+      evidence:
+        with_vars: "若用第三方审计你的结果，最可能被质疑的一点是什么？"
+        no_vars: "若用第三方审计你的结果，最可能被质疑的一点是什么？"
+      structure:
+        with_vars: "如果听众只能记住一个 takeaway，关于「{question_title}」你会选什么？"
+        no_vars: "如果听众只能记住一个 takeaway，你会选什么？"
+      causality:
+        with_vars: "现在回头看，哪一步本可以更早做出不同决策？"
+        no_vars: "现在回头看，哪一步本可以更早做出不同决策？"
+      relevance:
+        with_vars: "这道题还可能在哪些维度考察你？你会如何 preempt？"
+        no_vars: "这道题还可能在哪些维度考察你？你会如何 preempt？"

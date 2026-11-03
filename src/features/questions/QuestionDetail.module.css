@@ -223,6 +223,22 @@
   cursor: not-allowed;
 }
 
+.secondary-btn {
+  background: transparent;
+  border: 1px solid var(--chalk-faint);
+  border-radius: 7px;
+  padding: 10px 16px;
+  color: var(--chalk-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  border-color: var(--purple);
+  color: var(--chalk);
+}
+
 .word-count {
   font-size: 0.6rem;
   color: var(--chalk-dim);

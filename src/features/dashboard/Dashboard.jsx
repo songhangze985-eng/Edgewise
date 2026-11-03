@@ -1,41 +1,28 @@
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
 import useSessionStore from '../../stores/sessionStore'
+import useAuthStore from '../../stores/authStore'
+import useResumeStore from '../../stores/resumeStore'
+import { formatAvgScore, rankFromAvgScore, findWeakestDimension, dimKeyFromAxisLabel } from '../../utils/userStats'
 import styles from './Dashboard.module.css'
 import iconLgd from '../../assets/icons/feature-lgd.svg'
 import iconResume from '../../assets/icons/feature-resume.svg'
 import iconInterview from '../../assets/icons/feature-interview.svg'
+import ResearchDashboardBanners from '../../components/ResearchDashboardBanners/ResearchDashboardBanners'
+import PageBar from '../../components/ui/PageBar'
+import ScheduleCountdownCard from './ScheduleCountdownCard'
 
-const radarData = [
-  { axis: '表达力', value: 82, fullMark: 100 },
-  { axis: '逻辑力', value: 75, fullMark: 100 },
-  { axis: '领导力', value: 68, fullMark: 100 },
-  { axis: '协作力', value: 88, fullMark: 100 },
-  { axis: '应变力', value: 71, fullMark: 100 },
-]
-
-const recentSessions = [
-  { id: 1, type: 'lgd', topic: '如何提升远程团队的协作效率', score: 85, date: '3 小时前', duration: '45min' },
-  { id: 2, type: 'resume', topic: '简历 AI 优化 · 产品经理岗位', score: 92, date: '昨天', duration: '12min' },
-  { id: 3, type: 'lgd', topic: '新消费品牌的增长策略讨论', score: 78, date: '2 天前', duration: '40min' },
-  { id: 4, type: 'interview', topic: '1v1 模拟面试 · 战略咨询', score: 81, date: '3 天前', duration: '30min' },
-]
-
-const MOCK_STATS = [
-  { label: '练习总次数', id: 'M-01', value: '47', delta: '+5 本周', icon: '⬡', color: '' },
-  { label: '综合评分', id: 'M-02', value: '82', delta: '+3.2 较上月', icon: '◈', color: 'purple' },
-  { label: '当前段位', id: 'M-03', value: '铂金', delta: '距钻石差 180 分', icon: '◇', color: 'blue' },
-  { label: '积分余额', id: 'M-04', value: '1,280', delta: '+120 本周', icon: '△', color: 'red' },
-]
-
-function getGreeting() {
+function getPageTitle(user) {
   const h = new Date().getHours()
-  if (h < 6) return '夜深了，注意休息'
-  if (h < 12) return '早安，新的一天开始了'
-  if (h < 14) return '中午好，稍事休息'
-  if (h < 18) return '下午好，保持专注'
-  return '晚上好，继续加油'
+  const name = user?.name?.trim() || '用户'
+  let period = '你好'
+  if (h < 6) period = '夜深了'
+  else if (h < 12) period = '早上好'
+  else if (h < 14) period = '中午好'
+  else if (h < 18) period = '下午好'
+  else period = '晚上好'
+  return `${period}，${name}`
 }
 
 function getScoreColor(score) {
@@ -46,34 +33,134 @@ function getScoreColor(score) {
 }
 
 function Dashboard() {
-  const { stats: sessionStats, getRecentSessions } = useSessionStore()
+  const user = useAuthStore((s) => s.user)
+  const stats = useSessionStore((s) => s.stats)
+  const radarData = useSessionStore((s) => s.radarData)
+  const refresh = useSessionStore((s) => s.refresh)
+  const loading = useSessionStore((s) => s.loading)
+  const error = useSessionStore((s) => s.error)
+  const getRecentSessions = useSessionStore((s) => s.getRecentSessions)
   const savedSessions = getRecentSessions(4)
+  const resumeId = useResumeStore((s) => s.resumeId)
+  const resumeParsed = useResumeStore((s) => s.parsedData)
+  const rank = rankFromAvgScore(stats.avgScore || 0)
+  const credits = stats.credits || user?.credits || 0
+
+  useEffect(() => {
+    refresh().catch(() => {})
+  }, [refresh])
 
   const displayStats = [
-    { label: '练习总次数', id: 'M-01', value: String(sessionStats.totalSessions || 47), delta: `+${sessionStats.totalSessions > 0 ? Math.min(sessionStats.totalSessions, 5) : 5} 本周`, icon: '⬡', color: '' },
-    { label: '综合评分', id: 'M-02', value: String(sessionStats.avgScore || 82), delta: '+3.2 较上月', icon: '◈', color: 'purple' },
-    { label: '当前段位', id: 'M-03', value: '铂金', delta: '距钻石差 180 分', icon: '◇', color: 'blue' },
-    { label: '积分余额', id: 'M-04', value: '1,280', delta: '+120 本周', icon: '△', color: 'red' },
+    {
+      label: '练习总次数',
+      id: 'M-01',
+      value: String(stats.totalSessions || 0),
+      delta: stats.streak ? `连续 ${stats.streak} 天` : '开始第一次练习',
+      icon: '⬡',
+      color: '',
+    },
+    {
+      label: '综合评分',
+      id: 'M-02',
+      value: formatAvgScore(stats.avgScore || 0),
+      delta: stats.avgScore ? '基于历史会话' : '暂无评分',
+      icon: '◈',
+      color: 'purple',
+    },
+    {
+      label: '当前段位',
+      id: 'M-03',
+      value: rank.name,
+      delta: rank.next,
+      icon: '◇',
+      color: 'blue',
+    },
+    {
+      label: '积分余额',
+      id: 'M-04',
+      value: Number(credits).toLocaleString(),
+      delta: user?.tierLabel || '会员积分',
+      icon: '△',
+      color: 'red',
+    },
   ]
+
+  const weakest = findWeakestDimension(radarData)
+  const weakestKey = weakest ? dimKeyFromAxisLabel(weakest.axis) : 'logic'
+  let nextStep = {
+    title: '上传简历，开启个性化练习',
+    desc: 'AI 将基于你的经历匹配岗位与面试题。',
+    to: '/resume',
+    cta: '去上传简历',
+  }
+  if (resumeId || resumeParsed) {
+    if (!stats.totalSessions) {
+      nextStep = {
+        title: '开始第一次 1v1 模拟面试',
+        desc: '结构化问答 + 五维评分，建立你的能力基线。',
+        to: resumeId ? `/interview/lobby?resume=${resumeId}` : '/interview/lobby',
+        cta: '进入面试大厅',
+      }
+    } else if (weakest) {
+      const prefill = new URLSearchParams({
+        type: 'behavioral',
+        difficulty: 'medium',
+        focus: weakestKey,
+      })
+      nextStep = {
+        title: `下一步：强化「${weakest.axis}」`,
+        desc: `当前 ${weakest.value} 分，建议针对薄弱维度加练（已预填面试大厅）。`,
+        to: `/interview/lobby?${prefill.toString()}`,
+        cta: '开始针对性练习',
+      }
+    }
+  }
+
+  if (loading && savedSessions.length === 0 && !stats.totalSessions) {
+    return (
+      <div className={styles.dashboard}>
+        <p style={{ padding: '2rem', color: 'var(--chalk-dim)', fontFamily: 'var(--font-mono)' }}>
+          正在加载工作台数据…
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.dashboard}>
-      {/* Hero Header */}
-      <div className={styles.hero}>
-        <div className={styles['hero-text']}>
-          <h1>DASHBOARD</h1>
-          <div className={styles['hero-greeting']}>{getGreeting()}</div>
-          <div className={styles['hero-sub']}>
-            智启工作台 · {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
-          </div>
-        </div>
-        <div className={styles['hero-streak']}>
-          <span className={styles['streak-value']}>{sessionStats.streak || 7}</span>
-          <span className={styles['streak-label']}>连续天数</span>
-        </div>
-      </div>
+      <PageBar
+        title={getPageTitle(user)}
+        actions={
+          <>
+            <span className={styles['header-date']}>
+              {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+            </span>
+            <div className={styles['hero-streak']}>
+              <span className={styles['streak-value']}>{stats.streak || 0}</span>
+              <span className={styles['streak-label']}>连续天数</span>
+            </div>
+          </>
+        }
+      />
 
-      {/* Stats Cards */}
+      <ResearchDashboardBanners />
+
+      <ScheduleCountdownCard />
+
+      {error && (
+        <div className={styles['error-banner']}>
+          <span>概览数据加载失败</span>
+          <button type="button" onClick={() => refresh().catch(() => {})}>重试</button>
+        </div>
+      )}
+
+      <Link to={nextStep.to} className={styles['next-card']}>
+        <div className={styles['next-kicker']}>下一步推荐</div>
+        <div className={styles['next-title']}>{nextStep.title}</div>
+        <div className={styles['next-desc']}>{nextStep.desc}</div>
+        <span className={styles['next-cta']}>{nextStep.cta} →</span>
+      </Link>
+
       <div className={styles['stats-grid']}>
         {displayStats.map((s) => (
           <div key={s.id} className={`${styles['stat-card']} ${s.color ? styles[`stat-${s.color}`] : ''}`}>
@@ -85,18 +172,14 @@ function Dashboard() {
                 {s.label}
                 <span className={styles['stat-id']}>[{s.id}]</span>
               </div>
-              <div className={styles['stat-value']}>
-                {s.value}
-              </div>
+              <div className={styles['stat-value']}>{s.value}</div>
               <div className={styles['stat-delta']}>{s.delta}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Main Content: 3-column layout */}
       <div className={styles['main-grid']}>
-        {/* Radar Chart Panel */}
         <div className={`hw-panel ${styles.panel} ${styles['panel-radar']}`}>
           <div className={styles['panel-header']}>
             <span className={styles['panel-title']}>能力雷达</span>
@@ -138,9 +221,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Right Column: Quick Actions + Recent */}
         <div className={styles['right-col']}>
-          {/* Quick Actions */}
           <div className={`hw-panel ${styles.panel}`}>
             <div className={styles['panel-header']}>
               <span className={styles['panel-title']}>快速启动</span>
@@ -174,41 +255,50 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Sessions */}
           <div className={`hw-panel ${styles.panel}`}>
             <div className={styles['panel-header']}>
               <span className={styles['panel-title']}>最近练习</span>
               <span className={styles['panel-id']}>[LOG-01]</span>
             </div>
             <div className={styles['sessions-list']}>
-              {(savedSessions.length > 0 ? savedSessions : recentSessions).map((s) => (
-                <div key={s.id} className={styles['session-item']}>
-                  <div className={styles['session-left']}>
-                    <span className={`${styles['session-type']} ${styles[s.type]}`}>{s.type}</span>
-                    <div className={styles['session-info']}>
-                      <div className={styles['session-topic']}>{s.topic}</div>
-                      <div className={styles['session-meta']}>{s.date} · {s.durationMinutes ? `${s.durationMinutes}min` : s.duration}</div>
-                    </div>
-                  </div>
-                  <div className={styles['session-right']}>
-                    <div className={`${styles['session-score']} ${styles[getScoreColor(s.score)]}`}>
-                      {s.score}
-                    </div>
-                    <div className={styles['score-bar']}>
-                      <div
-                        className={`${styles['score-fill']} ${styles[getScoreColor(s.score)]}`}
-                        style={{ width: `${s.score}%` }}
-                      />
-                    </div>
+              {savedSessions.length === 0 ? (
+                <div className={styles['session-item']}>
+                  <div className={styles['session-info']}>
+                    <div className={styles['session-topic']}>暂无练习记录</div>
+                    <div className={styles['session-meta']}>从快速启动开始第一次训练</div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                savedSessions.map((s) => (
+                  <Link key={s.id} to={`/analytics/report/${s.id}`} className={styles['session-item']}>
+                    <div className={styles['session-left']}>
+                      <span className={`${styles['session-type']} ${styles[s.type]}`}>{s.type}</span>
+                      <div className={styles['session-info']}>
+                        <div className={styles['session-topic']}>{s.topic}</div>
+                        <div className={styles['session-meta']}>
+                          {s.date} · {s.durationMinutes ? `${s.durationMinutes}min` : '--'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles['session-right']}>
+                      <div className={`${styles['session-score']} ${styles[getScoreColor(s.score || 0)]}`}>
+                        {s.score ?? '--'}
+                      </div>
+                      <div className={styles['score-bar']}>
+                        <div
+                          className={`${styles['score-fill']} ${styles[getScoreColor(s.score || 0)]}`}
+                          style={{ width: `${s.score || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Skill Spectrum */}
       <div className={styles['bottom-scale']}>
         <span className={styles['scale-label']}>SKILL SPECTRUM</span>
         <div className={styles['scale-track']}>

@@ -923,3 +923,164 @@
     align-items: flex-start;
   }
 }
+
+.resume-tabs {
+  display: flex;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-lg);
+}
+
+.resume-tab {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--chalk-faint);
+  background: transparent;
+  color: var(--chalk-dim);
+  cursor: pointer;
+}
+
+.resume-tab-active {
+  border-color: rgba(155, 111, 199, 0.5);
+  color: var(--chalk);
+  background: rgba(155, 111, 199, 0.1);
+}
+
+.jd-saved-row {
+  margin-bottom: var(--sp-md);
+}
+
+.jd-select {
+  width: 100%;
+  margin-top: var(--sp-xs);
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  border: var(--border);
+  background: rgba(22, 21, 33, 0.6);
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.jd-inline-warn {
+  font-size: 0.68rem;
+  color: var(--warning);
+  margin: var(--sp-sm) 0;
+}
+
+.jd-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+}
+
+.jd-action-row .jd-analyze-btn {
+  margin-top: var(--sp-md);
+}
+
+.jd-match-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-md);
+  margin-top: var(--sp-md);
+}
+
+.jd-match-col {
+  min-width: 0;
+}
+
+.jd-empty-col {
+  font-size: 0.7rem;
+  color: var(--chalk-faint);
+}
+
+.kw-overlap {
+  border-color: rgba(76, 175, 80, 0.45);
+}
+
+.kw-jd-only {
+  border-color: rgba(255, 152, 0, 0.45);
+}
+
+.kw-resume-only {
+  border-color: rgba(100, 181, 246, 0.45);
+}
+
+.keyword-tag-editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--chalk-faint);
+  font-size: 0.68rem;
+}
+
+.kw-remove {
+  border: none;
+  background: transparent;
+  color: var(--chalk-dim);
+  cursor: pointer;
+}
+
+.kw-add-row {
+  display: flex;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-sm);
+}
+
+.kw-add-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  border: var(--border);
+  background: rgba(22, 21, 33, 0.5);
+  color: var(--chalk);
+  font-size: 0.72rem;
+}
+
+.kw-add-btn {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--chalk-faint);
+  background: transparent;
+  color: var(--chalk);
+  cursor: pointer;
+}
+
+.target-jobs-list {
+  display: grid;
+  gap: var(--sp-md);
+}
+
+.target-job-card {
+  padding: var(--sp-md);
+  border: 1px solid var(--chalk-faint);
+  border-radius: var(--r-sm);
+}
+
+.target-job-title {
+  font-family: var(--font-head);
+  margin-bottom: var(--sp-xs);
+}
+
+.target-job-snippet {
+  font-size: 0.7rem;
+  color: var(--chalk-dim);
+  margin-bottom: var(--sp-sm);
+}
+
+.target-job-actions {
+  display: flex;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-sm);
+}
+
+@media (max-width: 900px) {
+  .jd-match-columns {
+    grid-template-columns: 1fr;
+  }
+}

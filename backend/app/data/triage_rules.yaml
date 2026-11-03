@@ -1,0 +1,178 @@
+# Rule-based copilot triage (TriageProvider default). Priority: lower number wins ties.
+confidence_threshold: 0.62
+
+clarifying:
+  default: "你更想先练「把经历讲清楚」还是「应对追问/面试形式」？"
+  ownership_vs_followup: "主要是「说不清自己做了什么」，还是「被追问细节就卡住」？"
+
+out_of_scope:
+  crisis:
+    priority: 0
+    keywords:
+      - 自杀
+      - 轻生
+      - 不想活
+      - 结束生命
+      - 自残
+      - 割腕
+    limitation: >-
+      谈锋是面试练习工具，无法提供心理危机干预。若你或身边的人有自伤风险，请立即联系当地
+      24 小时心理危机热线（如 400-161-9995）或拨打 120 / 110 寻求专业帮助。
+    handoff_human: false
+  referral:
+    priority: 1
+    keywords:
+      - 内推
+      - 推荐工作
+      - 帮忙投递
+      - 介绍 hr
+      - 介绍 HR
+    limitation: >-
+      谈锋不提供内推、代投简历或人脉介绍，也无法保证任何公司的录用结果。
+    handoff_human: true
+    handoff_label: 了解产品边界与反馈渠道
+  ghostwriting:
+    priority: 2
+    keywords:
+      - 代写
+      - 帮我写简历
+      - 润色成
+      - 编造经历
+      - 包装简历
+    limitation: >-
+      谈锋不会代写或编造经历，修订反馈只基于你已有回答指出可核对的问题。
+    handoff_human: true
+    handoff_label: 了解产品边界与反馈渠道
+  salary:
+    priority: 3
+    keywords:
+      - 薪资
+      - 工资
+      - 开多少
+      - 行情
+      - offer 对比
+      - 谈薪
+    limitation: >-
+      谈锋不提供薪资行情、谈薪策略或录用概率预测，相关决策请咨询官方渠道或专业人士。
+    handoff_human: true
+    handoff_label: 了解产品边界与反馈渠道
+
+needs:
+  ownership:
+    priority: 10
+    keywords:
+      - 背稿
+      - 像背
+      - 说不清
+      - 做了什么
+      - 个人贡献
+      - 团队做的
+      - 我们团队
+      - 没有我
+      - 贡献
+    judgment: 听起来你在「个人贡献 / ownership」上还没讲清楚，容易被认为在讲团队口号。
+    micro_task:
+      prompt: 先用一句话说出你亲自做的一个行动（句子里要有「我」，并包含具体动作）。
+      placeholder: 例如：在 XX 项目中，我负责……
+    route:
+      kind: task_page
+      path: /tasks/ownership-contribution
+      label: 开始经历整理练习
+  followup:
+    priority: 11
+    keywords:
+      - 追问
+      - 卡壳
+      - 卡住
+      - 答不上
+      - 深挖
+      - 细节
+      - 变式
+      - 接着问
+    judgment: 你更需要练「被追问时的应变与补细节」，而不是再背一段完整稿。
+    micro_task:
+      prompt: 设想面试官追问「你刚才说的那一步，具体怎么做的？」用 2–3 句回答。
+      placeholder: 写出你会怎么补细节……
+    route:
+      kind: interview_lobby
+      path: /interview/lobby?type=semi&difficulty=medium&followup=1
+      label: 开始半结构化追问练习
+  structure:
+    priority: 12
+    keywords:
+      - 没逻辑
+      - 逻辑
+      - 啰嗦
+      - 结构
+      - star
+      - STAR
+      - 条理
+      - 框架
+    judgment: 先把回答放进清晰结构（如 STAR），通常比堆更多形容词更有效。
+    micro_task:
+      prompt: 用「背景 → 我的任务 → 行动 → 结果」四步，各写一句（可很短）。
+      placeholder: 背景：… / 任务：… / 行动：我… / 结果：…
+    route:
+      kind: task_page
+      path: /tasks/project-sounds-scripted
+      label: 开始 STAR 结构练习
+  format:
+    priority: 13
+    keywords:
+      - 群面
+      - lgd
+      - LGD
+      - 无领导
+      - 结构化
+      - 公考
+      - 国企
+      - 银行
+      - 单向
+      - ai 面试
+      - AI 面试
+    judgment: 你想练的是「面试形式/场景」，可以先选对入口再开口。
+    micro_task:
+      prompt: 用一句话说你想练的形式（群面 / 结构化 / 单向录答 / 普通 1v1）。
+      placeholder: 例如：想练无领导小组讨论……
+    routes:
+      case:
+        keywords:
+          - case
+          - Case
+          - 咨询
+          - 市场规模
+          - 系统设计
+          - 白板
+        path: /case/lobby
+      lgd:
+        match:
+          - 群面
+          - lgd
+          - LGD
+          - 无领导
+        kind: page
+        path: /lgd/lobby
+        label: 进入群面大厅
+      structured:
+        match:
+          - 结构化
+          - 公考
+          - 国企
+          - 银行
+          - 计划组织
+        kind: task_page
+        path: /tasks/structured-planning
+        label: 进入结构化练习说明
+      oneway:
+        match:
+          - 单向
+          - ai 面试
+          - AI 面试
+          - 录答
+        kind: interview_lobby
+        path: /interview/lobby?mode=oneway
+        label: 进入单向面试大厅
+      default:
+        kind: interview_lobby
+        path: /interview/lobby
+        label: 进入面试大厅

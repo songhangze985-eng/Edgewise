@@ -1,0 +1,78 @@
+.card {
+  background: linear-gradient(145deg, rgba(28, 26, 34, 0.98), rgba(18, 17, 24, 0.98));
+  border: 1px solid rgba(155, 111, 199, 0.35);
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
+  max-width: 420px;
+  color: var(--chalk, #e2e0e5);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.brand {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(155, 111, 199, 0.85);
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  line-height: 1.45;
+}
+
+.gapLabel {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(155, 111, 199, 0.15);
+  color: #c4a8e8;
+  margin-bottom: 0.65rem;
+}
+
+.method {
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: rgba(226, 224, 229, 0.92);
+  margin-bottom: 1.1rem;
+}
+
+.excerpt {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid rgba(155, 111, 199, 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 1rem;
+  color: rgba(226, 224, 229, 0.75);
+}
+
+.probeBlock {
+  border-top: 1px solid rgba(226, 224, 229, 0.08);
+  padding-top: 1rem;
+}
+
+.probeLabel {
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  color: rgba(226, 224, 229, 0.5);
+  margin-bottom: 0.4rem;
+}
+
+.probeText {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #f0ecf5;
+}
+
+.footer {
+  margin-top: 1.25rem;
+  font-size: 0.68rem;
+  color: rgba(226, 224, 229, 0.4);
+  font-family: var(--font-mono, monospace);
+}

@@ -48,6 +48,36 @@
     inset -1px -1px 2px rgba(255, 255, 255, 0.03);
 }
 
+.hero-streak-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px;
+  margin-left: var(--sp-md);
+  border: 1px solid rgba(90, 138, 196, 0.25);
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.streak-value {
+  font-family: var(--font-head);
+  font-size: 1.4rem;
+  color: var(--accent-blue);
+}
+
+.streak-label {
+  font-size: 0.6rem;
+  color: var(--chalk-dim);
+  letter-spacing: 0.08em;
+}
+
+.streak-best {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--chalk-dim);
+  margin-top: 4px;
+}
+
 .hp-value {
   font-family: var(--font-head);
   font-size: 2.4rem;

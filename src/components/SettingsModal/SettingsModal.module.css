@@ -157,6 +157,22 @@
   margin-top: 2px;
 }
 
+.setting-section-title {
+  font-family: var(--font-head);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--purple);
+  padding-top: var(--sp-md);
+  margin-top: var(--sp-sm);
+  border-top: 1px solid rgba(226, 224, 229, 0.06);
+}
+
+.setting-range {
+  width: 140px;
+  accent-color: var(--purple);
+  cursor: pointer;
+}
+
 .setting-value {
   font-size: 0.8rem;
   color: var(--chalk-dim);

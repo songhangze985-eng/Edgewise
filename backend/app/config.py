@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +10,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    RESEARCH_HASH_SECRET: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env")
 

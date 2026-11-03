@@ -1,0 +1,305 @@
+# 谈锋自编 Case / 系统设计练习题（非企业真题）
+version: case_v1
+
+case_steps:
+  - id: clarify
+    label: 澄清问题
+  - id: framework
+    label: 分析框架
+  - id: assumptions
+    label: 关键假设
+  - id: data
+    label: 数据与测算
+  - id: conclusion
+    label: 结论与建议
+
+system_design_steps:
+  - id: requirements
+    label: 需求澄清
+  - id: estimation
+    label: 容量估算
+  - id: api
+    label: API 设计
+  - id: data_model
+    label: 数据模型
+  - id: architecture
+    label: 架构与组件
+  - id: tradeoffs
+    label: 权衡与风险
+
+cases:
+  - id: case_market_size
+    kind: case
+    title: 估算某新一线城市「现制茶饮」年市场规模
+    prompt: |
+      你是咨询顾问。客户希望了解：在华东某新一线城市，面向上班族的现制茶饮（不含瓶装饮料）大致有多大？
+      请按 Case 流程推进，必要时先向面试官澄清范围。
+    clarifications:
+      - keywords: [目标, 市场, 哪, 城市, 范围, 地理]
+        answer: 聚焦该新一线城市行政区内，含核心商圈与近郊购物中心门店，不含周边卫星城。
+      - keywords: [产品, 品类, 包含, 什么]
+        answer: 仅现制现售茶饮与咖啡类饮品，不含预包装零售与烘焙主食。
+      - keywords: [时间, 年份, 口径]
+        answer: 按最近完整自然年的零售销售额（GMV）估算，含税与否需与你假设一致并说明。
+      - keywords: [客户, 是谁, 目的]
+        answer: 客户是本地连锁品牌，评估是否加大开店密度，需要量级判断而非精确财报。
+    data_tables:
+      - id: population
+        title: 补充数据（可在「数据与测算」步骤向面试官索取）
+        rows:
+          - ["常住人口（万）", "约 950"]
+          - ["18–45 岁占比", "约 42%"]
+          - ["人均现制茶饮年消费频次（次）", "18–28"]
+          - ["单杯客单价（元）", "22–32"]
+    step_checklists:
+      clarify:
+        - id: goal_clear
+          label: 是否澄清了目标/决策用途
+          signals: [目标, 决策, 用途, 为什么, 客户]
+        - id: scope_geo
+          label: 是否界定了地理与品类范围
+          signals: [城市, 范围, 品类, 包含, 不含]
+      framework:
+        - id: mece_hint
+          label: 框架是否拆分清晰（人群×频次×单价或门店×单店等）
+          signals: [人群, 门店, 频次, 单价, 渗透率, 拆分]
+        - id: structure
+          label: 是否说明先算哪一块、为什么
+          signals: [先, 然后, 步骤, 公式, 等于]
+      assumptions:
+        - id: explicit
+          label: 关键假设是否写清且可检验
+          signals: [假设, 取, 认为, 按, 估计]
+        - id: sanity
+          label: 是否有量级 sanity check
+          signals: [量级, 亿, 万, 对比, 合理]
+      data:
+        - id: used_data
+          label: 是否引用数据或说明数据来源
+          signals: [数据, 表, 人口, 频次, 单价, 根据]
+        - id: calc
+          label: 是否给出计算过程
+          signals: [乘, 等于, ×, 计算, 得出]
+      conclusion:
+        - id: answers_question
+          label: 结论是否回应原问题并给出区间
+          signals: [因此, 结论, 市场规模, 约, 区间]
+        - id: next_steps
+          label: 是否给出下一步验证或建议
+          signals: [建议, 验证, 风险, 下一步, 敏感]
+
+  - id: case_profit_drop
+    kind: case
+    title: 利润下降诊断（虚构 DTC 护肤品牌）
+    prompt: |
+      某 DTC 护肤品牌过去四个季度毛利率稳定，但净利润连续下滑。CEO 问你：最可能的原因与优先验证顺序是什么？
+    clarifications:
+      - keywords: [渠道, 线上, 线下]
+        answer: 80% 收入来自自营电商与短视频直播，20% 来自线下合作专柜。
+      - keywords: [竞品, 市场]
+        answer: 品类增速放缓，竞品促销力度加大，但行业未出现监管黑天鹅。
+      - keywords: [利润, 口径]
+        answer: 讨论税后净利润，含营销与履约费用，不含一次性并购。
+    data_tables:
+      - id: kpis
+        title: 经营摘要（可索取）
+        rows:
+          - ["营收 YoY", "+6%"]
+          - ["毛利率", "58%（持平）"]
+          - ["营销费用率", "32% → 41%"]
+          - ["履约/退货率", "9% → 14%"]
+          - ["库存周转（天）", "62 → 88"]
+    step_checklists:
+      clarify:
+        - id: goal_clear
+          label: 是否澄清决策目标与时间范围
+          signals: [目标, 季度, 范围, 净利润]
+        - id: scope
+          label: 是否区分收入、成本、费用结构
+          signals: [收入, 成本, 费用, 毛利, 渠道]
+      framework:
+        - id: profit_tree
+          label: 是否使用利润树或成本结构分解
+          signals: [利润, 拆解, 营销, 履约, 退货, 结构]
+        - id: hypothesis
+          label: 是否列出可验证假设
+          signals: [假设, 可能, 原因, 优先]
+      assumptions:
+        - id: explicit
+          label: 假设是否与业务机制挂钩
+          signals: [因为, 假设, 如果, 导致]
+      data:
+        - id: data_link
+          label: 是否用数据支持或排除假设
+          signals: [数据, 费用率, 退货, 周转, 支持]
+      conclusion:
+        - id: recommendation
+          label: 是否给出优先行动与验证计划
+          signals: [建议, 优先, 验证, 因此, 结论]
+
+  - id: case_new_market
+    kind: case
+    title: 是否进入东南亚某国市场（虚构智能硬件）
+    prompt: |
+      公司主打中端智能摄像头，在国内已盈利。董事会问：是否应在 18 个月内进入东南亚某国？你会如何分析？
+    clarifications:
+      - keywords: [国家, 哪, 市场]
+        answer: 候选国为越南或泰国二选一，本次可任选其一并说明理由。
+      - keywords: [预算, 资源]
+        answer: 首年可投入约 800 万人民币级市场与渠道费用，不含建厂。
+      - keywords: [合规, 监管]
+        answer: 需本地数据存储合作伙伴，暂无出口禁令。
+    data_tables:
+      - id: market_hint
+        title: 桌面研究摘要
+        rows:
+          - ["家庭安防渗透率（估计）", "低于国内约 30%"]
+          - ["主要渠道", "电商 + 线下 3C 连锁"]
+          - ["价格带", "与国内中端档接近"]
+    step_checklists:
+      clarify:
+        - id: goal
+          label: 是否澄清进入目标与成功标准
+          signals: [目标, 成功, 18, 个月, 标准]
+      framework:
+        - id: entry_framework
+          label: 是否覆盖市场吸引力、能力匹配、风险与进入模式
+          signals: [市场, 能力, 风险, 进入, 模式]
+      assumptions:
+        - id: explicit
+          label: 关键假设是否明确
+          signals: [假设, 认为, 取]
+      data:
+        - id: sizing
+          label: 是否做粗略量级或对比
+          signals: [估算, 渗透率, 规模, 对比]
+      conclusion:
+        - id: go_no_go
+          label: 是否给出进入/暂不进入及条件
+          signals: [建议, 进入, 暂不, 条件, 结论]
+
+system_designs:
+  - id: sd_short_url
+    kind: system_design
+    title: 设计短链服务（类似 bit.ly 练习版）
+    prompt: |
+      设计一个短链跳转服务：用户提交长 URL 得到短码，访问短码 302 到原链。估计 QPS 1000，读多写少。
+    clarifications:
+      - keywords: [长度, 字符, 短码]
+        answer: 短码 7 位 Base62，自定义别名可选但本版可不实现。
+      - keywords: [过期, 删除]
+        answer: 默认不过期；支持用户手动失效。
+      - keywords: [统计, 点击]
+        answer: 需要按链接统计近 7 天点击次数，不要求实时精确。
+    step_checklists:
+      requirements:
+        - id: func
+          label: 是否列核心功能与非功能需求
+          signals: [创建, 跳转, 统计, 延迟, 可用]
+      estimation:
+        - id: qps
+          label: 是否估算读写 QPS 与存储
+          signals: [QPS, 存储, 带宽, 缓存]
+      api:
+        - id: endpoints
+          label: 是否给出主要 API
+          signals: [POST, GET, API, 路径, 接口]
+      data_model:
+        - id: schema
+          label: 是否描述表/键设计
+          signals: [表, 字段, 索引, 主键, Redis]
+      architecture:
+        - id: components
+          label: 是否画清组件与缓存层
+          signals: [服务, 缓存, DB, 负载, CDN]
+      tradeoffs:
+        - id: trade
+          label: 是否讨论一致性与热点
+          signals: [权衡, 一致性, 热点, 冲突, 风险]
+
+  - id: sd_feed
+    kind: system_design
+    title: 设计信息流 Feed（关注 + 推荐混合）
+    prompt: |
+      设计社交媒体首页 Feed：合并关注链路与热门推荐，目标 MAU 500 万，刷新延迟 P99 < 500ms。
+    clarifications:
+      - keywords: [排序, 算法]
+        answer: 关注内容按时间倒序，推荐位每 5 条插入 1 条，本版不做复杂 ML。
+      - keywords: [媒体, 类型]
+        answer: 图文与短视频混合，视频只存元数据与 CDN 地址。
+    step_checklists:
+      requirements:
+        - id: func
+          label: 是否区分关注流与推荐流需求
+          signals: [关注, 推荐, 刷新, 分页]
+      estimation:
+        - id: scale
+          label: 是否估算 fan-out 与存储
+          signals: [fan-out, 写入, 读取, 缓存]
+      api:
+        - id: feed_api
+          label: 是否定义拉取 Feed API
+          signals: [feed, cursor, API, GET]
+      data_model:
+        - id: models
+          label: 是否描述 Post/User/Timeline 模型
+          signals: [帖子, 用户, 关系, 时间线]
+      architecture:
+        - id: pipeline
+          label: 是否说明推/拉混合或缓存策略
+          signals: [推, 拉, 缓存, 服务]
+      tradeoffs:
+        - id: trade
+          label: 是否讨论延迟与一致性权衡
+          signals: [权衡, 延迟, 一致, 热点]
+
+  - id: sd_seckill
+    kind: system_design
+    title: 设计秒杀下单链路
+    prompt: |
+      某商品限量 5000 件，预计 50 万人同时秒杀。设计下单链路，避免超卖，尽量保护核心交易库。
+    clarifications:
+      - keywords: [支付, 库存]
+        answer: 下单后 5 分钟内支付，超时释放库存；不允许负库存。
+      - keywords: [作弊, 机器人]
+        answer: 需基础限流与验证码，本版不展开风控细节。
+    step_checklists:
+      requirements:
+        - id: func
+          label: 是否列秒杀阶段与约束
+          signals: [库存, 超卖, 限流, 支付]
+      estimation:
+        - id: peak
+          label: 是否估算峰值与瓶颈
+          signals: [峰值, QPS, 50 万, 5000]
+      api:
+        - id: flow
+          label: 是否描述下单/查单 API
+          signals: [下单, 接口, 订单, API]
+      data_model:
+        - id: inventory
+          label: 是否说明库存扣减模型
+          signals: [库存, 扣减, 预减, 订单表]
+      architecture:
+        - id: queue
+          label: 是否使用队列/缓存/分层
+          signals: [队列, Redis, 异步, 分层]
+      tradeoffs:
+        - id: trade
+          label: 是否讨论超卖与用户体验权衡
+          signals: [超卖, 权衡, 一致性, 失败]
+
+interviewer_script:
+  intro: "我们先从题目开始。你可以先澄清范围，再给出框架。"
+  step_prompts:
+    clarify: "请先列出你要向客户/面试官澄清的问题，并说明为什么重要。"
+    framework: "给出你的分析框架（尽量 MECE），并说明各模块含义。"
+    assumptions: "写出关键假设与取值理由，并说明如何验证。"
+    data: "结合可用数据进行测算或推理；需要数据表可以向我索取。"
+    conclusion: "总结结论：回答原问题，并给出下一步建议。"
+    requirements: "澄清功能与非功能需求，列出约束。"
+    estimation: "做容量估算：QPS、存储、带宽或 fan-out。"
+    api: "列出核心 API（方法、路径、主要字段）。"
+    data_model: "描述主要实体与表/键结构。"
+    architecture: "说明服务划分、缓存与数据流。"
+    tradeoffs: "讨论瓶颈、一致性与降级策略。"

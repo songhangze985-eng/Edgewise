@@ -1,0 +1,106 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg-deep, #0f0e12);
+  color: var(--chalk, #e2e0e5);
+  padding: 2rem 1.25rem 3rem;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.back {
+  color: var(--chalk-dim);
+  font-size: 0.85rem;
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.probe {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  padding: 1rem;
+  border-radius: 10px;
+  background: rgba(155, 111, 199, 0.08);
+  border: 1px solid rgba(155, 111, 199, 0.2);
+  margin-bottom: 1.25rem;
+}
+
+.section {
+  margin-bottom: 1.25rem;
+}
+
+.sectionLabel {
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--chalk-dim);
+  margin-bottom: 0.4rem;
+}
+
+.answerBox {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(226, 224, 229, 0.08);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  min-height: 2.5rem;
+}
+
+.muted {
+  color: var(--chalk-dim);
+  font-style: italic;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 224, 229, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  font-size: 0.88rem;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.btn {
+  margin-top: 0.75rem;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(155, 111, 199, 0.45);
+  background: rgba(155, 111, 199, 0.18);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--chalk-dim);
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
+.status {
+  text-align: center;
+  padding: 2rem;
+  color: var(--chalk-dim);
+}
+
+.error {
+  color: #e88;
+  font-size: 0.85rem;
+}

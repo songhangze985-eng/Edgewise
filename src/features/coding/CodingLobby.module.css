@@ -1,0 +1,77 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.lead {
+  color: var(--chalk-dim);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+}
+
+.mode-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.mode-card {
+  text-align: left;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  color: inherit;
+}
+
+.mode-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.mode-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--chalk-dim);
+}
+
+.mode-card.active {
+  border-color: var(--accent, #6ee7b7);
+  box-shadow: 0 0 0 1px var(--accent, #6ee7b7);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--chalk-dim);
+}
+
+.field input {
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font-family: var(--font-mono);
+}
+
+.start-btn {
+  padding: 0.65rem 1.4rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent, #6ee7b7);
+  color: #0a0a0a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.start-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

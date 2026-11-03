@@ -1,0 +1,123 @@
+# 谈锋自编练习题（非企业真题库）
+meta:
+  author: 谈锋 Edgewise
+  disclaimer: 自编样题，仅供练习节奏与题型熟悉，不对应任何官方题库。
+
+blocks:
+  - category: verbal
+    label: 言语理解
+    time_limit_sec: 180
+  - category: quant
+    label: 数量关系
+    time_limit_sec: 180
+  - category: figural
+    label: 图形推理
+    time_limit_sec: 180
+  - category: data
+    label: 资料分析
+    time_limit_sec: 180
+
+items:
+  - id: v01
+    category: verbal
+    stem: "「审慎」与下列哪一项意思最接近？"
+    options:
+      - "鲁莽"
+      - "稳重"
+      - "迟缓"
+      - "张扬"
+    correct_index: 1
+
+  - id: v02
+    category: verbal
+    stem: "依次填入：团队需要____沟通，避免信息在传递中____。"
+    options:
+      - "高效；失真"
+      - "频繁；积累"
+      - "单向；放大"
+      - "随意；过滤"
+    correct_index: 0
+
+  - id: q01
+    category: quant
+    stem: "某项目原定价 200 元，先降价 20%，再提价 25%，现价约为多少元？"
+    options:
+      - "200"
+      - "210"
+      - "220"
+      - "240"
+    correct_index: 0
+
+  - id: q02
+    category: quant
+    stem: "甲、乙两人同向而行，甲速 4 km/h，乙速 6 km/h。乙在甲身后 2 km 处出发，乙追上甲需多少小时？"
+    options:
+      - "0.5"
+      - "1"
+      - "1.5"
+      - "2"
+    correct_index: 1
+
+  - id: f01
+    category: figural
+    stem: "观察左侧图形规律，右侧「？」处应选哪一项？（实心圆数量每次 +1）"
+    figural_svg: |
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" role="img" aria-label="图形序列">
+        <rect width="320" height="80" fill="#0a0e14"/>
+        <circle cx="30" cy="40" r="8" fill="#5eead4"/>
+        <circle cx="90" cy="40" r="8" fill="#5eead4"/>
+        <circle cx="90" cy="25" r="8" fill="#5eead4"/>
+        <circle cx="150" cy="40" r="8" fill="#5eead4"/>
+        <circle cx="150" cy="25" r="8" fill="#5eead4"/>
+        <circle cx="150" cy="55" r="8" fill="#5eead4"/>
+        <text x="210" y="45" fill="#94a3b8" font-size="20">?</text>
+      </svg>
+    options:
+      - "4 个圆"
+      - "3 个圆"
+      - "2 个圆"
+      - "1 个圆"
+    correct_index: 0
+
+  - id: f02
+    category: figural
+    stem: "外框形状按「圆 → 方 → 三角」循环，下一项外框应为？"
+    figural_svg: |
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" role="img" aria-label="外框循环">
+        <rect width="280" height="70" fill="#0a0e14"/>
+        <circle cx="35" cy="35" r="22" fill="none" stroke="#818cf8" stroke-width="3"/>
+        <rect x="78" y="13" width="44" height="44" fill="none" stroke="#818cf8" stroke-width="3"/>
+        <polygon points="155,55 175,15 195,55" fill="none" stroke="#818cf8" stroke-width="3"/>
+        <text x="230" y="40" fill="#94a3b8" font-size="18">?</text>
+      </svg>
+    options:
+      - "圆形"
+      - "正方形"
+      - "三角形"
+      - "五边形"
+    correct_index: 0
+
+  - id: d01
+    category: data
+    stem: |
+      某课程平台 2024 年 Q1–Q2 注册人数（万人）：
+      Q1 东部分区 12，西部分区 8；Q2 东部分区 15，西部分区 9。
+      东部 Q2 相对 Q1 的增长率约为？
+    options:
+      - "20%"
+      - "25%"
+      - "30%"
+      - "35%"
+    correct_index: 1
+
+  - id: d02
+    category: data
+    stem: |
+      沿用上一题数据：Q1 两区合计 20 万人，Q2 两区合计 24 万人。
+      Q2 合计比 Q1 约增加多少万人？
+    options:
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+    correct_index: 1

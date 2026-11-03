@@ -1,5 +1,8 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useResumeStore from '../../stores/resumeStore'
+import { trackResearchEvent } from '../../research/track'
+import PageBar from '../../components/ui/PageBar'
 import styles from './Resume.module.css'
 
 const ACCEPTED_TYPES = [
@@ -35,38 +38,29 @@ function validateFile(file) {
    Upload Zone
    ===================================================== */
 function UploadZone() {
-  const { file, fileName, fileSize, status, setFile, startParsing, setParsedData } = useResumeStore()
+  const { file, fileName, fileSize, status, uploadAndParse, error: storeError } = useResumeStore()
   const [dragActive, setDragActive] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState(null)
   const inputRef = useRef(null)
 
-  const handleFile = useCallback((selectedFile) => {
+  const handleFile = useCallback(async (selectedFile) => {
     const err = validateFile(selectedFile)
     if (err) {
       setError(err)
       return
     }
     setError(null)
-    setFile(selectedFile)
-
-    // Simulate upload progress
-    let progress = 0
-    const uploadInterval = setInterval(() => {
-      progress += Math.random() * 25 + 10
-      if (progress >= 100) {
-        progress = 100
-        clearInterval(uploadInterval)
-        setUploadProgress(100)
-        // Start parsing after upload completes
-        startParsing()
-        setTimeout(() => {
-          setParsedData(null)
-        }, 2000)
-      }
-      setUploadProgress(Math.min(100, Math.round(progress)))
-    }, 200)
-  }, [setFile, startParsing, setParsedData])
+    setUploadProgress(30)
+    try {
+      setUploadProgress(70)
+      await uploadAndParse(selectedFile)
+      setUploadProgress(100)
+    } catch (uploadErr) {
+      setError(uploadErr?.message || '上传失败')
+      setUploadProgress(0)
+    }
+  }, [uploadAndParse])
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault()
@@ -175,9 +169,9 @@ function UploadZone() {
           </div>
         )}
       </div>
-      {error && (
+      {(error || storeError) && (
         <div style={{ color: 'var(--danger)', fontSize: '0.7rem', marginTop: 'var(--sp-sm)' }}>
-          {error}
+          {error || storeError}
         </div>
       )}
     </div>
@@ -187,33 +181,121 @@ function UploadZone() {
 /* =====================================================
    JD Match Panel
    ===================================================== */
+function JdKeywordEditor({ keywords, onChange }) {
+  const [draft, setDraft] = useState('')
+
+  const remove = (kw) => onChange(keywords.filter((k) => k !== kw))
+  const add = () => {
+    const token = draft.trim()
+    if (!token || keywords.includes(token)) return
+    onChange([...keywords, token])
+    setDraft('')
+  }
+
+  return (
+    <div className={styles['jd-keyword-editor']}>
+      <div className={styles['keywords-list']}>
+        {keywords.map((kw) => (
+          <span key={kw} className={styles['keyword-tag-editable']}>
+            {kw}
+            <button type="button" className={styles['kw-remove']} onClick={() => remove(kw)} aria-label={`移除 ${kw}`}>
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className={styles['kw-add-row']}>
+        <input
+          type="text"
+          className={styles['kw-add-input']}
+          placeholder="手动补充关键词"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())}
+        />
+        <button type="button" className={styles['kw-add-btn']} onClick={add}>
+          添加
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function JdMatchPanel() {
-  const { jdText, setJdText, jdMatchScore, jdKeywords, analyzeJdMatch, status } = useResumeStore()
-  const [animatedScore, setAnimatedScore] = useState(0)
+  const navigate = useNavigate()
+  const {
+    jdText,
+    setJdText,
+    jdKeywords,
+    setJdKeywords,
+    jdMatch,
+    analyzeJdMatch,
+    status,
+    resumeId,
+    savedJobs,
+    selectedJobId,
+    fetchSavedJobs,
+    loadJobIntoEditor,
+    saveJdFromPaste,
+  } = useResumeStore()
+  const [analyzeError, setAnalyzeError] = useState('')
+  const [shortWarn, setShortWarn] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (jdMatchScore === null) {
-      setAnimatedScore(0)
-      return
-    }
-    let current = 0
-    const step = jdMatchScore / 30
-    const interval = setInterval(() => {
-      current += step
-      if (current >= jdMatchScore) {
-        current = jdMatchScore
-        clearInterval(interval)
-      }
-      setAnimatedScore(Math.round(current))
-    }, 20)
-    return () => clearInterval(interval)
-  }, [jdMatchScore])
+    fetchSavedJobs()
+  }, [fetchSavedJobs])
 
-  const handleAnalyze = useCallback(() => {
-    analyzeJdMatch()
+  useEffect(() => {
+    setShortWarn(jdText.trim().length > 0 && jdText.trim().length < 50)
+  }, [jdText])
+
+  const handleSelectJob = (job) => {
+    loadJobIntoEditor(job)
+    setAnalyzeError('')
+  }
+
+  const handleSaveJd = async () => {
+    if (!jdText.trim()) return
+    setSaving(true)
+    setAnalyzeError('')
+    try {
+      const job = await saveJdFromPaste({
+        rawText: jdText.trim(),
+        keywords: jdKeywords,
+      })
+      trackResearchEvent('jd.saved', { job_id: job.id, keyword_count: (job.keywords || []).length })
+      if (job.needs_manual_keywords) {
+        setAnalyzeError('未能自动提取关键词，请手动添加后保存。')
+      }
+    } catch (err) {
+      setAnalyzeError(err?.message || '保存 JD 失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAnalyze = useCallback(async () => {
+    setAnalyzeError('')
+    try {
+      const match = await analyzeJdMatch()
+      if (match) {
+        trackResearchEvent('jd.match_viewed', {
+          job_id: match.job_id,
+          resume_id: match.resume_id,
+          coverage: match.coverage,
+        })
+      }
+    } catch (err) {
+      setAnalyzeError(err?.message || '匹配分析失败')
+    }
   }, [analyzeJdMatch])
 
   const isParsed = status === 'parsed' || status === 'optimizing' || status === 'optimized'
+
+  const lobbyHref = selectedJobId
+    ? `/interview/lobby?resume=${encodeURIComponent(resumeId || '')}&job=${encodeURIComponent(selectedJobId)}`
+    : `/interview/lobby?resume=${encodeURIComponent(resumeId || '')}`
 
   return (
     <div className={styles['panel']}>
@@ -221,47 +303,163 @@ function JdMatchPanel() {
         <span className={styles['panel-title']}>JD 岗位匹配</span>
         <span className={styles['panel-id']}>[JD-01]</span>
       </div>
+
+      {savedJobs.length > 0 && (
+        <div className={styles['jd-saved-row']}>
+          <span className={styles['keywords-label']}>已保存 JD</span>
+          <select
+            className={styles['jd-select']}
+            value={selectedJobId || ''}
+            onChange={(e) => {
+              const job = savedJobs.find((j) => j.id === e.target.value)
+              if (job) handleSelectJob(job)
+            }}
+          >
+            <option value="">选择已保存 JD…</option>
+            {savedJobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {(j.title || j.raw_text.slice(0, 24)).trim()}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <textarea
         className={styles['jd-textarea']}
-        placeholder="粘贴目标岗位的 Job Description，AI 将分析匹配度..."
+        placeholder="粘贴目标岗位的 Job Description，将提取技能关键词并与简历对照…"
         value={jdText}
         onChange={(e) => setJdText(e.target.value)}
       />
-      <button
-        className={styles['jd-analyze-btn']}
-        onClick={handleAnalyze}
-        disabled={!jdText.trim() || !isParsed}
-      >
-        分析匹配度
-      </button>
+      {shortWarn && (
+        <p className={styles['jd-inline-warn']}>JD 文本较短（不足 50 字），匹配结果可能不完整，建议补充职责与技能要求。</p>
+      )}
 
-      {jdMatchScore !== null && (
+      <div className={styles['keywords-label']}>JD 关键词（可编辑）</div>
+      <JdKeywordEditor keywords={jdKeywords} onChange={setJdKeywords} />
+
+      <div className={styles['jd-action-row']}>
+        <button
+          type="button"
+          className={styles['jd-analyze-btn']}
+          onClick={handleSaveJd}
+          disabled={!jdText.trim() || saving}
+        >
+          {saving ? '保存中…' : '保存 JD'}
+        </button>
+        <button
+          type="button"
+          className={styles['jd-analyze-btn']}
+          onClick={handleAnalyze}
+          disabled={(!jdText.trim() && !selectedJobId) || !isParsed}
+        >
+          分析关键词覆盖
+        </button>
+      </div>
+
+      {analyzeError && <p className={styles['jd-inline-warn']}>{analyzeError}</p>}
+
+      {jdMatch && (
         <div className={styles['jd-results']}>
           <div className={styles['match-score-row']}>
-            <span className={styles['match-label']}>匹配度</span>
+            <span className={styles['match-label']}>JD 关键词覆盖率</span>
             <div className={styles['match-bar-bg']}>
-              <div
-                className={styles['match-bar-fill']}
-                style={{ width: `${animatedScore}%` }}
-              />
+              <div className={styles['match-bar-fill']} style={{ width: `${jdMatch.coverage}%` }} />
             </div>
-            <span className={styles['match-score-value']}>{animatedScore}%</span>
+            <span className={styles['match-score-value']}>{jdMatch.coverage}%</span>
           </div>
 
-          <div className={styles['keywords-label']}>匹配关键词</div>
-          <div className={styles['keywords-list']}>
-            {jdKeywords.map((kw, i) => (
-              <span
-                key={kw}
-                className={styles['keyword-tag']}
-                style={{ animationDelay: `${i * 0.06}s` }}
-              >
-                {kw}
-              </span>
-            ))}
+          <div className={styles['jd-match-columns']}>
+            <div className={styles['jd-match-col']}>
+              <div className={styles['keywords-label']}>双方重合</div>
+              <div className={styles['keywords-list']}>
+                {(jdMatch.overlap || []).map((kw) => (
+                  <span key={kw} className={`${styles['keyword-tag']} ${styles['kw-overlap']}`}>{kw}</span>
+                ))}
+                {(jdMatch.overlap || []).length === 0 && <span className={styles['jd-empty-col']}>—</span>}
+              </div>
+            </div>
+            <div className={styles['jd-match-col']}>
+              <div className={styles['keywords-label']}>仅 JD</div>
+              <div className={styles['keywords-list']}>
+                {(jdMatch.jd_only || []).map((kw) => (
+                  <span key={kw} className={`${styles['keyword-tag']} ${styles['kw-jd-only']}`}>{kw}</span>
+                ))}
+                {(jdMatch.jd_only || []).length === 0 && <span className={styles['jd-empty-col']}>—</span>}
+              </div>
+            </div>
+            <div className={styles['jd-match-col']}>
+              <div className={styles['keywords-label']}>仅简历</div>
+              <div className={styles['keywords-list']}>
+                {(jdMatch.resume_only || []).map((kw) => (
+                  <span key={kw} className={`${styles['keyword-tag']} ${styles['kw-resume-only']}`}>{kw}</span>
+                ))}
+                {(jdMatch.resume_only || []).length === 0 && <span className={styles['jd-empty-col']}>—</span>}
+              </div>
+            </div>
           </div>
+
+          <button
+            type="button"
+            className={styles['jd-analyze-btn']}
+            style={{ marginTop: 'var(--sp-md)' }}
+            disabled={!resumeId}
+            onClick={() => navigate(lobbyHref)}
+          >
+            按 JD 定制开始面试
+          </button>
         </div>
       )}
+    </div>
+  )
+}
+
+function TargetJobsTab({ onEdit }) {
+  const { savedJobs, fetchSavedJobs, loadJobIntoEditor, deleteSavedJob } = useResumeStore()
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchSavedJobs().finally(() => setLoading(false))
+  }, [fetchSavedJobs])
+
+  return (
+    <div className={styles['panel']}>
+      <div className={styles['panel-header']}>
+        <span className={styles['panel-title']}>目标岗位 JD</span>
+        <span className={styles['panel-id']}>[JD-LIB]</span>
+      </div>
+      {loading && <p className={styles['education-text']}>加载中…</p>}
+      {!loading && savedJobs.length === 0 && (
+        <p className={styles['education-text']}>暂无保存的 JD，可在「简历优化」页粘贴并保存。</p>
+      )}
+      <div className={styles['target-jobs-list']}>
+        {savedJobs.map((job) => (
+          <div key={job.id} className={styles['target-job-card']}>
+            <div className={styles['target-job-title']}>{job.title || '未命名岗位'}</div>
+            <div className={styles['target-job-snippet']}>{(job.raw_text || '').slice(0, 120)}…</div>
+            <div className={styles['keywords-list']}>
+              {(job.keywords || []).slice(0, 6).map((kw) => (
+                <span key={kw} className={styles['keyword-tag']}>{kw}</span>
+              ))}
+            </div>
+            <div className={styles['target-job-actions']}>
+              <button
+                type="button"
+                className={styles['history-use-btn']}
+                onClick={() => {
+                  loadJobIntoEditor(job)
+                  onEdit?.()
+                }}
+              >
+                载入编辑
+              </button>
+              <button type="button" className={styles['history-use-btn']} onClick={() => deleteSavedJob(job.id)}>
+                删除
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -317,7 +515,7 @@ function ParsedDataSection() {
           {/* Experience */}
           <div className={styles['section-label']}>工作经历</div>
           <div className={styles['experience-list']}>
-            {parsedData.experience.map((exp, i) => (
+            {(parsedData.experience || []).map((exp, i) => (
               <div key={i} className={styles['experience-card']}>
                 <div className={styles['exp-header']}>
                   <span className={styles['exp-company']}>{exp.company}</span>
@@ -327,25 +525,34 @@ function ParsedDataSection() {
                 <div className={styles['exp-desc']}>{exp.desc}</div>
               </div>
             ))}
+            {(parsedData.experience || []).length === 0 && (
+              <div className={styles['education-text']}>未解析到工作经历（启发式解析）</div>
+            )}
           </div>
 
           {/* Skills */}
           <div className={styles['section-label']} style={{ marginTop: 'var(--sp-lg)' }}>技能标签</div>
           <div className={styles['skills-list']}>
-            {parsedData.skills.map((skill) => (
+            {(parsedData.skills || []).map((skill) => (
               <span key={skill} className={styles['skill-tag']}>{skill}</span>
             ))}
+            {(parsedData.skills || []).length === 0 && (
+              <div className={styles['education-text']}>未匹配到预置技能关键词</div>
+            )}
           </div>
 
           {/* Projects */}
           <div className={styles['section-label']}>项目经验</div>
           <div className={styles['projects-list']}>
-            {parsedData.projects.map((proj, i) => (
+            {(parsedData.projects || []).map((proj, i) => (
               <div key={i} className={styles['project-card']}>
                 <div className={styles['project-name']}>{proj.name}</div>
                 <div className={styles['project-desc']}>{proj.desc}</div>
               </div>
             ))}
+            {(parsedData.projects || []).length === 0 && (
+              <div className={styles['education-text']}>未解析到项目经验</div>
+            )}
           </div>
         </>
       )}
@@ -411,10 +618,15 @@ function StreamingOutput() {
 
   const handleStartOptimize = useCallback(() => {
     if (isStreamingRef.current) return
+    const fullText = useResumeStore.getState().optimizedText || ''
+    if (!fullText) {
+      useResumeStore.getState().finishOptimizeFromServerText()
+      return
+    }
     isStreamingRef.current = true
+    useResumeStore.setState({ optimizedText: '', status: 'optimizing' })
     startOptimizing()
 
-    const fullText = useResumeStore.getState().getMockOptimizedText()
     let index = 0
 
     const streamInterval = setInterval(() => {
@@ -422,7 +634,6 @@ function StreamingOutput() {
         clearInterval(streamInterval)
         setOptimizedText(fullText)
         isStreamingRef.current = false
-        // Add to history
         const { fileName } = useResumeStore.getState()
         if (fileName) {
           useResumeStore.setState((state) => ({
@@ -499,7 +710,7 @@ function StreamingOutput() {
    History Section
    ===================================================== */
 function HistorySection() {
-  const { history } = useResumeStore()
+  const { history, resumeId, fileName, setActiveResumeFromHistory } = useResumeStore()
 
   return (
     <div className={`${styles['panel']} ${styles['history-section']}`}>
@@ -508,13 +719,31 @@ function HistorySection() {
         <span className={styles['panel-id']}>[HIS-01]</span>
       </div>
       <div className={styles['history-list']}>
-        {history.map((h, i) => (
-          <div key={i} className={styles['history-item']}>
-            <span className={styles['history-file']}>{h.file}</span>
-            <span className={styles['history-status']}>{h.status === 'optimized' ? '已优化' : h.status}</span>
-            <span className={styles['history-date']}>{h.date}</span>
-          </div>
-        ))}
+        {history.length === 0 && (
+          <p className={styles['education-text']}>暂无历史简历，上传后将在此管理默认版本。</p>
+        )}
+        {history.map((h, i) => {
+          const isDefault = h.file === fileName || (i === 0 && !fileName)
+          return (
+            <div key={`${h.file}-${i}`} className={styles['history-item']}>
+              <span className={styles['history-file']}>{h.file}</span>
+              {isDefault && resumeId && (
+                <span className={styles['history-default']}>默认</span>
+              )}
+              <span className={styles['history-status']}>{h.status === 'optimized' ? '已优化' : h.status}</span>
+              <span className={styles['history-date']}>{h.date}</span>
+              {!isDefault && (
+                <button
+                  type="button"
+                  className={styles['history-use-btn']}
+                  onClick={() => setActiveResumeFromHistory?.(h)}
+                >
+                  设为默认
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -524,30 +753,43 @@ function HistorySection() {
    Main Resume Page
    ===================================================== */
 export default function Resume() {
+  const [tab, setTab] = useState('optimize')
+
   return (
     <div className={styles['resume-page']}>
-      <div className={styles['page-header']}>
-        <h1>简历优化</h1>
-        <div className={styles['header-sub']}>Resume AI Optimization &middot; Upload &amp; Enhance</div>
+      <PageBar title="简历优化" />
+
+      <div className={styles['resume-tabs']}>
+        <button
+          type="button"
+          className={`${styles['resume-tab']} ${tab === 'optimize' ? styles['resume-tab-active'] : ''}`}
+          onClick={() => setTab('optimize')}
+        >
+          简历优化
+        </button>
+        <button
+          type="button"
+          className={`${styles['resume-tab']} ${tab === 'jobs' ? styles['resume-tab-active'] : ''}`}
+          onClick={() => setTab('jobs')}
+        >
+          目标岗位
+        </button>
       </div>
 
-      {/* Row 1: Upload + JD Match */}
-      <div className={styles['top-grid']}>
-        <UploadZone />
-        <JdMatchPanel />
-      </div>
-
-      {/* Row 2: Parsed Data (full width) */}
-      <ParsedDataSection />
-
-      {/* Row 3: AI Suggestions (full width) */}
-      <SuggestionsSection />
-
-      {/* Row 4: Streaming Output (full width) */}
-      <StreamingOutput />
-
-      {/* Row 5: History (full width) */}
-      <HistorySection />
+      {tab === 'jobs' ? (
+        <TargetJobsTab onEdit={() => setTab('optimize')} />
+      ) : (
+        <>
+          <div className={styles['top-grid']}>
+            <UploadZone />
+            <JdMatchPanel />
+          </div>
+          <ParsedDataSection />
+          <SuggestionsSection />
+          <StreamingOutput />
+          <HistorySection />
+        </>
+      )}
     </div>
   )
 }

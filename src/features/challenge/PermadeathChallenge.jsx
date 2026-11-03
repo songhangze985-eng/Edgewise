@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import PageBar from '../../components/ui/PageBar'
 import styles from './PermadeathChallenge.module.css'
 
 const STAGES = [
@@ -38,8 +39,23 @@ function formatTime(seconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+const STREAK_KEY = 'edgewise.permadeath.streak'
+const BEST_KEY = 'edgewise.permadeath.best'
+
+function readNumber(key) {
+  try {
+    const v = localStorage.getItem(key)
+    return v ? Number(v) : 0
+  } catch {
+    return 0
+  }
+}
+
 export default function PermadeathChallenge() {
+  const navigate = useNavigate()
   const [currentStage, setCurrentStage] = useState(0)
+  const [streak, setStreak] = useState(() => readNumber(STREAK_KEY))
+  const [bestStreak, setBestStreak] = useState(() => readNumber(BEST_KEY))
   const [hp, setHp] = useState(100)
   const [gameState, setGameState] = useState('ready')
   const [stageScores, setStageScores] = useState([])
@@ -85,11 +101,27 @@ export default function PermadeathChallenge() {
 
     if (newHp <= 0) {
       setGameState('gameover')
+      setStreak(0)
+      try {
+        localStorage.setItem(STREAK_KEY, '0')
+      } catch {
+        /* ignore */
+      }
       return
     }
 
     if (currentStage >= STAGES.length - 1) {
       setGameState('victory')
+      const nextStreak = streak + 1
+      const nextBest = Math.max(bestStreak, nextStreak)
+      setStreak(nextStreak)
+      setBestStreak(nextBest)
+      try {
+        localStorage.setItem(STREAK_KEY, String(nextStreak))
+        localStorage.setItem(BEST_KEY, String(nextBest))
+      } catch {
+        /* ignore */
+      }
       return
     }
 
@@ -110,23 +142,24 @@ export default function PermadeathChallenge() {
 
   return (
     <div className={styles.page}>
-      {/* Hero Header */}
-      <div className={styles.hero}>
-        <div className={styles['hero-text']}>
-          <h1>
-            <span className={styles['hero-title-accent']}>一血通关</span>
-          </h1>
-          <div className={styles['header-sub']}>
-            极限挑战 &middot; Permadeath Challenge
-          </div>
-        </div>
-        <div className={styles['hero-hp-display']}>
-          <span className={`${styles['hp-value']} ${styles[`hp-value-${hpColor}`]}`}>
-            {hp}
-          </span>
-          <span className={styles['hp-label']}>HP</span>
-        </div>
-      </div>
+      <PageBar
+        title="一血通关"
+        actions={
+          <>
+            <div className={styles['hero-hp-display']}>
+              <span className={`${styles['hp-value']} ${styles[`hp-value-${hpColor}`]}`}>
+                {hp}
+              </span>
+              <span className={styles['hp-label']}>HP</span>
+            </div>
+            <div className={styles['hero-streak-display']}>
+              <span className={styles['streak-value']}>{streak}</span>
+              <span className={styles['streak-label']}>连胜</span>
+              <span className={styles['streak-best']}>最佳 {bestStreak}</span>
+            </div>
+          </>
+        }
+      />
 
       {/* HP Bar */}
       <div className={styles['hp-bar-container']}>
@@ -258,8 +291,11 @@ export default function PermadeathChallenge() {
             ))}
           </div>
           <div className={styles['overlay-actions']}>
-            <button className={styles['btn-victory']} onClick={handleRetry}>
-              生成战报
+            <button type="button" className={styles['btn-victory']} onClick={handleRetry}>
+              再来一次
+            </button>
+            <button type="button" className={styles['btn-retry']} onClick={() => navigate('/analytics')}>
+              看报告
             </button>
             <Link to="/" className={styles['overlay-back']}>
               返回首页
@@ -271,7 +307,7 @@ export default function PermadeathChallenge() {
       {/* Bottom Nav */}
       <div className={styles['bottom-nav']}>
         <Link to="/" className={styles['back-link']}>
-          &larr; BACK TO DASHBOARD
+          ← 返回概览
         </Link>
       </div>
     </div>

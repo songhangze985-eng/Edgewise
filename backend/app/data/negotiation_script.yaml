@@ -1,0 +1,31 @@
+disclaimer: 以下报价为模拟练习假设，不代表真实市场薪酬，请勿作为谈薪依据。
+states:
+  presented:
+    hr_prompt: |
+      感谢前面的沟通。基于岗位级别与预算，我们初步给出的月薪（税前）为 {offer} 元。
+      你可以说明你的期望与理由；若接受，请直接回复「接受 offer」。
+  counter:
+    hr_prompt: |
+      收到，你提到期望约 {anchor} 元/月。当前我们能给到 {offer} 元/月。
+      请补充：①期望区间 ②依据（能力/市场/生活成本等） ③除现金外你在意的 package 项。
+  clarify:
+    hr_prompt: |
+      你的理由里还缺少可核对的信息。请用「期望区间 + 1–2 条依据 + 可接受的组合方案（如 base/奖金/期权）」再说明一次。
+  package:
+    hr_prompt: |
+      现金部分我们最多到 {offer} 元/月。若你接受，我们可以在 {bonus_hint} 上再争取；请确认是否接受当前方案。
+  closed_accept:
+    hr_prompt: 好的，我们按 {final_offer} 元/月（税前）记录为模拟结果，后续 HR 会同步书面 offer 细节（练习场景）。
+  closed_decline:
+    hr_prompt: 了解你的决定。本次模拟谈薪结束，感谢你的坦诚沟通。
+
+bonus_hints:
+  - 年终奖金系数
+  - 签字费
+  - 弹性办公天数
+  - 培训预算
+
+sample_reverse_questions:
+  - 这个岗位入职前 90 天的考核重点是什么？
+  - 团队目前最希望新人解决的第一个问题是什么？
+  - 公司对这条业务线未来 1–2 年的投入方向？

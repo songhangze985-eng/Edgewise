@@ -1,0 +1,47 @@
+# HR 面脚本题（规则选题，非真实市场数据）
+themes:
+  motivation:
+    - id: hr_mot_1
+      title: 你为什么选择申请这个岗位？和我们公司/业务最契合的一点是什么？
+      declinable: false
+      keywords: [动机, 岗位, 契合]
+    - id: hr_mot_2
+      title: 如果同时有多个 offer，你会用什么标准做最终选择？
+      declinable: false
+      keywords: [选择, 标准, 优先级]
+  stability:
+    - id: hr_stab_1
+      title: 你上一段经历做了多久？离职的主要原因是什么？
+      declinable: false
+      keywords: [在职, 离职, 原因]
+    - id: hr_stab_2
+      title: 你期望在这份工作上至少稳定多久？中间若有更好机会会怎么考虑？
+      declinable: false
+      keywords: [稳定, 规划, 承诺]
+  city:
+    - id: hr_city_1
+      title: 工作城市你是否可以接受调剂？对通勤或异地有什么硬性要求？
+      declinable: false
+      keywords: [城市, 通勤, 异地]
+    - id: hr_city_2
+      title: 若岗位 base 在你非首选城市，你会如何说服家人或自己接受？
+      declinable: false
+      keywords: [城市, 接受, 家庭]
+  salary_expectation:
+    - id: hr_sal_1
+      title: 你的期望月薪区间是多少（税前）？这个区间是怎么得出的？
+      declinable: false
+      keywords: [期望, 薪资, 区间]
+    - id: hr_sal_2
+      title: 如果 offer 略低于期望但发展机会更好，你会如何权衡？
+      declinable: false
+      keywords: [薪资, 权衡, 发展]
+  personal:
+    - id: hr_per_1
+      title: 你目前的感情/婚姻状况？近期有生育或安家计划吗？
+      declinable: true
+      keywords: [个人, 隐私]
+    - id: hr_per_2
+      title: 父母从事什么工作？家庭对你职业选择有什么期待？
+      declinable: true
+      keywords: [家庭, 背景]

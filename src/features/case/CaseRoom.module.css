@@ -1,0 +1,235 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: calc(100vh - 5rem);
+  padding-bottom: 2rem;
+}
+
+.lead {
+  color: var(--chalk-dim);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 52rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--panel-bg, rgba(12, 14, 20, 0.72));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.panel h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.prompt {
+  white-space: pre-wrap;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--chalk);
+}
+
+.steps {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--chalk-dim);
+}
+
+.step-item.active {
+  color: var(--accent, #7dd3fc);
+}
+
+.step-item.done {
+  color: var(--success, #86efac);
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.step-item.active .step-dot,
+.step-item.done .step-dot {
+  opacity: 1;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.step-title {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--chalk-dim);
+  line-height: 1.5;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--chalk);
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.clarify-log {
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.clarify-row q {
+  display: block;
+  color: var(--chalk);
+}
+
+.clarify-row p {
+  margin: 0.25rem 0 0;
+  color: var(--chalk-dim);
+}
+
+.clarify-input {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.clarify-input input {
+  flex: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--chalk);
+  padding: 0.5rem 0.65rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.btn {
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--chalk);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent-muted, rgba(125, 211, 252, 0.18));
+  border-color: rgba(125, 211, 252, 0.35);
+}
+
+.checklist {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  font-size: 0.82rem;
+}
+
+.checklist li {
+  margin: 0.25rem 0;
+}
+
+.pass {
+  color: var(--success, #86efac);
+}
+
+.fail {
+  color: var(--warning, #fcd34d);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-top: 0.5rem;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.board-wrap {
+  height: min(420px, 55vh);
+  min-height: 280px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+.board-loading {
+  height: 280px;
+  display: grid;
+  place-items: center;
+  color: var(--chalk-dim);
+  font-size: 0.85rem;
+}
+
+.done-card {
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(134, 239, 172, 0.25);
+  background: rgba(134, 239, 172, 0.08);
+}

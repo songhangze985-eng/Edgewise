@@ -196,8 +196,11 @@ export default function PromoLanding() {
       {/* ===== CTA ===== */}
       <section className={`${styles.section} ${styles['cta-section']}`} ref={addSection}>
         <h2 className={styles['cta-title']}>准备好了吗？</h2>
-        <Link to="/login" className={styles['cta-big']}>立即体验</Link>
-        <p className={styles['cta-note']}>免费体验 · 无需信用卡</p>
+        <Link to="/tasks" className={styles['cta-big']}>按困难选准备任务</Link>
+        <Link to="/login" className={styles['hero-cta']} style={{ marginTop: '1rem', display: 'inline-block' }}>
+          直接登录体验
+        </Link>
+        <p className={styles['cta-note']}>任务页说明可检索 · 不承诺录用结果</p>
       </section>
 
       {/* ===== FOOTER ===== */}

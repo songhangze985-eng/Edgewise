@@ -1,6 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../../stores/authStore'
+import useSessionStore from '../../stores/sessionStore'
+import useSettingsStore from '../../stores/settingsStore'
+import ResearchConsentModal from '../ResearchConsentModal/ResearchConsentModal'
+import { formatAvgScore, rankFromAvgScore } from '../../utils/userStats'
+import useTTS, { listZhVoices } from '../../hooks/useTTS'
+import { getArmForcedTtsEnabled, TTS_FORCED_BY_ARM } from '../../config/tts'
+import { trackResearchEvent } from '../../research/track'
+import { PRESENCE_CONSENT_MODEL_MB } from '../../features/interview/presenceMetrics'
 import styles from './SettingsModal.module.css'
 
 const TABS = [
@@ -12,8 +21,63 @@ const TABS = [
 ]
 
 export default function SettingsModal({ onClose }) {
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const stats = useSessionStore((s) => s.stats)
+  const rank = rankFromAvgScore(stats.avgScore || 0)
   const [activeTab, setActiveTab] = useState('general')
+  const [consentWithdraw, setConsentWithdraw] = useState(false)
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled)
+  const ttsRate = useSettingsStore((s) => s.ttsRate)
+  const ttsVoiceURI = useSettingsStore((s) => s.ttsVoiceURI)
+  const setTtsEnabled = useSettingsStore((s) => s.setTtsEnabled)
+  const setTtsRate = useSettingsStore((s) => s.setTtsRate)
+  const setTtsVoiceURI = useSettingsStore((s) => s.setTtsVoiceURI)
+  const deliveryLiveHintEnabled = useSettingsStore((s) => s.deliveryLiveHintEnabled)
+  const setDeliveryLiveHintEnabled = useSettingsStore((s) => s.setDeliveryLiveHintEnabled)
+  const presenceAnalysisEnabled = useSettingsStore((s) => s.presenceAnalysisEnabled)
+  const setPresenceAnalysisEnabled = useSettingsStore((s) => s.setPresenceAnalysisEnabled)
+  const storySidePeekEnabled = useSettingsStore((s) => s.storySidePeekEnabled)
+  const setStorySidePeekEnabled = useSettingsStore((s) => s.setStorySidePeekEnabled)
+  const captionsEnabled = useSettingsStore((s) => s.captionsEnabled)
+  const reduceMotionEnabled = useSettingsStore((s) => s.reduceMotionEnabled)
+  const largeFontEnabled = useSettingsStore((s) => s.largeFontEnabled)
+  const keyboardShortcutsEnabled = useSettingsStore((s) => s.keyboardShortcutsEnabled)
+  const setCaptionsEnabled = useSettingsStore((s) => s.setCaptionsEnabled)
+  const setReduceMotionEnabled = useSettingsStore((s) => s.setReduceMotionEnabled)
+  const setLargeFontEnabled = useSettingsStore((s) => s.setLargeFontEnabled)
+  const setKeyboardShortcutsEnabled = useSettingsStore((s) => s.setKeyboardShortcutsEnabled)
+  const experimentAssignment = useAuthStore((s) => s.user?.experimentAssignment)
+  const armForcedTts = getArmForcedTtsEnabled(experimentAssignment)
+  const ttsExperimentLocked = TTS_FORCED_BY_ARM && armForcedTts !== null
+  const { speak, supported: ttsSupported } = useTTS()
+  const [zhVoices, setZhVoices] = useState(() => listZhVoices())
+
+  useEffect(() => {
+    if (!ttsSupported) {
+      trackResearchEvent('tts.unsupported')
+      return undefined
+    }
+    const refresh = () => setZhVoices(listZhVoices())
+    refresh()
+    window.speechSynthesis?.addEventListener('voiceschanged', refresh)
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', refresh)
+  }, [ttsSupported])
+
+  const handleTtsToggle = useCallback(() => {
+    if (ttsExperimentLocked) return
+    const next = !ttsEnabled
+    setTtsEnabled(next)
+    trackResearchEvent('tts.toggle', { enabled: next })
+  }, [ttsEnabled, setTtsEnabled, ttsExperimentLocked])
+
+  const handleTtsPreview = useCallback(() => {
+    speak('你好，这是 Edgewise 语音朗读试听。', {
+      rate: ttsRate,
+      voiceURI: ttsVoiceURI,
+      pitch: 1,
+    })
+  }, [speak, ttsRate, ttsVoiceURI])
 
   // Preferences state
   const [prefs, setPrefs] = useState({
@@ -107,6 +171,194 @@ export default function SettingsModal({ onClose }) {
                     <div className={styles['toggle-dot']} />
                   </button>
                 </div>
+
+                {ttsSupported && (
+                  <>
+                    <div className={styles['setting-section-title']}>语音朗读</div>
+                    <div className={styles['setting-row']}>
+                      <div>
+                        <div className={styles['setting-label']}>启用语音朗读</div>
+                        <div className={styles['setting-desc']}>
+                          {ttsExperimentLocked
+                            ? '实验期间统一设置'
+                            : '面试与群面中朗读题目与 AI 发言'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`${styles.toggle} ${(armForcedTts ?? ttsEnabled) ? styles['toggle-on'] : ''}`}
+                        onClick={handleTtsToggle}
+                        disabled={ttsExperimentLocked}
+                        role="switch"
+                        aria-checked={armForcedTts ?? ttsEnabled}
+                      >
+                        <div className={styles['toggle-dot']} />
+                      </button>
+                    </div>
+                    <div className={styles['setting-row']}>
+                      <div>
+                        <div className={styles['setting-label']}>语速</div>
+                        <div className={styles['setting-desc']}>{ttsRate.toFixed(2)}×</div>
+                      </div>
+                      <input
+                        type="range"
+                        className={styles['setting-range']}
+                        min={0.8}
+                        max={1.4}
+                        step={0.01}
+                        value={ttsRate}
+                        onChange={(e) => setTtsRate(Number(e.target.value))}
+                        aria-label="语音语速"
+                      />
+                    </div>
+                    <div className={styles['setting-row']}>
+                      <div className={styles['setting-label']}>音色</div>
+                      <select
+                        className={styles['setting-select']}
+                        value={ttsVoiceURI || ''}
+                        onChange={(e) => setTtsVoiceURI(e.target.value || null)}
+                        aria-label="中文语音"
+                      >
+                        <option value="">自动（推荐中文）</option>
+                        {zhVoices.map((v) => (
+                          <option key={v.voiceURI} value={v.voiceURI}>
+                            {v.name} ({v.lang})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles['setting-row']}>
+                      <div className={styles['setting-label']}>试听</div>
+                      <button type="button" className={styles['setting-action']} onClick={handleTtsPreview}>
+                        试听
+                      </button>
+                    </div>
+                    <div className={styles['setting-row']}>
+                      <div>
+                        <div className={styles['setting-label']}>实时语速提示</div>
+                        <div className={styles['setting-desc']}>
+                          语音作答时，连续 15 秒偏离 180–260 字/分会在麦克风旁提示（高压/单向模式自动关闭）
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`${styles.toggle} ${deliveryLiveHintEnabled ? styles['toggle-on'] : ''}`}
+                        onClick={() => setDeliveryLiveHintEnabled(!deliveryLiveHintEnabled)}
+                        role="switch"
+                        aria-checked={deliveryLiveHintEnabled}
+                      >
+                        <div className={styles['toggle-dot']} />
+                      </button>
+                    </div>
+                    <div className={styles['setting-row']}>
+                      <div>
+                        <div className={styles['setting-label']}>镜头仪态分析</div>
+                        <div className={styles['setting-desc']}>
+                          仅在浏览器本地分析摄像头画面（约 2 次/秒），不上传录像；首次启用需下载 MediaPipe 模型（约
+                          {PRESENCE_CONSENT_MODEL_MB} MB）。失败或性能不足时自动跳过或降级为简化版。
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`${styles.toggle} ${presenceAnalysisEnabled ? styles['toggle-on'] : ''}`}
+                        onClick={() => {
+                          const next = !presenceAnalysisEnabled
+                          setPresenceAnalysisEnabled(next)
+                          if (next) {
+                            trackResearchEvent('presence.enabled', { source: 'settings' })
+                          }
+                        }}
+                        role="switch"
+                        aria-checked={presenceAnalysisEnabled}
+                      >
+                        <div className={styles['toggle-dot']} />
+                      </button>
+                    </div>
+                    <div className={styles['setting-row']}>
+                      <div>
+                        <div className={styles['setting-label']}>面试间故事侧栏</div>
+                        <div className={styles['setting-desc']}>
+                          1v1 行为面练习时可展开 STAR 故事库侧栏；单向模式与实验指定任务中不可用
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`${styles.toggle} ${storySidePeekEnabled ? styles['toggle-on'] : ''}`}
+                        onClick={() => setStorySidePeekEnabled(!storySidePeekEnabled)}
+                        role="switch"
+                        aria-checked={storySidePeekEnabled}
+                      >
+                        <div className={styles['toggle-dot']} />
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <div className={styles['setting-section-title']}>无障碍</div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>显示字幕</div>
+                    <div className={styles['setting-desc']}>面试与群面中在语音下方显示题目字幕</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${captionsEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setCaptionsEnabled(!captionsEnabled)}
+                    role="switch"
+                    aria-checked={captionsEnabled}
+                    aria-label="显示字幕"
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>减少动效</div>
+                    <div className={styles['setting-desc']}>关闭波形与界面抖动（亦尊重系统「减少动态效果」）</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${reduceMotionEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setReduceMotionEnabled(!reduceMotionEnabled)}
+                    role="switch"
+                    aria-checked={reduceMotionEnabled}
+                    aria-label="减少动效"
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>大号字体</div>
+                    <div className={styles['setting-desc']}>全局字号约放大 15%</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${largeFontEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setLargeFontEnabled(!largeFontEnabled)}
+                    role="switch"
+                    aria-checked={largeFontEnabled}
+                    aria-label="大号字体"
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>键盘快捷键</div>
+                    <div className={styles['setting-desc']}>Space 开关麦克风 · Ctrl+Enter 发送</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${keyboardShortcutsEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setKeyboardShortcutsEnabled(!keyboardShortcutsEnabled)}
+                    role="switch"
+                    aria-checked={keyboardShortcutsEnabled}
+                    aria-label="键盘快捷键"
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -141,15 +393,19 @@ export default function SettingsModal({ onClose }) {
             <div className={styles.panel}>
               <h2>订阅</h2>
               <div className={styles['sub-card']}>
-                <div className={styles['sub-tier']}>{user?.tierLabel || '黄金专业版'}</div>
+                <div className={styles['sub-tier']}>{user?.tierLabel || '会员'}</div>
                 <div className={styles['sub-info']}>
                   <div className={styles['sub-row']}>
                     <span>当前积分</span>
-                    <span className={styles['sub-value']}>{user?.credits || 1280}</span>
+                    <span className={styles['sub-value']}>{stats.credits ?? user?.credits ?? 0}</span>
                   </div>
                   <div className={styles['sub-row']}>
-                    <span>会员等级</span>
-                    <span className={styles['sub-value']}>{user?.tier || 'Pro'}</span>
+                    <span>练习段位</span>
+                    <span className={styles['sub-value']}>{rank.name}</span>
+                  </div>
+                  <div className={styles['sub-row']}>
+                    <span>综合均分</span>
+                    <span className={styles['sub-value']}>{formatAvgScore(stats.avgScore || 0)}</span>
                   </div>
                 </div>
                 <button className={styles['sub-btn']}>管理订阅</button>
@@ -213,6 +469,37 @@ export default function SettingsModal({ onClose }) {
                   </div>
                   <button className={styles['setting-action']}>清除</button>
                 </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>研究数据同意</div>
+                    <div className={styles['setting-desc']}>
+                      {user?.researchConsent?.accepted ? '已同意参与研究' : '未参与 / 已撤回'}
+                    </div>
+                  </div>
+                  {user?.researchConsent?.accepted ? (
+                    <button type="button" className={styles['setting-action']} onClick={() => setConsentWithdraw(true)}>
+                      撤回
+                    </button>
+                  ) : null}
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>退出登录</div>
+                    <div className={styles['setting-desc']}>退出后将清除本地登录态</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles['setting-action']}
+                    onClick={() => {
+                      useAuthStore.getState().logout().finally(() => {
+                        onClose()
+                        navigate('/login')
+                      })
+                    }}
+                  >
+                    退出
+                  </button>
+                </div>
                 <div className={`${styles['setting-row']} ${styles['setting-danger']}`}>
                   <div>
                     <div className={styles['setting-label']}>删除账户</div>
@@ -225,6 +512,15 @@ export default function SettingsModal({ onClose }) {
           )}
         </div>
       </div>
+      {consentWithdraw && (
+        <ResearchConsentModal
+          mode="withdraw"
+          onResolved={() => {
+            setConsentWithdraw(false)
+            useAuthStore.getState().fetchMe().catch(() => {})
+          }}
+        />
+      )}
     </div>,
     document.body
   )
