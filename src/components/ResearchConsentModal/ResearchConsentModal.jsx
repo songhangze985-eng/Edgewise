@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { submitResearchConsent } from '../../api/research'
 import useAuthStore from '../../stores/authStore'
 import { getErrorMessage } from '../../api/client'
+import { triggerSurveyCheck } from '../../stores/surveyStore'
 import styles from './ResearchConsentModal.module.css'
 
 export default function ResearchConsentModal({ onResolved, mode = 'initial' }) {
@@ -15,6 +16,9 @@ export default function ResearchConsentModal({ onResolved, mode = 'initial' }) {
     try {
       const consent = await submitResearchConsent(accepted)
       await useAuthStore.getState().fetchMe()
+      if (accepted) {
+        triggerSurveyCheck('consent')
+      }
       onResolved?.(consent)
     } catch (err) {
       setError(getErrorMessage(err, '提交选择失败，请稍后重试'))

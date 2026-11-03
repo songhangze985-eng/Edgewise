@@ -26,11 +26,10 @@
 - 机构 / 导师视图（`/org/*`）
 
 **研究模块**
-- 知情同意、实验分组、行为事件采集、微问卷引擎、7 天后测、盲评、数据导出
+- 知情同意、实验分组、行为事件采集、微问卷弹窗与作答接入（`MicroSurveyModal` / `surveyStore`）、7 天后测、盲评、数据导出
 - 管理员问卷统计页（`/management/research`）、项目框架页（`/management/framework`）
 
 **规划中**
-- 微问卷弹窗：后端的 `GET /research/survey/pending` 和作答接口已经做好，前端还没调用
 - 外部语音识别：`src/api/stt.js` 目前只是占位，现在只走浏览器的 Web Speech API
 
 ## 技术栈

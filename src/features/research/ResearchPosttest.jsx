@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { fetchPosttestStatus, submitPosttestAnswer } from '../../api/research'
 import { getErrorMessage } from '../../api/client'
 import { showToast } from '../../stores/toastStore'
+import { triggerSurveyCheck } from '../../stores/surveyStore'
 import styles from './ResearchPosttest.module.css'
 
 export default function ResearchPosttest() {
@@ -40,6 +41,7 @@ export default function ResearchPosttest() {
     try {
       await submitPosttestAnswer(answer.trim())
       showToast('追访回答已保存，感谢参与', 'success')
+      await triggerSurveyCheck('posttest')
       navigate('/')
     } catch (err) {
       setError(getErrorMessage(err, '提交失败'))

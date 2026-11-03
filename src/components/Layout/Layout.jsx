@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import LazyThreeBackground from '../ThreeBackground/LazyThreeBackground'
@@ -7,8 +7,10 @@ import Toast from '../Toast/Toast'
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
 import ResearchConsentModal from '../ResearchConsentModal/ResearchConsentModal'
 import ResearchExperimentOnboarding from '../ResearchExperimentOnboarding/ResearchExperimentOnboarding'
+import MicroSurveyModal from '../MicroSurveyModal/MicroSurveyModal'
 import useAuthStore from '../../stores/authStore'
 import useResearchStore from '../../stores/researchStore'
+import useSurveyStore from '../../stores/surveyStore'
 import MobileTabBar from './MobileTabBar'
 import OfflineNotice from '../OfflineNotice/OfflineNotice'
 import { isImmersiveRoute } from './navConfig'
@@ -56,6 +58,30 @@ function ResearchExperimentGate() {
       onDismiss={() => setOpen(false)}
     />
   )
+}
+
+function MicroSurveyGate() {
+  const user = useAuthStore((s) => s.user)
+  const location = useLocation()
+  const checkPending = useSurveyStore((s) => s.checkPending)
+  const checkedRef = useRef(false)
+
+  const isBlocked =
+    location.pathname.startsWith('/interview/room')
+    || location.pathname.startsWith('/interview/oneway')
+    || location.pathname.startsWith('/lgd/room')
+
+  useEffect(() => {
+    const accepted = user?.researchConsent?.accepted
+    if (accepted && !isBlocked && !checkedRef.current) {
+      checkedRef.current = true
+      checkPending('app_ready')
+    }
+  }, [user, isBlocked, checkPending])
+
+  if (!user?.researchConsent?.accepted || isBlocked) return null
+
+  return <MicroSurveyModal />
 }
 
 export default function Layout() {
@@ -118,6 +144,7 @@ export default function Layout() {
       <Toast />
       <ResearchConsentGate />
       <ResearchExperimentGate />
+      <MicroSurveyGate />
       {!isImmersiveRoute(location.pathname) && <MobileTabBar />}
       <OfflineNotice />
     </div>

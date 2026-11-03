@@ -31,7 +31,7 @@ def test_spearman_brown():
 
 
 def test_delta_cp():
-    means = {"00": 1.0, "01": 2.0, "10": 3.0, "11": 4.0}
+    means = {"00": 1.0, "01": 2.0, "10": 3.0, "11": 6.0}
     effects = effect_estimates(means)
     assert effects["delta_cp"] == 2.0
 

@@ -27,6 +27,8 @@ def _item_values(row: dict[str, Any], item_id: str, reverse: dict[str, bool]) ->
     if not rec or rec.get("status") != "answered":
         return None
     val = rec.get("value")
+    if isinstance(val, dict):
+        val = val.get("rating") or val.get("score") or val.get("code")
     try:
         num = float(val)
     except (TypeError, ValueError):
@@ -54,6 +56,25 @@ def spearman_brown(matrix: np.ndarray) -> float | None:
     if np.isnan(r):
         return None
     return float(2 * r / (1 + r))
+
+
+
+def _to_float(v: Any) -> float | None:
+    if v is None or v == "":
+        return None
+    if isinstance(v, bool):
+        return float(v)
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip().lower()
+    if s in ("revised", "done", "active", "true", "1"):
+        return 1.0
+    if s in ("none", "rejected_with_reason", "demo", "false", "0"):
+        return 0.0
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def compute_reliability(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -116,14 +137,11 @@ def compute_reliability(rows: list[dict[str, Any]]) -> dict[str, Any]:
             vals = []
             for field in fields:
                 v = auto.get(field)
-                if v is None or v == "":
+                num_v = _to_float(v)
+                if num_v is None:
                     vals = []
                     break
-                try:
-                    vals.append(float(v))
-                except (TypeError, ValueError):
-                    vals = []
-                    break
+                vals.append(num_v)
             if len(vals) == len(fields):
                 for field, val in zip(fields, vals):
                     frame[field].append(val)

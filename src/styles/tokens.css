@@ -1,0 +1,601 @@
+/**
+ * EDGEWISE APPLE DESIGN SYSTEM TOKENS & TYPOGRAPHY SYSTEM
+ * Adapted from margin-ui-kit (映间 MARGIN) for Apple HIG Aesthetic
+ * Dual-Compatible CSS Token Bridge for Milestone 1 (M1)
+ */
+
+/* ==========================================================================
+   1. Local Font Declarations (Geist, Geist Mono, Instrument Serif)
+   Offline-ready, Zero External Network Dependency
+   ========================================================================== */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('/fonts/InstrumentSerif.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('/fonts/InstrumentSerif-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ==========================================================================
+     2. Motion Physics (Apple Physical Spring & Deceleration Curves)
+     ========================================================================== */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.5, 1);
+  --et-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-move: 200ms;
+  --dur-panel: 300ms;
+  --dur-enter: 400ms;
+
+  /* ==========================================================================
+     3. Hairline, Rings & Multi-Stop Smooth Shadows (movements.dev curves)
+     ========================================================================== */
+  --hair: 1px;
+  --shadow-rgb: 0 0 0;
+  --line: rgb(255 255 255 / 0.08);
+  --ring: 0 0 0 var(--hair) rgb(255 255 255 / 0.10);
+
+  --sh-xs: 0 1px 1px rgb(var(--shadow-rgb) / 0.13),
+           0 2px 2px rgb(var(--shadow-rgb) / 0.11),
+           0 5px 3px rgb(var(--shadow-rgb) / 0.07),
+           0 8px 3px rgb(var(--shadow-rgb) / 0.02);
+
+  --sh-sm: 0 2px 4px rgb(var(--shadow-rgb) / 0.15),
+           0 7px 7px rgb(var(--shadow-rgb) / 0.13),
+           0 16px 9px rgb(var(--shadow-rgb) / 0.08),
+           0 29px 11px rgb(var(--shadow-rgb) / 0.02);
+
+  --sh-md: 0 4px 8px rgb(var(--shadow-rgb) / 0.20),
+           0 14px 14px rgb(var(--shadow-rgb) / 0.18),
+           0 32px 19px rgb(var(--shadow-rgb) / 0.10),
+           0 57px 22px rgb(var(--shadow-rgb) / 0.03);
+
+  --sh-lg: 0 7px 14px rgb(var(--shadow-rgb) / 0.31),
+           0 27px 25px rgb(var(--shadow-rgb) / 0.27),
+           0 60px 34px rgb(var(--shadow-rgb) / 0.16),
+           0 106px 41px rgb(var(--shadow-rgb) / 0.05),
+           0 166px 45px rgb(var(--shadow-rgb) / 0.01);
+
+  /* ==========================================================================
+     4. Palette: Dark Space (Default Edgewise Application Theme)
+     ========================================================================== */
+  --canvas: #0b0b0e;
+  --surface: #151518;
+  --surface-elevated: #1c1c20;
+  --surface-card: rgba(22, 22, 26, 0.78);
+  --surface-card-hover: rgba(32, 32, 38, 0.88);
+  --ink: #f5f5f7;
+  --muted: #a1a1a6;
+  --faint: #6e6e73;
+  --accent: #2997ff;
+  --accent-text: #38bdf8;
+  --accent-glow: rgba(41, 151, 255, 0.25);
+  --reason: #f38b2b;
+  --chip: rgb(255 255 255 / 0.06);
+
+  /* Semantic Status Colors */
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+  --info: #64d2ff;
+
+  /* Liquid Glass Material Specs */
+  --glass-blur: 20px;
+  --glass-sat: 180%;
+  --glass-surface-dark: rgba(22, 22, 26, 0.72);
+  --glass-surface-light: rgba(255, 255, 255, 0.75);
+  --glass-specular-dark: inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+  --glass-specular-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.75);
+  --c-glass: #8e8e92;
+  --c-light: #fff;
+  --c-dark: #000;
+  --reflex-light: 0.1;
+  --reflex-dark: 1.3;
+
+  /* ==========================================================================
+     5. Typography Font Stacks (Apple Humanist & Grotesque + CJK Fallback)
+     ========================================================================== */
+  --font-sans: Geist, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", "Noto Serif SC", "Songti SC", Georgia, "Times New Roman", serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Pro Mono", Menlo, Monaco, Consolas, monospace;
+  --font-display: var(--font-serif);
+  --font-body: var(--font-sans);
+  --font-head: var(--font-sans);
+
+  /* Short aliases */
+  --sans: var(--font-sans);
+  --mono: var(--font-mono);
+  --serif: var(--font-serif);
+  --display: var(--font-display);
+
+  /* ==========================================================================
+     6. Major Second (1.125) Modular Typography Scale (Anchored at 14px Body)
+     Note: --text-sub: 13px avoids conflict with color variable --text-secondary
+     ========================================================================== */
+  --text-micro: 10px;          /* Sub-badges, micro indicators, tiny table flags */
+  --text-mono: 11px;           /* Uppercase eyebrows, tabular metrics, kbd shortcuts */
+  --text-caption: 12px;        /* Timestamps, secondary hints, tooltips */
+  --text-sub: 13px;            /* Compact buttons, segmented pills, menu items */
+  --font-size-secondary: 13px; /* Alias protecting color --text-secondary namespace */
+  --text-body: 14px;           /* Standard body reading, inputs, table cells (Anchor) */
+  --text-title-sm: 16px;       /* Card headers, subsection headings, modal subtitles */
+  --text-title: 18px;          /* Modal headers, section titles, search inputs */
+  --text-tab: 20px;            /* Top navigation tabs, prominent card headers */
+  --text-section: 24px;        /* Page section headlines, workbench module titles */
+  --text-column: 28px;         /* Featured column titles, large analytics metric numbers */
+  --text-page: 44px;           /* Page hero headlines, marketing headers */
+  --text-hero: 56px;           /* Landing hero numbers, high-impact display titles */
+
+  /* Leading (Line Height) */
+  --leading-none: 1;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* Tracking (Letter Spacing) */
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.015em;
+  --tracking-snug: -0.005em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.015em;
+  --tracking-wider: 0.04em;
+  --tracking-widest: 0.08em;
+
+  /* Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ==========================================================================
+     7. Strict 4px/8px Modular Grid (--space-1 to --space-12)
+     ========================================================================== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+
+  /* ==========================================================================
+     8. Curvature Radii
+     ========================================================================== */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* ==========================================================================
+     9. Responsive Breakpoints & Viewport Variables
+     ========================================================================== */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --mobile-tab-height: 56px;
+
+  /* ==========================================================================
+     10. DUAL-COMPATIBLE CSS TOKEN BRIDGE (Backward-Compatibility Aliases)
+     Direct 1:1 mapping for all legacy variables used in 58 *.module.css files
+     ========================================================================== */
+  /* Background aliases */
+  --bg: var(--canvas);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-elevated);
+  --bg-card: var(--surface-card);
+  --bg-card-hover: var(--surface-card-hover);
+  --bg-deep: var(--canvas);
+  --panel-bg: var(--surface-card);
+  --surface-raised: var(--chip);
+
+  /* Text & Ink aliases */
+  --chalk: var(--ink);
+  --chalk-dim: var(--muted);
+  --chalk-faint: var(--line);
+  --text-primary: var(--ink);
+  --text-secondary: var(--muted);
+  --text-muted: var(--faint);
+  --text-on-primary: #ffffff;
+
+  /* Brand, Accent & Color aliases */
+  --primary: var(--accent);
+  --primary-light: #52a9ff;
+  --primary-dark: #0066cc;
+  --primary-glow: var(--accent-glow);
+  --primary-hover: #1485f5;
+
+  --purple: #af52de;
+  --purple-glow: rgba(175, 82, 222, 0.25);
+  --blue: #5a8ac4;
+  --blue-glow: rgba(90, 138, 196, 0.25);
+  --red: var(--danger);
+  --red-glow: rgba(255, 69, 58, 0.25);
+
+  --accent-purple: var(--purple);
+  --accent-blue: var(--accent);
+  --accent-red: var(--danger);
+  --accent-amber: var(--reason);
+  --accent-teal: var(--info);
+  --accent-muted: rgba(41, 151, 255, 0.15);
+
+  /* Border aliases:
+     CRITICAL: --border is complete shorthand (57 usages: border: var(--border);)
+               --border-subtle is color token (23 usages: border: 1px solid var(--border-subtle);) */
+  --border: var(--hair) solid var(--line);
+  --border-active: var(--hair) solid var(--muted);
+  --border-subtle: var(--line);
+
+  /* Spacing aliases */
+  --sp-xs: var(--space-1);
+  --sp-sm: var(--space-2);
+  --sp-md: var(--space-4);
+  --sp-lg: var(--space-6);
+  --sp-xl: var(--space-8);
+  --sp-2xl: var(--space-12);
+
+  /* Radius aliases */
+  --r-sm: var(--radius-xs);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+
+  /* Shadow aliases */
+  --shadow-card: var(--sh-sm);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-purple: 0 0 16px var(--purple-glow);
+
+  /* Hardware Button Shade Fallbacks */
+  --shade-primary: #001B6E;
+  --shade-purple: #5a3d7a;
+  --shade-success: #007a55;
+  --shade-warning: #a67200;
+  --shade-danger: #b02a36;
+  --shade-neutral: rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   11. Light Theme Override ([data-theme="light"])
+   Apple HIG Alabaster & Warm Frosted Glass
+   ========================================================================== */
+[data-theme="light"] {
+  --shadow-rgb: 24 22 20;
+  --ring: 0 0 0 var(--hair) rgb(0 0 0 / 0.06);
+  --sh-xs: 0 1px 1px rgb(var(--shadow-rgb) / 0.05),
+           0 2px 2px rgb(var(--shadow-rgb) / 0.04),
+           0 5px 3px rgb(var(--shadow-rgb) / 0.03),
+           0 8px 3px rgb(var(--shadow-rgb) / 0.01);
+
+  --sh-sm: 0 2px 4px rgb(var(--shadow-rgb) / 0.06),
+           0 7px 7px rgb(var(--shadow-rgb) / 0.05),
+           0 16px 9px rgb(var(--shadow-rgb) / 0.03),
+           0 29px 11px rgb(var(--shadow-rgb) / 0.01);
+
+  --sh-md: 0 4px 8px rgb(var(--shadow-rgb) / 0.08),
+           0 14px 14px rgb(var(--shadow-rgb) / 0.07),
+           0 32px 19px rgb(var(--shadow-rgb) / 0.04),
+           0 57px 22px rgb(var(--shadow-rgb) / 0.01);
+
+  --sh-lg: 0 7px 14px rgb(var(--shadow-rgb) / 0.12),
+           0 27px 25px rgb(var(--shadow-rgb) / 0.10),
+           0 60px 34px rgb(var(--shadow-rgb) / 0.06),
+           0 106px 41px rgb(var(--shadow-rgb) / 0.02);
+
+  --canvas: #f5f4f1;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-card: rgba(255, 255, 255, 0.85);
+  --surface-card-hover: rgba(255, 255, 255, 0.95);
+  --ink: #17181a;
+  --muted: #5f6167;
+  --faint: #66686d;
+  --accent: #0071e3;
+  --accent-text: #006e9a;
+  --accent-glow: rgba(0, 113, 227, 0.20);
+  --line: rgb(23 24 26 / 0.09);
+  --chip: rgb(23 24 26 / 0.05);
+
+  --c-glass: #bbbbbc;
+  --reflex-light: 1;
+  --reflex-dark: 1;
+  --glass-sat: 150%;
+  --glass-blur: 10px;
+
+  --shade-neutral: rgba(0, 0, 0, 0.15);
+
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   12. Retina Hairlines (0.5px border on 2x/3x screens)
+   ========================================================================== */
+@media (min-resolution: 2dppx), (-webkit-min-device-pixel-ratio: 2) {
+  :root {
+    --hair: 0.5px;
+  }
+}
+
+/* ==========================================================================
+   13. Liquid Glass Materials & Specular Recipes
+   ========================================================================== */
+.glass-panel {
+  position: relative;
+  background: var(--glass-surface-dark);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  box-shadow:
+    var(--glass-specular-dark),
+    var(--ring),
+    var(--sh-lg);
+  border: none;
+}
+
+[data-theme="light"] .glass-panel {
+  background: var(--glass-surface-light);
+  box-shadow:
+    var(--glass-specular-light),
+    var(--ring),
+    var(--sh-lg);
+}
+
+.glass-card {
+  position: relative;
+  background: var(--glass-surface-dark);
+  -webkit-backdrop-filter: blur(16px) saturate(var(--glass-sat));
+  backdrop-filter: blur(16px) saturate(var(--glass-sat));
+  border-radius: var(--radius-md);
+  box-shadow:
+    var(--glass-specular-dark),
+    var(--ring),
+    var(--sh-sm);
+  transition: transform var(--dur-move) var(--ease-out),
+              box-shadow var(--dur-move) var(--ease-out);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    var(--glass-specular-dark),
+    var(--ring),
+    var(--sh-md);
+}
+
+[data-theme="light"] .glass-card {
+  background: var(--glass-surface-light);
+  box-shadow:
+    var(--glass-specular-light),
+    var(--ring),
+    var(--sh-sm);
+}
+
+[data-theme="light"] .glass-card:hover {
+  box-shadow:
+    var(--glass-specular-light),
+    var(--ring),
+    var(--sh-md);
+}
+
+.glass-capsule {
+  position: relative;
+  border-radius: var(--radius-pill);
+  background: rgba(22, 22, 26, 0.65);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(200%);
+  box-shadow:
+    var(--glass-specular-dark),
+    var(--ring),
+    var(--sh-sm);
+}
+
+[data-theme="light"] .glass-capsule {
+  background: rgba(255, 255, 255, 0.70);
+  box-shadow:
+    var(--glass-specular-light),
+    var(--ring),
+    var(--sh-sm);
+}
+
+.glass-thumb {
+  position: absolute;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0.06));
+  box-shadow:
+    inset 0 0 0 var(--hair) rgba(255, 255, 255, 0.22),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
+    0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: transform var(--dur-panel) var(--ease-spring),
+              width var(--dur-panel) var(--ease-spring);
+}
+
+[data-theme="light"] .glass-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.4) 60%, rgba(255, 255, 255, 0.6));
+  box-shadow:
+    inset 0 0 0 var(--hair) rgba(255, 255, 255, 0.55),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.06),
+    0 2px 6px -2px rgba(0, 0, 0, 0.12);
+}
+
+.glass-sticky-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -16px;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask: linear-gradient(#000 45%, transparent);
+  mask: linear-gradient(#000 45%, transparent);
+}
+
+/* ==========================================================================
+   14. Typography Utility Classes
+   ========================================================================== */
+.font-sans  { font-family: var(--font-sans); }
+.font-mono  { font-family: var(--font-mono); }
+.font-serif { font-family: var(--font-serif); }
+
+.text-micro {
+  font-size: var(--text-micro);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-wider);
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-widest);
+}
+
+.text-caption {
+  font-size: var(--text-caption);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-wide);
+}
+
+.text-sub {
+  font-size: var(--text-sub);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-body {
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-title-sm {
+  font-size: var(--text-title-sm);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text-title {
+  font-size: var(--text-title);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-snug);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text-tab {
+  font-size: var(--text-tab);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-snug);
+  font-weight: var(--font-weight-medium);
+}
+
+.text-section {
+  font-size: var(--text-section);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-snug);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text-column {
+  font-size: var(--text-column);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text-page {
+  font-size: var(--text-page);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--font-weight-bold);
+}
+
+.text-hero {
+  font-size: var(--text-hero);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tighter);
+  font-weight: var(--font-weight-bold);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  line-height: 1;
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.eyebrow .serif-kicker {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-title);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--accent);
+}
+
+/* ==========================================================================
+   15. Accessibility Preferences Support
+   ========================================================================== */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-sat: 100%;
+    --surface-card: var(--surface);
+  }
+  .glass-panel,
+  .glass-card,
+  .glass-capsule {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: var(--surface) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  :root *,
+  :root *::before,
+  :root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

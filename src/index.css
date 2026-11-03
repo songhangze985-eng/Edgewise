@@ -1,87 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+@import './styles/tokens.css';
 
-/* ============================================
-   Edgewise Design System
-   Dark Schematic Wireframe Theme
-   克莱因蓝 + style.html aesthetic fusion
-   ============================================ */
-
-:root {
-  /* — Background layers — */
-  --bg: #161521;
-  --bg-surface: #1a1929;
-  --bg-elevated: #221f35;
-  --bg-card: rgba(34, 31, 53, 0.75);
-  --bg-card-hover: rgba(42, 38, 68, 0.85);
-
-  /* — Brand: Klein Blue — */
-  --primary: #002FA7;
-  --primary-light: #1A4FD6;
-  --primary-dark: #001B6E;
-  --primary-glow: rgba(0, 47, 167, 0.35);
-
-  /* — Accent from style.html — */
-  --purple: #9b6fc7;
-  --purple-glow: rgba(155, 111, 199, 0.3);
-  --red: #d45c5c;
-  --red-glow: rgba(212, 92, 92, 0.25);
-  --blue: #5a8ac4;
-  --blue-glow: rgba(90, 138, 196, 0.25);
-
-  /* — Functional — */
-  --success: #00C48C;
-  --warning: #FFB020;
-  --danger: #FF4757;
-
-  /* — Text — */
-  --chalk: rgba(226, 224, 229, 0.88);
-  --chalk-dim: rgba(226, 224, 229, 0.4);
-  --chalk-faint: rgba(226, 224, 229, 0.12);
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-
-  /* — Fonts — */
-  --font-mono: 'Space Mono', monospace;
-  --font-head: 'Teko', sans-serif;
-
-  /* — Borders — */
-  --border: 1px solid var(--chalk-faint);
-  --border-active: 1px solid var(--chalk-dim);
-
-  /* — Spacing — */
-  --sp-xs: 4px;
-  --sp-sm: 8px;
-  --sp-md: 16px;
-  --sp-lg: 24px;
-  --sp-xl: 32px;
-  --sp-2xl: 48px;
-
-  /* — Radius — */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 16px;
-  --r-xl: 24px;
-
-  /* — Hardware Button Shades — */
-  --shade-primary: #001B6E;
-  --shade-purple: #5a3d7a;
-  --shade-success: #007a55;
-  --shade-warning: #a67200;
-  --shade-danger: #b02a36;
-  --shade-neutral: rgba(0, 0, 0, 0.5);
-
-  /* — Shadows — */
-  --shadow-glow: 0 0 20px var(--primary-glow);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5);
-  --shadow-purple: 0 0 16px var(--purple-glow);
-
-  /* — Responsive breakpoints — */
-  --bp-sm: 480px;
-  --bp-md: 768px;
-  --bp-lg: 1024px;
-  --mobile-tab-height: 56px;
-}
+/* ==========================================================================
+   EDGEWISE GLOBAL STYLES & DUAL-COMPATIBLE HARDWARE BRIDGE
+   Apple Human Interface Guidelines & margin-ui-kit Aesthetic Fusion
+   ========================================================================== */
 
 /* ---- Reset & Base ---- */
 *,
@@ -99,11 +21,11 @@ html {
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--chalk);
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  line-height: 1.6;
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
   overflow-x: hidden;
   min-height: 100vh;
 }
@@ -114,148 +36,153 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-head);
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1.1;
-  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--ink);
 }
 
 a {
-  color: var(--blue);
+  color: var(--accent-text);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 a:hover {
-  color: var(--purple);
+  color: var(--accent);
 }
 
-/* ---- Scrollbar ---- */
+/* ---- Modern Refined Scrollbar ---- */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--chalk-faint);
-  border-radius: 3px;
+  background: var(--line);
+  border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--chalk-dim);
+  background: var(--muted);
 }
 
-/* ---- Design System: Hardware Components ---- */
+/* ==========================================================================
+   Legacy Hardware Component Bridge (Enhanced with Apple Liquid Glass Aesthetics)
+   Enables existing *.module.css and JSX files to gain Apple styling instantly
+   ========================================================================== */
+
 .hw-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(8px);
+  background: var(--surface-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   border: var(--border);
-  border-radius: var(--r-md);
-  padding: var(--sp-lg);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 2px 0 rgba(0, 0, 0, 0.3),
-    0 4px 16px rgba(0, 0, 0, 0.25);
-  transition: border-color 0.3s ease;
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--sh-sm);
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .hw-panel:hover {
-  border-color: rgba(226, 224, 229, 0.18);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    var(--sh-md);
 }
 
 .hw-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(8px);
+  background: var(--surface-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   border: var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-md);
   position: relative;
   cursor: pointer;
   text-decoration: none;
-  color: var(--chalk);
-  transition: all 0.15s cubic-bezier(0.25, 1, 0.5, 1);
+  color: var(--ink);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 3px 0 rgba(0, 0, 0, 0.45),
-    0 4px 12px rgba(0, 0, 0, 0.3);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--sh-xs);
+  transition: transform var(--dur-fast) var(--ease-spring),
+              border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .hw-card:hover:not(:disabled) {
   transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.16);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 5px 0 rgba(0, 0, 0, 0.4),
-    0 8px 20px rgba(0, 0, 0, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    var(--sh-md);
 }
 
 .hw-card:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.3),
-    0 1px 0 rgba(0, 0, 0, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: scale(0.98);
+  box-shadow: var(--sh-xs);
 }
 
 .hw-btn {
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   position: relative;
-  transition: all 0.08s cubic-bezier(0.25, 1, 0.5, 1);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.2),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.2),
-    0 3px 0 var(--shade-neutral),
-    0 4px 8px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sub);
+  font-weight: 500;
+  transition: transform var(--dur-fast) var(--ease-spring),
+              opacity var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+  box-shadow: var(--sh-xs);
 }
 
 .hw-btn:hover:not(:disabled) {
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.2),
-    0 3px 0 var(--shade-neutral),
-    0 4px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--sh-sm);
+  opacity: 0.92;
 }
 
 .hw-btn:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 1px 0 var(--shade-neutral);
+  transform: scale(0.97);
 }
 
 .hw-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .hw-inset {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--chalk-faint);
-  border-radius: var(--r-sm);
-  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.4);
+  background: var(--chip);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 /* ---- Utility Classes ---- */
 .label-sm {
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  color: var(--chalk-dim);
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  color: var(--muted);
   text-transform: uppercase;
   font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .text-block {
   border: var(--border);
-  padding: var(--sp-md);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  background: var(--bg-card);
-  backdrop-filter: blur(8px);
-  border-radius: var(--r-sm);
+  padding: var(--space-4);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  background: var(--surface-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-sm);
+  color: var(--ink);
 }
 
 /* ---- Keyframes ---- */
@@ -272,10 +199,10 @@ a:hover {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 8px var(--primary-glow);
+    box-shadow: 0 0 8px var(--accent-glow);
   }
   50% {
-    box-shadow: 0 0 24px var(--primary-glow);
+    box-shadow: 0 0 24px var(--accent-glow);
   }
 }
 
@@ -290,14 +217,14 @@ a:hover {
 
 @keyframes border-glow {
   0%, 100% {
-    border-color: var(--chalk-faint);
+    border-color: var(--line);
   }
   50% {
-    border-color: var(--chalk-dim);
+    border-color: var(--muted);
   }
 }
 
-/* ---- Mobile utilities ---- */
+/* ---- Mobile & A11y Utilities ---- */
 html.a11y-large-font {
   font-size: calc(16px * 1.15);
 }

@@ -105,7 +105,7 @@ def bootstrap_effects(
             draw = rng.choice(vals, size=len(vals), replace=True)
             sample_means[arm] = float(np.mean(draw))
         zc_samples.append(((sample_means["10"] + sample_means["11"]) - (sample_means["00"] + sample_means["01"])) / 2)
-        zp_samples.append(((sample_means["01"] + sample_means["11"]) - (sample_means["00"] + sample_means["10"])) / 2
+        zp_samples.append(((sample_means["01"] + sample_means["11"]) - (sample_means["00"] + sample_means["10"])) / 2)
         cp_samples.append(
             sample_means["11"] - sample_means["10"] - sample_means["01"] + sample_means["00"]
         )

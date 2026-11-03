@@ -504,9 +504,8 @@ export const NODES = [
     stage: 'research',
     col: 1,
     row: 0,
-    status: 'planned',
-    summary: '同意后触发的 J 系列主动问卷 UI。',
-    plannedReason: '后端 GET /research/survey/pending 与 submit 已实现，前端未调用 fetchSurveyPending。',
+    status: 'existing',
+    summary: '知情同意后与关键研究节点触发的主动问卷与后测弹窗（MicroSurveyModal）。',
     views: ['overview', 'research-flow'],
   },
   {
@@ -515,9 +514,8 @@ export const NODES = [
     stage: 'research',
     col: 1,
     row: 1,
-    status: 'planned',
-    summary: '练习后短问卷（micro survey）弹层。',
-    plannedReason: '管理端已统计 micro_survey_response，前端无 pending/answer 接入。',
+    status: 'existing',
+    summary: '练习与各触点微问卷弹层，集成 pending 队列与 answer 提交接口。',
     views: ['overview', 'research-flow'],
   },
   {
