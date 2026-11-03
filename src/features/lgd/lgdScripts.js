@@ -15,13 +15,13 @@ export const ROLE_LABELS = {
 }
 
 export const AGENTS = [
-  { id: 'ice_breaker', name: '小林', role: '破冰者', color: '#5a8ac4', emoji: '🧊', behavior: 'normal' },
-  { id: 'idea_king', name: '陈思', role: '点子王', color: '#FFB020', emoji: '💡', behavior: 'normal' },
-  { id: 'logician', name: '李理', role: '逻辑王', color: '#9b6fc7', emoji: '🧠', behavior: 'normal' },
-  { id: 'interrupter', name: '韩抢', role: '抢话者', color: '#d45c5c', emoji: '⚡', behavior: 'interrupt' },
-  { id: 'digresser', name: '孙偏', role: '跑题者', color: '#87CEEB', emoji: '🌀', behavior: 'digress' },
-  { id: 'mediator', name: '王和', role: '和事佬', color: '#00C48C', emoji: '🕊️', behavior: 'normal' },
-  { id: 'timekeeper', name: '刘时', role: '计时员', color: '#FF8C00', emoji: '⏱️', behavior: 'normal' },
+  { id: 'ice_breaker', seat: 1, name: '小林', role: '破冰者', color: '#5a8ac4', emoji: '🧊', behavior: 'normal', contextLimit: 4 },
+  { id: 'idea_king', seat: 2, name: '陈思', role: '点子王', color: '#FFB020', emoji: '💡', behavior: 'normal', contextLimit: 5 },
+  { id: 'logician', seat: 3, name: '李理', role: '逻辑王', color: '#9b6fc7', emoji: '🧠', behavior: 'normal', contextLimit: 6 },
+  { id: 'interrupter', seat: 5, name: '韩抢', role: '抢话者', color: '#d45c5c', emoji: '⚡', behavior: 'interrupt', contextLimit: 3 },
+  { id: 'digresser', seat: 6, name: '孙偏', role: '跑题者', color: '#87CEEB', emoji: '🌀', behavior: 'digress', contextLimit: 3 },
+  { id: 'mediator', seat: 7, name: '王和', role: '和事佬', color: '#00C48C', emoji: '🕊️', behavior: 'normal', contextLimit: 5 },
+  { id: 'timekeeper', seat: 8, name: '刘时', role: '计时员', color: '#FF8C00', emoji: '⏱️', behavior: 'normal', contextLimit: 4 },
 ]
 
 export const STATEMENT_ORDER = [
@@ -34,6 +34,41 @@ export const STATEMENT_ORDER = [
   'mediator',
   'timekeeper',
 ]
+
+export const FAST_TRAINING_SCRIPTS = [
+  {
+    id: 'standard_flow',
+    name: '标准群面快训脚本（经典全流程）',
+    badge: 'AUTO-SCRIPT · 标准流',
+    description: '1号破冰定框 → 狼人杀式按号轮流陈述 → 5号抢话与6号跑题自动触发 → 8号控时收敛。',
+    turnOrder: ['ice_breaker', 'idea_king', 'logician', 'user', 'interrupter', 'digresser', 'mediator', 'timekeeper'],
+  },
+  {
+    id: 'werewolf_clash',
+    name: '狼人杀式高压对抗脚本（观点交锋）',
+    badge: 'AUTO-SCRIPT · 高压对抗',
+    description: '单模型多Agent沙箱隔离隐藏任务卡：3号逻辑王与5号抢话者形成对立阵营，轮番向4号（你）施压质询。',
+    turnOrder: ['ice_breaker', 'interrupter', 'logician', 'user', 'idea_king', 'mediator', 'digresser', 'timekeeper'],
+  },
+  {
+    id: 'convergence_sprint',
+    name: '极限控时收敛脚本（防跑题急救）',
+    badge: 'AUTO-SCRIPT · 极限收敛',
+    description: '6号跑题者与2号点子王连续发散议题，8号计时员高频倒计时预警，专练快速拉回主线与定稿。',
+    turnOrder: ['idea_king', 'digresser', 'ice_breaker', 'user', 'timekeeper', 'logician', 'interrupter', 'mediator'],
+  },
+  {
+    id: 'memory_adaptive',
+    name: '记忆模式弱项强化脚本（自适应追击）',
+    badge: 'MEMORY · 弱项追击',
+    description: '读取上一次训练保存的设定与薄弱项（如发言占比低、少承接他人、缺推进话术），在讨论中定向点名触发。',
+    turnOrder: ['ice_breaker', 'logician', 'mediator', 'user', 'interrupter', 'idea_king', 'digresser', 'timekeeper'],
+  },
+]
+
+export function getScriptById(scriptId) {
+  return FAST_TRAINING_SCRIPTS.find((s) => s.id === scriptId) || FAST_TRAINING_SCRIPTS[0]
+}
 
 export const RESPONSES = {
   personal_statement: {
@@ -105,20 +140,25 @@ export const PHASE_DEFS = [
   { key: 'summary_report', label: '总结汇报' },
 ]
 
-export function pickAgentForFreeDiscussion() {
+export function pickAgentForFreeDiscussion(scriptId = 'standard_flow') {
   const roll = Math.random()
-  if (roll < 0.22) {
-    return AGENTS.find((a) => a.id === 'interrupter')
-  }
-  if (roll < 0.38) {
-    return AGENTS.find((a) => a.id === 'digresser')
+  if (scriptId === 'werewolf_clash') {
+    if (roll < 0.35) return AGENTS.find((a) => a.id === 'interrupter')
+    if (roll < 0.65) return AGENTS.find((a) => a.id === 'logician')
+  } else if (scriptId === 'convergence_sprint') {
+    if (roll < 0.35) return AGENTS.find((a) => a.id === 'digresser')
+    if (roll < 0.65) return AGENTS.find((a) => a.id === 'timekeeper')
+  } else {
+    if (roll < 0.22) return AGENTS.find((a) => a.id === 'interrupter')
+    if (roll < 0.38) return AGENTS.find((a) => a.id === 'digresser')
   }
   return AGENTS[Math.floor(Math.random() * AGENTS.length)]
 }
 
 export function agentById(id) {
   if (id === 'user') {
-    return { id: 'user', name: '你', role: '参与者', color: '#9b6fc7', emoji: '👤' }
+    return { id: 'user', seat: 4, name: '你', role: '参与者', color: '#9b6fc7', emoji: '👤' }
   }
   return AGENTS.find((a) => a.id === id) || null
 }
+

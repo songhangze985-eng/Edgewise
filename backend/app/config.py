@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 1440
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     RESEARCH_HASH_SECRET: Optional[str] = None
+    # Open API interface dedicated exclusively to LGD group discussion multi-agent roleplay
+    LGD_LLM_API_KEY: Optional[str] = None
+    LGD_LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LGD_LLM_MODEL: str = "gpt-4o-mini"
+    LGD_CONTEXT_WINDOW_LIMIT: int = 6
 
     model_config = SettingsConfigDict(env_file=".env")
 

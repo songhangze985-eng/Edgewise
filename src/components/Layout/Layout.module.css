@@ -1,9 +1,14 @@
+/**
+ * Global Shell Layout - 4px/8px Modular Spacing Harmonization
+ */
 .layout {
   display: flex;
   min-height: 100vh;
+  background: var(--canvas);
+  color: var(--ink);
   --sidebar-width: 240px;
-  --sidebar-float-inset: 14px;
-  --sidebar-content-gap: 12px;
+  --sidebar-float-inset: var(--space-4, 16px);
+  --sidebar-content-gap: var(--space-4, 16px);
 }
 
 .layout.sidebar-collapsed {
@@ -18,22 +23,25 @@
   min-height: 100vh;
   position: relative;
   z-index: 1;
-  transition: margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: margin-left var(--dur-panel, 300ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .content-area {
-  padding: var(--sp-xl) var(--sp-2xl);
+  padding: var(--space-8, 32px) var(--space-12, 48px);
   position: relative;
   z-index: 2;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 @media (max-width: 767px) {
   .layout-mobile .main-content {
     margin-left: 0;
-    padding-bottom: calc(var(--mobile-tab-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--mobile-tab-height, 56px) + env(safe-area-inset-bottom, 0px));
   }
 
   .layout-mobile .content-area {
-    padding: var(--sp-md) var(--sp-md) var(--sp-lg);
+    padding: var(--space-4, 16px) var(--space-4, 16px) var(--space-6, 24px);
+    max-width: 100%;
   }
 }

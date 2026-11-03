@@ -11,6 +11,7 @@ import MicroSurveyModal from '../MicroSurveyModal/MicroSurveyModal'
 import useAuthStore from '../../stores/authStore'
 import useResearchStore from '../../stores/researchStore'
 import useSurveyStore from '../../stores/surveyStore'
+import useSettingsStore from '../../stores/settingsStore'
 import MobileTabBar from './MobileTabBar'
 import OfflineNotice from '../OfflineNotice/OfflineNotice'
 import { isImmersiveRoute } from './navConfig'
@@ -88,6 +89,7 @@ export default function Layout() {
   const location = useLocation()
   const prefersReducedMotion = useEffectiveReduceMotion()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed)
+  const aiCopilotEnabled = useSettingsStore((s) => s.aiCopilotEnabled)
 
   const isMobileLayout = useIsMobileLayout()
 
@@ -135,7 +137,8 @@ export default function Layout() {
           </ErrorBoundary>
         </div>
       </main>
-      {!location.pathname.startsWith('/interview/room')
+      {aiCopilotEnabled
+        && !location.pathname.startsWith('/interview/room')
         && !location.pathname.startsWith('/interview/oneway')
         && !location.pathname.startsWith('/interview/structured/')
         && !location.pathname.startsWith('/coding/')

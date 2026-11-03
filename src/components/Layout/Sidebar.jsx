@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../stores/authStore'
 import useSessionStore from '../../stores/sessionStore'
+import useSettingsStore from '../../stores/settingsStore'
 import { formatAvgScore, rankFromAvgScore } from '../../utils/userStats'
 import SettingsModal from '../SettingsModal/SettingsModal'
 import styles from './Sidebar.module.css'
@@ -89,6 +90,8 @@ export default function Sidebar({ collapsed = false, onToggleCollapse }) {
   const user = useAuthStore((s) => s.user)
   const avgScore = useSessionStore((s) => s.stats.avgScore)
   const refresh = useSessionStore((s) => s.refresh)
+  const theme = useSettingsStore((s) => s.theme)
+  const toggleTheme = useSettingsStore((s) => s.toggleTheme)
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const menuRef = useRef(null)
@@ -117,6 +120,7 @@ export default function Sidebar({ collapsed = false, onToggleCollapse }) {
     setMenuOpen(false)
     if (action === 'profile') navigate('/profile')
     if (action === 'settings') setSettingsOpen(true)
+    if (action === 'theme') toggleTheme()
     if (action === 'logout') {
       useAuthStore.getState().logout().finally(() => navigate('/login'))
     }
@@ -157,6 +161,19 @@ export default function Sidebar({ collapsed = false, onToggleCollapse }) {
       </nav>
 
       <div className={styles['sidebar-footer']} ref={menuRef}>
+        <button
+          type="button"
+          className={styles['theme-toggle-pill']}
+          onClick={toggleTheme}
+          title={theme === 'light' ? '当前：赛博白昼（点击切换暗夜流光）' : '当前：暗夜流光（点击切换赛博白昼）'}
+          aria-label="切换白天/黑夜主题"
+        >
+          <span className={styles['theme-toggle-icon']}>{theme === 'light' ? '☀' : '☾'}</span>
+          <span className={styles['theme-toggle-label']}>
+            {theme === 'light' ? '赛博白昼 · 白色装束' : '暗夜流光 · 切换白天'}
+          </span>
+        </button>
+
         {menuOpen && (
           <div className={styles['user-menu']}>
             <div className={styles['menu-header']}>
@@ -170,6 +187,10 @@ export default function Sidebar({ collapsed = false, onToggleCollapse }) {
             <button className={styles['menu-item']} onClick={() => handleMenuAction('profile')}>
               <span className={styles['menu-icon']}>◇</span>
               我的主页
+            </button>
+            <button className={styles['menu-item']} onClick={() => handleMenuAction('theme')}>
+              <span className={styles['menu-icon']}>{theme === 'light' ? '☾' : '☀'}</span>
+              {theme === 'light' ? '切换深色模式' : '切换赛博白昼（白天）'}
             </button>
             <button className={styles['menu-item']} onClick={() => handleMenuAction('settings')}>
               <span className={styles['menu-icon']}>⚙</span>

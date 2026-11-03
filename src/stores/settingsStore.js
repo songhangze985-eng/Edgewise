@@ -4,7 +4,14 @@ import { emitA11ySettingChanged } from '../utils/a11yTelemetry'
 
 const useSettingsStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
+      theme: 'dark', // 'dark' | 'light' | 'system'
+      language: 'zh-CN',
+      aiCopilotEnabled: true,
+      soundEffectEnabled: false,
+      practiceReminderEnabled: true,
+      emailNotifyEnabled: false,
+
       ttsEnabled: true,
       ttsRate: 1.05,
       ttsVoiceURI: null,
@@ -16,6 +23,36 @@ const useSettingsStore = create(
       largeFontEnabled: false,
       keyboardShortcutsEnabled: true,
       storySidePeekEnabled: false,
+
+      setTheme(theme) {
+        const valid = ['dark', 'light', 'system'].includes(theme) ? theme : 'dark'
+        set({ theme: valid })
+      },
+
+      toggleTheme() {
+        const current = get().theme
+        set({ theme: current === 'light' ? 'dark' : 'light' })
+      },
+
+      setLanguage(language) {
+        set({ language: language || 'zh-CN' })
+      },
+
+      setAiCopilotEnabled(aiCopilotEnabled) {
+        set({ aiCopilotEnabled: Boolean(aiCopilotEnabled) })
+      },
+
+      setSoundEffectEnabled(soundEffectEnabled) {
+        set({ soundEffectEnabled: Boolean(soundEffectEnabled) })
+      },
+
+      setPracticeReminderEnabled(practiceReminderEnabled) {
+        set({ practiceReminderEnabled: Boolean(practiceReminderEnabled) })
+      },
+
+      setEmailNotifyEnabled(emailNotifyEnabled) {
+        set({ emailNotifyEnabled: Boolean(emailNotifyEnabled) })
+      },
 
       setTtsEnabled(ttsEnabled) {
         set({ ttsEnabled: Boolean(ttsEnabled) })
@@ -70,6 +107,12 @@ const useSettingsStore = create(
     {
       name: 'edgewise-settings',
       partialize: (state) => ({
+        theme: state.theme,
+        language: state.language,
+        aiCopilotEnabled: state.aiCopilotEnabled,
+        soundEffectEnabled: state.soundEffectEnabled,
+        practiceReminderEnabled: state.practiceReminderEnabled,
+        emailNotifyEnabled: state.emailNotifyEnabled,
         ttsEnabled: state.ttsEnabled,
         ttsRate: state.ttsRate,
         ttsVoiceURI: state.ttsVoiceURI,

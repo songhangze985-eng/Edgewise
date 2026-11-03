@@ -252,6 +252,9 @@ class LgdRoomCreate(APIModel):
     agents: list[str] = Field(default_factory=list)
     user_role: str = Field(default="member", max_length=20)
     role_mode: str = Field(default="pick", max_length=20)
+    script_id: str = Field(default="standard_flow", max_length=60)
+    memory_enabled: bool = True
+    api_mode: str = Field(default="hybrid_sandbox", max_length=40)
 
 
 class LgdPhaseConfig(APIModel):
@@ -275,6 +278,9 @@ class LgdRoomResponse(APIModel):
     agents: list[str] = Field(default_factory=list)
     phases: list[LgdPhaseConfig] = Field(default_factory=list)
     user_role: str | None = None
+    script_id: str | None = "standard_flow"
+    memory_enabled: bool = True
+    api_mode: str | None = "hybrid_sandbox"
     participants: list[LgdParticipant] = Field(default_factory=list)
     created_at: str
     updated_at: str

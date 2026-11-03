@@ -1,6 +1,107 @@
 @import './styles/tokens.css';
 
 /* ==========================================================================
+   DUAL-COMPATIBLE GLOBAL CSS TOKEN BRIDGE (Interface Contract & Legacy Aliases)
+   Fulfills PROJECT.md Contract 1: src/index.css <-> Scoped CSS Modules
+   ========================================================================== */
+:root {
+  /* ---- Canvas & Surface Background Layers ---- */
+  --canvas: #0b0b0e;
+  --surface: #151518;
+  --surface-elevated: #1c1c20;
+  --surface-card: rgba(26, 26, 30, 0.72);
+  --surface-card-hover: rgba(36, 36, 42, 0.82);
+
+  /* Legacy Background Aliases */
+  --bg: var(--canvas);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-elevated);
+  --bg-card: var(--surface-card);
+  --bg-card-hover: var(--surface-card-hover);
+  --bg-deep: var(--canvas);
+  --panel-bg: var(--surface-card);
+
+  /* ---- Ink & Text Contrast Hierarchy ---- */
+  --ink: #f5f5f7;
+  --muted: #86868b;
+  --faint: #66686d;
+
+  /* Legacy Chalk & Text Aliases */
+  --chalk: var(--ink);
+  --chalk-dim: var(--muted);
+  --chalk-faint: rgba(226, 224, 229, 0.12);
+  --text-primary: var(--ink);
+  --text-secondary: var(--muted);
+  --text-muted: var(--faint);
+  --text-on-primary: #ffffff;
+
+  /* ---- Hairline & Border Tokens ---- */
+  --hair: 1px;
+  --line: rgb(255 255 255 / 0.08);
+  --border: var(--hair) solid var(--line);
+  --border-active: var(--hair) solid var(--muted);
+  --border-subtle: var(--line);
+
+  /* ---- Typography Stacks & Hierarchy ---- */
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-head: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+
+  /* ---- Modular Spacing Scale (4px/8px Rhythm) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+
+  /* Legacy Spacing Aliases */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 16px;
+  --sp-lg: 24px;
+  --sp-xl: 32px;
+  --sp-2xl: 48px;
+
+  /* ---- Corner Radius Modularity ---- */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* Legacy Radius Aliases */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+
+  /* ---- Multi-Stop Shadows & Glow Tokens ---- */
+  --sh-xs: 0 1px 2px rgb(0 0 0 / 0.16);
+  --sh-sm: 0 2px 4px rgb(0 0 0 / 0.20), 0 1px 2px rgb(0 0 0 / 0.12);
+  --sh-md: 0 4px 12px rgb(0 0 0 / 0.28), 0 2px 4px rgb(0 0 0 / 0.16);
+  --sh-lg: 0 12px 32px rgb(0 0 0 / 0.36), 0 4px 8px rgb(0 0 0 / 0.20);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4), var(--sh-sm);
+  --shadow-glow: 0 0 20px var(--primary-glow);
+  --primary-glow: rgba(41, 151, 255, 0.35);
+
+  /* ---- Responsive Layout Breakpoints ---- */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --mobile-tab-height: 56px;
+}
+
+/* ==========================================================================
    EDGEWISE GLOBAL STYLES & DUAL-COMPATIBLE HARDWARE BRIDGE
    Apple Human Interface Guidelines & margin-ui-kit Aesthetic Fusion
    ========================================================================== */
@@ -28,6 +129,46 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   min-height: 100vh;
+  transition: background-color 220ms var(--ease-out), color 220ms var(--ease-out);
+}
+
+/* Cyber-White + Pixel-Matrix Background Outfit in Light Mode */
+[data-theme="light"] body {
+  background-color: #f4f6fb;
+  background-image:
+    /* Layer 1: Pixel-art micro dot matrix (4px/16px cyber pixel feel) */
+    radial-gradient(rgba(0, 102, 255, 0.16) 1.25px, transparent 1.25px),
+    radial-gradient(rgba(120, 53, 148, 0.10) 1px, transparent 1px),
+    /* Layer 2: Cyber HUD schematic grid (64px) */
+    linear-gradient(90deg, rgba(0, 102, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(0, 102, 255, 0.045) 1px, transparent 1px),
+    /* Layer 3: Subtle pixel scanline & cyber-white ambient light bloom */
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.35) 0px,
+      rgba(255, 255, 255, 0.35) 2px,
+      transparent 2px,
+      transparent 4px
+    ),
+    radial-gradient(circle at 86% 10%, rgba(0, 168, 255, 0.10), transparent 42%),
+    radial-gradient(circle at 12% 88%, rgba(120, 53, 148, 0.08), transparent 42%);
+  background-size:
+    16px 16px,
+    32px 32px,
+    64px 64px,
+    64px 64px,
+    100% 4px,
+    100% 100%,
+    100% 100%;
+  background-position:
+    0 0,
+    8px 8px,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-attachment: fixed;
 }
 
 #root {
@@ -50,6 +191,56 @@ a {
 
 a:hover {
   color: var(--accent);
+}
+
+/* ==========================================================================
+   Global Form Controls: Rounded Rectangle + Left-Shifted Select Chevron
+   + Unified Row/Column Sizing
+   ========================================================================== */
+select,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+textarea {
+  border-radius: var(--radius-md, 10px);
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  transition:
+    border-color var(--dur-fast, 150ms) var(--ease-out),
+    box-shadow var(--dur-fast, 150ms) var(--ease-out),
+    background-color var(--dur-fast, 150ms) var(--ease-out);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+select {
+  min-height: 38px;
+}
+
+/* Global Select Downward Arrow: shifted left (right 14px) so it never hugs the edge */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 38px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 14px 14px;
+  cursor: pointer;
+}
+
+[data-theme="light"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+/* Unified sizing for controls in the same row or column */
+.filter-row select,
+.filter-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.toolbar-row select,
+.toolbar-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.composer-row select,
+.composer-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  height: 40px;
+  min-width: 160px;
+  border-radius: var(--radius-md, 10px);
 }
 
 /* ---- Modern Refined Scrollbar ---- */
@@ -97,6 +288,23 @@ a:hover {
     var(--sh-md);
 }
 
+[data-theme="light"] .hw-panel {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(0, 102, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 0 rgba(0, 102, 255, 0.06),
+    var(--sh-sm);
+}
+
+[data-theme="light"] .hw-panel:hover {
+  border-color: rgba(0, 102, 255, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 3px 0 rgba(0, 102, 255, 0.10),
+    var(--sh-md);
+}
+
 .hw-card {
   background: var(--surface-card);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
@@ -123,6 +331,23 @@ a:hover {
     var(--sh-md);
 }
 
+[data-theme="light"] .hw-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(0, 102, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 0 rgba(0, 102, 255, 0.06),
+    var(--sh-xs);
+}
+
+[data-theme="light"] .hw-card:hover:not(:disabled) {
+  border-color: rgba(0, 102, 255, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 4px 12px rgba(0, 102, 255, 0.12),
+    var(--sh-md);
+}
+
 .hw-card:active:not(:disabled) {
   transform: scale(0.98);
   box-shadow: var(--sh-xs);
@@ -130,7 +355,7 @@ a:hover {
 
 .hw-btn {
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   cursor: pointer;
   position: relative;
   font-family: var(--font-sans);
@@ -161,6 +386,12 @@ a:hover {
   border: var(--border);
   border-radius: var(--radius-sm);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .hw-inset {
+  background: rgba(0, 102, 255, 0.05);
+  border: 1px solid rgba(0, 102, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 /* ---- Utility Classes ---- */

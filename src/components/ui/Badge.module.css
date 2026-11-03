@@ -1,0 +1,69 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  border-radius: var(--radius-sm, 8px);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+/* Sizing */
+.sm {
+  height: 20px;
+  padding: 0 var(--space-2, 8px);
+  font-size: var(--text-micro, 11px);
+}
+
+.md {
+  height: 24px;
+  padding: 0 var(--space-3, 10px);
+  font-size: var(--text-caption, 12px);
+}
+
+/* Variants */
+.neutral {
+  background-color: var(--chip);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.accent {
+  background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-text, #38bdf8);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.success {
+  background-color: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.warning {
+  background-color: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
+.danger {
+  background-color: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+/* Status Dot */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.content {
+  line-height: 1;
+}

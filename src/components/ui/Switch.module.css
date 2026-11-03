@@ -1,0 +1,79 @@
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill, 999px);
+  background-color: var(--chip);
+  border: 1px solid var(--line);
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+  padding: 2px;
+  transition:
+    background-color var(--dur-panel, 300ms) var(--ease-out),
+    border-color var(--dur-panel, 300ms) var(--ease-out),
+    box-shadow var(--dur-fast, 150ms) var(--ease-out);
+}
+
+.switch:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(41, 151, 255, 0.25));
+}
+
+.checked {
+  background-color: var(--accent);
+  border-color: transparent;
+}
+
+.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizing */
+.md {
+  width: 44px;
+  height: 26px;
+}
+
+.md .thumb {
+  width: 20px;
+  height: 20px;
+}
+
+.md.checked .thumb {
+  transform: translateX(18px);
+}
+
+.sm {
+  width: 36px;
+  height: 22px;
+}
+
+.sm .thumb {
+  width: 16px;
+  height: 16px;
+}
+
+.sm.checked .thumb {
+  transform: translateX(14px);
+}
+
+/* Circular Thumb */
+.thumb {
+  display: block;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.18);
+  transform: translateX(0);
+  transition: transform var(--dur-panel, 300ms) var(--ease-spring, cubic-bezier(0.34, 1.36, 0.5, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

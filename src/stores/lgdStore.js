@@ -1,6 +1,55 @@
 import { create } from 'zustand'
 import { PHASE_DEFS } from '../features/lgd/lgdScripts'
 
+const LGD_MEMORY_STORAGE_KEY = 'edgewise.lgd.memory.v1'
+const LGD_API_CONFIG_KEY = 'edgewise.lgd.api_config.v1'
+
+function loadLocalMemory() {
+  try {
+    const raw = localStorage.getItem(LGD_MEMORY_STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function saveLocalMemory(data) {
+  try {
+    localStorage.setItem(LGD_MEMORY_STORAGE_KEY, JSON.stringify(data))
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadLocalApiConfig() {
+  try {
+    const raw = localStorage.getItem(LGD_API_CONFIG_KEY)
+    if (!raw) {
+      return {
+        apiKey: '',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4o-mini',
+      }
+    }
+    return JSON.parse(raw)
+  } catch {
+    return {
+      apiKey: '',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+    }
+  }
+}
+
+function saveLocalApiConfig(cfg) {
+  try {
+    localStorage.setItem(LGD_API_CONFIG_KEY, JSON.stringify(cfg))
+  } catch {
+    /* ignore */
+  }
+}
+
 const DEFAULT_PHASE_SECONDS = {
   reading: 90,
   personal_statement: 480,
@@ -15,6 +64,9 @@ const INITIAL_STATE = {
   material: '',
   topicType: null,
   userRole: 'member',
+  scriptId: 'standard_flow',
+  memoryEnabled: true,
+  apiMode: 'hybrid_sandbox',
   phasePlan: [],
   messages: [],
   agents: [],
@@ -27,6 +79,8 @@ const INITIAL_STATE = {
   score: null,
   lgdMetrics: null,
   isSimulating: false,
+  notes: '',
+  lastSandboxMeta: null,
 }
 
 function secondsForPhase(phasePlan, phase) {
@@ -37,16 +91,25 @@ function secondsForPhase(phasePlan, phase) {
 
 const useLgdStore = create((set, get) => ({
   ...INITIAL_STATE,
+  memorySnapshot: loadLocalMemory(),
+  llmConfig: loadLocalApiConfig(),
 
   initRoom(topic, material, options = {}) {
     const phasePlan = options.phases?.length ? options.phases : []
+    const mem = get().memorySnapshot
     set({
       ...INITIAL_STATE,
+      memorySnapshot: mem,
+      llmConfig: get().llmConfig,
       phase: 'reading',
       topic,
       material,
       topicType: options.topicType || null,
       userRole: options.userRole || 'member',
+      scriptId: options.scriptId || 'standard_flow',
+      memoryEnabled: options.memoryEnabled ?? true,
+      apiMode: options.apiMode || 'hybrid_sandbox',
+      notes: (options.memoryEnabled !== false && mem?.notes) ? mem.notes : '',
       phasePlan,
       remainingSeconds: secondsForPhase(phasePlan, 'reading') || DEFAULT_PHASE_SECONDS.reading,
       isSimulating: true,
@@ -73,6 +136,35 @@ const useLgdStore = create((set, get) => ({
         },
       ],
     }))
+  },
+
+  setNotes(notes) {
+    set({ notes })
+  },
+
+  setLastSandboxMeta(meta) {
+    set({ lastSandboxMeta: meta })
+  },
+
+  updateMemorySnapshot(patch) {
+    const next = {
+      ...(get().memorySnapshot || {}),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    }
+    saveLocalMemory(next)
+    set({ memorySnapshot: next })
+    return next
+  },
+
+  updateLlmConfig(patch) {
+    const next = {
+      ...(get().llmConfig || {}),
+      ...patch,
+    }
+    saveLocalApiConfig(next)
+    set({ llmConfig: next })
+    return next
   },
 
   grabMic() {
@@ -126,9 +218,14 @@ const useLgdStore = create((set, get) => ({
   },
 
   reset() {
-    set(INITIAL_STATE)
+    set((state) => ({
+      ...INITIAL_STATE,
+      memorySnapshot: state.memorySnapshot,
+      llmConfig: state.llmConfig,
+    }))
   },
 }))
 
 export { PHASE_DEFS, DEFAULT_PHASE_SECONDS }
 export default useLgdStore
+

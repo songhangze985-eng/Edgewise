@@ -247,33 +247,39 @@
 }
 
 .round-num {
-  width: 3rem;
+  width: 64px;
+  height: 40px;
   margin: 0 0.35rem;
-  padding: 0.25rem 0.35rem;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(226, 224, 229, 0.12);
+  padding: 0 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--chalk-faint);
+  border-radius: var(--radius-md, 10px);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
+  box-sizing: border-box;
 }
 
 .pos-input {
   width: 100%;
   max-width: 360px;
+  height: 40px;
+  min-height: 40px;
   background: var(--bg-elevated);
   border: var(--border);
-  border-radius: var(--r-sm);
-  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--radius-md, 10px);
+  padding: 0 14px;
   color: var(--chalk);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   outline: none;
+  box-sizing: border-box;
   transition: border-color 0.2s ease;
 }
 
 .pos-input:focus {
   border-color: var(--purple);
-  box-shadow: 0 0 0 1px rgba(155, 111, 199, 0.3);
+  box-shadow: 0 0 0 2px rgba(155, 111, 199, 0.25);
 }
 
 .pos-input::placeholder {

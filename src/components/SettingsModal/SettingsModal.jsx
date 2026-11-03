@@ -14,6 +14,8 @@ import styles from './SettingsModal.module.css'
 
 const TABS = [
   { id: 'general', icon: '⚙', label: '常规' },
+  { id: 'voice', icon: '🔊', label: '语音朗读' },
+  { id: 'a11y', icon: '♿', label: '无障碍' },
   { id: 'account', icon: '◎', label: '账户' },
   { id: 'subscription', icon: '◇', label: '订阅' },
   { id: 'preference', icon: '◈', label: '偏好设置' },
@@ -27,6 +29,18 @@ export default function SettingsModal({ onClose }) {
   const rank = rankFromAvgScore(stats.avgScore || 0)
   const [activeTab, setActiveTab] = useState('general')
   const [consentWithdraw, setConsentWithdraw] = useState(false)
+  const theme = useSettingsStore((s) => s.theme)
+  const setTheme = useSettingsStore((s) => s.setTheme)
+  const language = useSettingsStore((s) => s.language)
+  const setLanguage = useSettingsStore((s) => s.setLanguage)
+  const aiCopilotEnabled = useSettingsStore((s) => s.aiCopilotEnabled)
+  const setAiCopilotEnabled = useSettingsStore((s) => s.setAiCopilotEnabled)
+  const soundEffectEnabled = useSettingsStore((s) => s.soundEffectEnabled)
+  const setSoundEffectEnabled = useSettingsStore((s) => s.setSoundEffectEnabled)
+  const practiceReminderEnabled = useSettingsStore((s) => s.practiceReminderEnabled)
+  const setPracticeReminderEnabled = useSettingsStore((s) => s.setPracticeReminderEnabled)
+  const emailNotifyEnabled = useSettingsStore((s) => s.emailNotifyEnabled)
+  const setEmailNotifyEnabled = useSettingsStore((s) => s.setEmailNotifyEnabled)
   const ttsEnabled = useSettingsStore((s) => s.ttsEnabled)
   const ttsRate = useSettingsStore((s) => s.ttsRate)
   const ttsVoiceURI = useSettingsStore((s) => s.ttsVoiceURI)
@@ -64,6 +78,14 @@ export default function SettingsModal({ onClose }) {
     return () => window.speechSynthesis?.removeEventListener('voiceschanged', refresh)
   }, [ttsSupported])
 
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
   const handleTtsToggle = useCallback(() => {
     if (ttsExperimentLocked) return
     const next = !ttsEnabled
@@ -79,18 +101,6 @@ export default function SettingsModal({ onClose }) {
     })
   }, [speak, ttsRate, ttsVoiceURI])
 
-  // Preferences state
-  const [prefs, setPrefs] = useState({
-    aiCopilot: true,
-    practiceReminder: true,
-    emailNotify: false,
-    soundEffect: false,
-    language: 'zh-CN',
-    theme: '深色',
-  })
-
-  const togglePref = (key) => setPrefs((p) => ({ ...p, [key]: !p[key] }))
-
   return createPortal(
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal} role="dialog" aria-modal="true" aria-label="设置">
@@ -99,7 +109,7 @@ export default function SettingsModal({ onClose }) {
           <button className={styles['close-btn']} onClick={onClose} aria-label="关闭">
             ✕
           </button>
-          <nav className={styles.nav}>
+          <nav className={styles.nav} aria-label="设置分类导航">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -121,23 +131,31 @@ export default function SettingsModal({ onClose }) {
               <h2>常规</h2>
               <div className={styles['setting-list']}>
                 <div className={styles['setting-row']}>
-                  <div className={styles['setting-label']}>外观</div>
+                  <div>
+                    <div className={styles['setting-label']}>外观</div>
+                    <div className={styles['setting-desc']}>切换暗夜模式与赛博像素白色装束（白天效果）</div>
+                  </div>
                   <select
                     className={styles['setting-select']}
-                    value={prefs.theme}
-                    onChange={(e) => setPrefs((p) => ({ ...p, theme: e.target.value }))}
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value)}
+                    aria-label="外观主题"
                   >
-                    <option>深色</option>
-                    <option>浅色</option>
-                    <option>跟随系统</option>
+                    <option value="dark">深色（暗夜流光）</option>
+                    <option value="light">浅色（赛博白昼）</option>
+                    <option value="system">跟随系统</option>
                   </select>
                 </div>
                 <div className={styles['setting-row']}>
-                  <div className={styles['setting-label']}>语言</div>
+                  <div>
+                    <div className={styles['setting-label']}>语音 / 语言</div>
+                    <div className={styles['setting-desc']}>界面与语音识别默认语种</div>
+                  </div>
                   <select
                     className={styles['setting-select']}
-                    value={prefs.language}
-                    onChange={(e) => setPrefs((p) => ({ ...p, language: e.target.value }))}
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    aria-label="界面与语音语言"
                   >
                     <option value="zh-CN">中文 (简体)</option>
                     <option value="en">English</option>
@@ -146,13 +164,13 @@ export default function SettingsModal({ onClose }) {
                 <div className={styles['setting-row']}>
                   <div>
                     <div className={styles['setting-label']}>AI Copilot 助手</div>
-                    <div className={styles['setting-desc']}>在页面中显示 AI 引导助手</div>
+                    <div className={styles['setting-desc']}>在页面右下角显示全屏边缘灯光引导助手</div>
                   </div>
                   <button
-                    className={`${styles.toggle} ${prefs.aiCopilot ? styles['toggle-on'] : ''}`}
-                    onClick={() => togglePref('aiCopilot')}
+                    className={`${styles.toggle} ${aiCopilotEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setAiCopilotEnabled(!aiCopilotEnabled)}
                     role="switch"
-                    aria-checked={prefs.aiCopilot}
+                    aria-checked={aiCopilotEnabled}
                   >
                     <div className={styles['toggle-dot']} />
                   </button>
@@ -163,138 +181,154 @@ export default function SettingsModal({ onClose }) {
                     <div className={styles['setting-desc']}>面试和群面中的提示音</div>
                   </div>
                   <button
-                    className={`${styles.toggle} ${prefs.soundEffect ? styles['toggle-on'] : ''}`}
-                    onClick={() => togglePref('soundEffect')}
+                    className={`${styles.toggle} ${soundEffectEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setSoundEffectEnabled(!soundEffectEnabled)}
                     role="switch"
-                    aria-checked={prefs.soundEffect}
+                    aria-checked={soundEffectEnabled}
                   >
                     <div className={styles['toggle-dot']} />
                   </button>
                 </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>镜头仪态分析</div>
+                    <div className={styles['setting-desc']}>
+                      仅在浏览器本地分析摄像头画面（约 2 次/秒），不上传录像；首次启用需下载 MediaPipe 模型（约
+                      {PRESENCE_CONSENT_MODEL_MB} MB）。失败或性能不足时自动跳过或降级为简化版。
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${presenceAnalysisEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => {
+                      const next = !presenceAnalysisEnabled
+                      setPresenceAnalysisEnabled(next)
+                      if (next) {
+                        trackResearchEvent('presence.enabled', { source: 'settings' })
+                      }
+                    }}
+                    role="switch"
+                    aria-checked={presenceAnalysisEnabled}
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>面试间故事侧栏</div>
+                    <div className={styles['setting-desc']}>
+                      1v1 行为面练习时可展开 STAR 故事库侧栏；单向模式与实验指定任务中不可用
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${storySidePeekEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setStorySidePeekEnabled(!storySidePeekEnabled)}
+                    role="switch"
+                    aria-checked={storySidePeekEnabled}
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-                {ttsSupported && (
-                  <>
-                    <div className={styles['setting-section-title']}>语音朗读</div>
-                    <div className={styles['setting-row']}>
-                      <div>
-                        <div className={styles['setting-label']}>启用语音朗读</div>
-                        <div className={styles['setting-desc']}>
-                          {ttsExperimentLocked
-                            ? '实验期间统一设置'
-                            : '面试与群面中朗读题目与 AI 发言'}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className={`${styles.toggle} ${(armForcedTts ?? ttsEnabled) ? styles['toggle-on'] : ''}`}
-                        onClick={handleTtsToggle}
-                        disabled={ttsExperimentLocked}
-                        role="switch"
-                        aria-checked={armForcedTts ?? ttsEnabled}
-                      >
-                        <div className={styles['toggle-dot']} />
-                      </button>
+          {/* ===== 语音朗读 ===== */}
+          {activeTab === 'voice' && (
+            <div className={styles.panel}>
+              <h2>语音朗读</h2>
+              <div className={styles['setting-list']}>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>启用语音朗读</div>
+                    <div className={styles['setting-desc']}>
+                      {ttsExperimentLocked
+                        ? '实验期间统一设置'
+                        : '面试与群面中朗读题目与 AI 发言'}
                     </div>
-                    <div className={styles['setting-row']}>
-                      <div>
-                        <div className={styles['setting-label']}>语速</div>
-                        <div className={styles['setting-desc']}>{ttsRate.toFixed(2)}×</div>
-                      </div>
-                      <input
-                        type="range"
-                        className={styles['setting-range']}
-                        min={0.8}
-                        max={1.4}
-                        step={0.01}
-                        value={ttsRate}
-                        onChange={(e) => setTtsRate(Number(e.target.value))}
-                        aria-label="语音语速"
-                      />
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${(armForcedTts ?? ttsEnabled) ? styles['toggle-on'] : ''}`}
+                    onClick={handleTtsToggle}
+                    disabled={ttsExperimentLocked}
+                    role="switch"
+                    aria-checked={armForcedTts ?? ttsEnabled}
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>语速</div>
+                    <div className={styles['setting-desc']}>{ttsRate.toFixed(2)}×</div>
+                  </div>
+                  <input
+                    type="range"
+                    className={styles['setting-range']}
+                    min={0.8}
+                    max={1.4}
+                    step={0.01}
+                    value={ttsRate}
+                    onChange={(e) => setTtsRate(Number(e.target.value))}
+                    aria-label="语音语速"
+                  />
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>音色</div>
+                    <div className={styles['setting-desc']}>选择中文合成音色</div>
+                  </div>
+                  <select
+                    className={styles['setting-select']}
+                    value={ttsVoiceURI || ''}
+                    onChange={(e) => setTtsVoiceURI(e.target.value || null)}
+                    aria-label="中文语音"
+                  >
+                    <option value="">自动（推荐中文）</option>
+                    {zhVoices.map((v) => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>语音试听</div>
+                    <div className={styles['setting-desc']}>播放示例语音确认音量与语速</div>
+                  </div>
+                  <button type="button" className={styles['setting-action']} onClick={handleTtsPreview}>
+                    试听
+                  </button>
+                </div>
+                <div className={styles['setting-row']}>
+                  <div>
+                    <div className={styles['setting-label']}>实时语速提示</div>
+                    <div className={styles['setting-desc']}>
+                      语音作答时，连续 15 秒偏离 180–260 字/分会在麦克风旁提示（高压/单向模式自动关闭）
                     </div>
-                    <div className={styles['setting-row']}>
-                      <div className={styles['setting-label']}>音色</div>
-                      <select
-                        className={styles['setting-select']}
-                        value={ttsVoiceURI || ''}
-                        onChange={(e) => setTtsVoiceURI(e.target.value || null)}
-                        aria-label="中文语音"
-                      >
-                        <option value="">自动（推荐中文）</option>
-                        {zhVoices.map((v) => (
-                          <option key={v.voiceURI} value={v.voiceURI}>
-                            {v.name} ({v.lang})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className={styles['setting-row']}>
-                      <div className={styles['setting-label']}>试听</div>
-                      <button type="button" className={styles['setting-action']} onClick={handleTtsPreview}>
-                        试听
-                      </button>
-                    </div>
-                    <div className={styles['setting-row']}>
-                      <div>
-                        <div className={styles['setting-label']}>实时语速提示</div>
-                        <div className={styles['setting-desc']}>
-                          语音作答时，连续 15 秒偏离 180–260 字/分会在麦克风旁提示（高压/单向模式自动关闭）
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className={`${styles.toggle} ${deliveryLiveHintEnabled ? styles['toggle-on'] : ''}`}
-                        onClick={() => setDeliveryLiveHintEnabled(!deliveryLiveHintEnabled)}
-                        role="switch"
-                        aria-checked={deliveryLiveHintEnabled}
-                      >
-                        <div className={styles['toggle-dot']} />
-                      </button>
-                    </div>
-                    <div className={styles['setting-row']}>
-                      <div>
-                        <div className={styles['setting-label']}>镜头仪态分析</div>
-                        <div className={styles['setting-desc']}>
-                          仅在浏览器本地分析摄像头画面（约 2 次/秒），不上传录像；首次启用需下载 MediaPipe 模型（约
-                          {PRESENCE_CONSENT_MODEL_MB} MB）。失败或性能不足时自动跳过或降级为简化版。
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className={`${styles.toggle} ${presenceAnalysisEnabled ? styles['toggle-on'] : ''}`}
-                        onClick={() => {
-                          const next = !presenceAnalysisEnabled
-                          setPresenceAnalysisEnabled(next)
-                          if (next) {
-                            trackResearchEvent('presence.enabled', { source: 'settings' })
-                          }
-                        }}
-                        role="switch"
-                        aria-checked={presenceAnalysisEnabled}
-                      >
-                        <div className={styles['toggle-dot']} />
-                      </button>
-                    </div>
-                    <div className={styles['setting-row']}>
-                      <div>
-                        <div className={styles['setting-label']}>面试间故事侧栏</div>
-                        <div className={styles['setting-desc']}>
-                          1v1 行为面练习时可展开 STAR 故事库侧栏；单向模式与实验指定任务中不可用
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className={`${styles.toggle} ${storySidePeekEnabled ? styles['toggle-on'] : ''}`}
-                        onClick={() => setStorySidePeekEnabled(!storySidePeekEnabled)}
-                        role="switch"
-                        aria-checked={storySidePeekEnabled}
-                      >
-                        <div className={styles['toggle-dot']} />
-                      </button>
-                    </div>
-                  </>
-                )}
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${deliveryLiveHintEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setDeliveryLiveHintEnabled(!deliveryLiveHintEnabled)}
+                    role="switch"
+                    aria-checked={deliveryLiveHintEnabled}
+                  >
+                    <div className={styles['toggle-dot']} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-                <div className={styles['setting-section-title']}>无障碍</div>
+          {/* ===== 无障碍 ===== */}
+          {activeTab === 'a11y' && (
+            <div className={styles.panel}>
+              <h2>无障碍</h2>
+              <div className={styles['setting-list']}>
                 <div className={styles['setting-row']}>
                   <div>
                     <div className={styles['setting-label']}>显示字幕</div>
@@ -424,10 +458,10 @@ export default function SettingsModal({ onClose }) {
                     <div className={styles['setting-desc']}>每天 20:00 推送练习提醒</div>
                   </div>
                   <button
-                    className={`${styles.toggle} ${prefs.practiceReminder ? styles['toggle-on'] : ''}`}
-                    onClick={() => togglePref('practiceReminder')}
+                    className={`${styles.toggle} ${practiceReminderEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setPracticeReminderEnabled(!practiceReminderEnabled)}
                     role="switch"
-                    aria-checked={prefs.practiceReminder}
+                    aria-checked={practiceReminderEnabled}
                   >
                     <div className={styles['toggle-dot']} />
                   </button>
@@ -438,10 +472,10 @@ export default function SettingsModal({ onClose }) {
                     <div className={styles['setting-desc']}>接收复盘报告和系统通知</div>
                   </div>
                   <button
-                    className={`${styles.toggle} ${prefs.emailNotify ? styles['toggle-on'] : ''}`}
-                    onClick={() => togglePref('emailNotify')}
+                    className={`${styles.toggle} ${emailNotifyEnabled ? styles['toggle-on'] : ''}`}
+                    onClick={() => setEmailNotifyEnabled(!emailNotifyEnabled)}
                     role="switch"
-                    aria-checked={prefs.emailNotify}
+                    aria-checked={emailNotifyEnabled}
                   >
                     <div className={styles['toggle-dot']} />
                   </button>

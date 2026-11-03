@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { submitResearchConsent } from '../../api/research'
 import useAuthStore from '../../stores/authStore'
@@ -9,6 +9,17 @@ import styles from './ResearchConsentModal.module.css'
 export default function ResearchConsentModal({ onResolved, mode = 'initial' }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !submitting) {
+        if (mode === 'withdraw') onResolved?.()
+        else handleChoice(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [submitting, mode, onResolved])
 
   const handleChoice = async (accepted) => {
     setSubmitting(true)

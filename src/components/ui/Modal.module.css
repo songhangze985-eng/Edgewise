@@ -1,0 +1,157 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4, 16px);
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn var(--dur-move, 200ms) var(--ease-out);
+}
+
+.dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100vh - 48px);
+  border-radius: var(--radius-xl, 24px);
+  border: 1px solid var(--line);
+  background-color: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow:
+    var(--ring),
+    var(--sh-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+  outline: none;
+  overflow: hidden;
+  animation: scaleUp var(--dur-panel, 300ms) var(--ease-spring);
+}
+
+[data-theme="light"] .dialog {
+  box-shadow:
+    var(--ring),
+    var(--sh-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Sizing */
+.sm {
+  max-width: 400px;
+}
+
+.md {
+  max-width: 540px;
+}
+
+.lg {
+  max-width: 720px;
+}
+
+.xl {
+  max-width: 900px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5, 20px) var(--space-6, 24px) var(--space-3, 12px);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-title, 18px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.closeBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color var(--dur-fast, 150ms) var(--ease-out),
+    color var(--dur-fast, 150ms) var(--ease-out),
+    transform var(--dur-fast, 150ms) var(--ease-spring);
+}
+
+.closeBtn:hover {
+  background-color: var(--chip);
+  color: var(--ink);
+}
+
+.closeBtn:active {
+  transform: scale(0.92);
+}
+
+.closeBtn:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Body */
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5, 20px) var(--space-6, 24px);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .overlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .dialog {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: var(--surface);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .dialog,
+  .closeBtn {
+    animation: none;
+    transition: none;
+  }
+}

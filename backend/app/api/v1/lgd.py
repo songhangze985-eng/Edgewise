@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,6 +12,12 @@ from redis.asyncio import Redis
 from app.api.deps import get_current_user, get_redis
 from app.core.redis_client import get_json, set_json
 from app.models.schemas import LgdParticipant, LgdRoomCreate, LgdRoomResponse, UserInDB
+from app.services.lgd_multi_agent import (
+    AGENT_SANDBOX_PROFILES,
+    FAST_TRAINING_SCRIPTS,
+    SEAT_ORDER,
+    generate_lgd_agent_turn,
+)
 from app.services.lgd_scorer import score_lgd_discussion
 from app.services.lgd_topics import build_phases, get_topic_by_id, load_lgd_topics
 
@@ -73,6 +80,9 @@ def _build_room_record(payload: LgdRoomCreate, current_user: UserInDB) -> dict:
         "agents": payload.agents or DEFAULT_AGENTS,
         "phases": phases,
         "user_role": user_role,
+        "script_id": payload.script_id or "standard_flow",
+        "memory_enabled": payload.memory_enabled,
+        "api_mode": payload.api_mode or "hybrid_sandbox",
         "participants": [participant.model_dump()],
         "created_at": now,
         "updated_at": now,
@@ -99,6 +109,35 @@ class LgdScoreResponse(BaseModel):
     dimensions: dict[str, float | None] = Field(default_factory=dict)
 
 
+class LgdMemoryPayload(BaseModel):
+    memory_enabled: bool = True
+    topic_id: str | None = None
+    last_topic: str | None = None
+    duration_minutes: int = 20
+    user_role: str = "member"
+    role_mode: str = "pick"
+    script_id: str = "standard_flow"
+    api_mode: str = "hybrid_sandbox"
+    weak_dimensions: list[str] = Field(default_factory=list)
+    last_score: float | None = None
+    notes: str | None = None
+    updated_at: str | None = None
+
+
+class LgdAgentTurnRequest(BaseModel):
+    agent_id: str
+    topic: str = "远程团队协作效率提升方案"
+    material: str | None = None
+    phase: str = "free_discussion"
+    transcript: list[dict[str, Any]] = Field(default_factory=list)
+    script_id: str = "standard_flow"
+    memory_enabled: bool = True
+    turn_index: int = 0
+    api_key: str | None = None
+    base_url: str | None = None
+    model: str | None = None
+
+
 @router.get("/topics", response_model=list[LgdTopicItem])
 async def list_topics() -> list[LgdTopicItem]:
     items: list[LgdTopicItem] = []
@@ -112,6 +151,63 @@ async def list_topics() -> list[LgdTopicItem]:
             )
         )
     return items
+
+
+@router.get("/scripts")
+async def list_fast_training_scripts() -> dict[str, Any]:
+    return {
+        "scripts": FAST_TRAINING_SCRIPTS,
+        "seats": SEAT_ORDER,
+        "sandboxes": list(AGENT_SANDBOX_PROFILES.values()),
+    }
+
+
+@router.get("/memory", response_model=LgdMemoryPayload)
+async def get_lgd_memory(
+    current_user: UserInDB = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> LgdMemoryPayload:
+    saved = await get_json(redis, f"lgd_memory:{current_user.id}")
+    if not saved:
+        return LgdMemoryPayload()
+    return LgdMemoryPayload.model_validate(saved)
+
+
+@router.post("/memory", response_model=LgdMemoryPayload)
+async def save_lgd_memory(
+    payload: LgdMemoryPayload,
+    current_user: UserInDB = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> LgdMemoryPayload:
+    record = payload.model_dump()
+    record["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await set_json(redis, f"lgd_memory:{current_user.id}", record)
+    return LgdMemoryPayload.model_validate(record)
+
+
+@router.post("/agent-turn")
+async def create_lgd_agent_turn(
+    payload: LgdAgentTurnRequest,
+    current_user: UserInDB = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> dict[str, Any]:
+    memory_state = None
+    if payload.memory_enabled:
+        memory_state = await get_json(redis, f"lgd_memory:{current_user.id}")
+    result = await generate_lgd_agent_turn(
+        agent_id=payload.agent_id,
+        topic=payload.topic,
+        material=payload.material,
+        phase=payload.phase,
+        transcript=payload.transcript,
+        script_id=payload.script_id,
+        memory_state=memory_state,
+        turn_index=payload.turn_index,
+        api_key_override=payload.api_key,
+        base_url_override=payload.base_url,
+        model_override=payload.model,
+    )
+    return result
 
 
 @router.post("/score", response_model=LgdScoreResponse)
@@ -140,6 +236,22 @@ async def create_room(
     room_record = _build_room_record(payload, current_user)
     await set_json(redis, f"lgd_room:{room_record['id']}", room_record)
     await redis.sadd("lgd_rooms:all", room_record["id"])
+    if payload.memory_enabled:
+        existing_mem = await get_json(redis, f"lgd_memory:{current_user.id}") or {}
+        existing_mem.update(
+            {
+                "memory_enabled": True,
+                "topic_id": room_record["topic_id"],
+                "last_topic": room_record["topic"],
+                "duration_minutes": room_record["duration_minutes"],
+                "user_role": room_record["user_role"],
+                "role_mode": payload.role_mode,
+                "script_id": room_record["script_id"],
+                "api_mode": room_record["api_mode"],
+                "updated_at": room_record["created_at"],
+            }
+        )
+        await set_json(redis, f"lgd_memory:{current_user.id}", existing_mem)
     return LgdRoomResponse.model_validate(room_record)
 
 
@@ -167,3 +279,4 @@ async def get_room(
             detail="LGD room not found",
         )
     return LgdRoomResponse.model_validate(room_record)
+

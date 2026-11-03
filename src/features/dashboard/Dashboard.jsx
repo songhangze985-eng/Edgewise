@@ -1,10 +1,9 @@
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts'
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import useSessionStore from '../../stores/sessionStore'
 import useAuthStore from '../../stores/authStore'
-import useResumeStore from '../../stores/resumeStore'
-import { formatAvgScore, rankFromAvgScore, findWeakestDimension, dimKeyFromAxisLabel } from '../../utils/userStats'
+import { formatAvgScore, rankFromAvgScore } from '../../utils/userStats'
 import styles from './Dashboard.module.css'
 import iconLgd from '../../assets/icons/feature-lgd.svg'
 import iconResume from '../../assets/icons/feature-resume.svg'
@@ -32,6 +31,126 @@ function getScoreColor(score) {
   return 'low'
 }
 
+const RADAR_DIMENSION_TIPS = {
+  逻辑思维: '结构化拆解问题，善用 MECE 与总分总框架支撑论点。',
+  表达能力: '精简开场结论，控制语速在 180–240 字/分，减少口头禅。',
+  团队协作: '群面中主动承接他人观点，促进分歧收敛而非单向输出。',
+  专业知识: '结合岗位核心能力模型，用具体技术/业务指标佐证方案。',
+  应变抗压: '面对高频追问先定性回应核心矛盾，再补充边界条件。',
+  领导推动: '关注讨论时间轴与阶段目标，适时推动共识与总结陈词。',
+}
+
+function FlipUnit({ value, label }) {
+  const prevRef = useRef(value)
+  const [flipping, setFlipping] = useState(false)
+
+  useEffect(() => {
+    if (prevRef.current !== value) {
+      prevRef.current = value
+      setFlipping(true)
+      const timer = window.setTimeout(() => setFlipping(false), 460)
+      return () => window.clearTimeout(timer)
+    }
+    return undefined
+  }, [value])
+
+  return (
+    <div className={styles['flip-unit']} aria-label={label}>
+      <div className={`${styles['flip-card']} ${flipping ? styles['flip-card-active'] : ''}`}>
+        <div className={styles['flip-upper']}>
+          <span>{value}</span>
+        </div>
+        <div className={styles['flip-lower']}>
+          <span>{value}</span>
+        </div>
+        <div className={styles['flip-hinge']} aria-hidden="true">
+          <span className={styles['flip-notch-left']} />
+          <span className={styles['flip-notch-right']} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MechanicalFlipClock() {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  const ss = String(now.getSeconds()).padStart(2, '0')
+  const dateStr = now.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' })
+
+  return (
+    <div className={styles['flip-clock-shell']} role="timer" aria-label={`当前时间 ${hh}:${mm}:${ss}`}>
+      <span className={styles['flip-date-tag']}>{dateStr}</span>
+      <div className={styles['flip-clock-group']}>
+        <FlipUnit value={hh} label="时" />
+        <span className={styles['flip-colon']} aria-hidden="true">:</span>
+        <FlipUnit value={mm} label="分" />
+        <span className={styles['flip-colon']} aria-hidden="true">:</span>
+        <FlipUnit value={ss} label="秒" />
+      </div>
+    </div>
+  )
+}
+
+function RadarCornerTick({ payload, x, y, cx, cy }) {
+  const dx = x - cx
+  const dy = y - cy
+  const dist = Math.hypot(dx, dy) || 1
+  const offset = 18
+  const nx = x + (dx / dist) * offset
+  const ny = y + (dy / dist) * offset
+  let textAnchor = 'middle'
+  if (dx > 16) textAnchor = 'start'
+  else if (dx < -16) textAnchor = 'end'
+
+  return (
+    <g transform={`translate(${nx},${ny})`}>
+      <text
+        x={0}
+        y={0}
+        dy="0.35em"
+        textAnchor={textAnchor}
+        className={styles['radar-corner-label']}
+      >
+        {payload.value}
+      </text>
+    </g>
+  )
+}
+
+function RadarHoverPopup({ active, payload }) {
+  if (!active || !payload || !payload.length) return null
+  const item = payload[0]?.payload
+  if (!item) return null
+  const score = Number(item.value ?? 0)
+  const tier = score >= 85 ? '精通优势项' : score >= 70 ? '稳健进阶项' : '重点突破项'
+  const tip = RADAR_DIMENSION_TIPS[item.axis] || '结合模拟面试与群面实战持续迭代该维度表现。'
+
+  return (
+    <div className={styles['radar-tooltip-popup']} role="status">
+      <div className={styles['radar-tooltip-head']}>
+        <span className={styles['radar-tooltip-axis']}>{item.axis}</span>
+        <span className={styles['radar-tooltip-tier']}>{tier}</span>
+      </div>
+      <div className={styles['radar-tooltip-score-row']}>
+        <span className={styles['radar-tooltip-score']}>{score}</span>
+        <span className={styles['radar-tooltip-max']}>/ 100 PTS</span>
+      </div>
+      <div className={styles['radar-tooltip-bar']}>
+        <div className={styles['radar-tooltip-fill']} style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
+      </div>
+      <p className={styles['radar-tooltip-tip']}>{tip}</p>
+    </div>
+  )
+}
+
 function Dashboard() {
   const user = useAuthStore((s) => s.user)
   const stats = useSessionStore((s) => s.stats)
@@ -41,8 +160,6 @@ function Dashboard() {
   const error = useSessionStore((s) => s.error)
   const getRecentSessions = useSessionStore((s) => s.getRecentSessions)
   const savedSessions = getRecentSessions(4)
-  const resumeId = useResumeStore((s) => s.resumeId)
-  const resumeParsed = useResumeStore((s) => s.parsedData)
   const rank = rankFromAvgScore(stats.avgScore || 0)
   const credits = stats.credits || user?.credits || 0
 
@@ -85,37 +202,6 @@ function Dashboard() {
     },
   ]
 
-  const weakest = findWeakestDimension(radarData)
-  const weakestKey = weakest ? dimKeyFromAxisLabel(weakest.axis) : 'logic'
-  let nextStep = {
-    title: '上传简历，开启个性化练习',
-    desc: 'AI 将基于你的经历匹配岗位与面试题。',
-    to: '/resume',
-    cta: '去上传简历',
-  }
-  if (resumeId || resumeParsed) {
-    if (!stats.totalSessions) {
-      nextStep = {
-        title: '开始第一次 1v1 模拟面试',
-        desc: '结构化问答 + 五维评分，建立你的能力基线。',
-        to: resumeId ? `/interview/lobby?resume=${resumeId}` : '/interview/lobby',
-        cta: '进入面试大厅',
-      }
-    } else if (weakest) {
-      const prefill = new URLSearchParams({
-        type: 'behavioral',
-        difficulty: 'medium',
-        focus: weakestKey,
-      })
-      nextStep = {
-        title: `下一步：强化「${weakest.axis}」`,
-        desc: `当前 ${weakest.value} 分，建议针对薄弱维度加练（已预填面试大厅）。`,
-        to: `/interview/lobby?${prefill.toString()}`,
-        cta: '开始针对性练习',
-      }
-    }
-  }
-
   if (loading && savedSessions.length === 0 && !stats.totalSessions) {
     return (
       <div className={styles.dashboard}>
@@ -131,15 +217,13 @@ function Dashboard() {
       <PageBar
         title={getPageTitle(user)}
         actions={
-          <>
-            <span className={styles['header-date']}>
-              {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
-            </span>
+          <div className={styles['header-actions-group']}>
+            <MechanicalFlipClock />
             <div className={styles['hero-streak']}>
               <span className={styles['streak-value']}>{stats.streak || 0}</span>
               <span className={styles['streak-label']}>连续天数</span>
             </div>
-          </>
+          </div>
         }
       />
 
@@ -153,13 +237,6 @@ function Dashboard() {
           <button type="button" onClick={() => refresh().catch(() => {})}>重试</button>
         </div>
       )}
-
-      <Link to={nextStep.to} className={styles['next-card']}>
-        <div className={styles['next-kicker']}>下一步推荐</div>
-        <div className={styles['next-title']}>{nextStep.title}</div>
-        <div className={styles['next-desc']}>{nextStep.desc}</div>
-        <span className={styles['next-cta']}>{nextStep.cta} →</span>
-      </Link>
 
       <div className={styles['stats-grid']}>
         {displayStats.map((s) => (
@@ -183,41 +260,42 @@ function Dashboard() {
         <div className={`hw-panel ${styles.panel} ${styles['panel-radar']}`}>
           <div className={styles['panel-header']}>
             <span className={styles['panel-title']}>能力雷达</span>
-            <span className={styles['panel-id']}>[RADAR-01]</span>
+            <span className={styles['panel-id']}>[RADAR-01 · 悬浮查看维度详情]</span>
           </div>
           <div className={styles['radar-container']}>
-            <ResponsiveContainer width="100%" height={340}>
-              <RadarChart data={radarData} outerRadius="85%">
-                <PolarGrid stroke="rgba(226,224,229,0.08)" />
+            <ResponsiveContainer width="100%" height={360}>
+              <RadarChart
+                data={radarData}
+                outerRadius="64%"
+                margin={{ top: 28, right: 48, bottom: 28, left: 48 }}
+              >
+                <PolarGrid stroke="var(--line)" />
                 <PolarAngleAxis
                   dataKey="axis"
-                  tick={{ fill: 'rgba(226,224,229,0.6)', fontSize: 11, fontFamily: "'Space Mono', monospace" }}
+                  tick={(props) => <RadarCornerTick {...props} />}
                 />
                 <PolarRadiusAxis
                   angle={90}
                   domain={[0, 100]}
-                  tick={{ fill: 'rgba(226,224,229,0.25)', fontSize: 9 }}
+                  tick={{ fill: 'var(--muted)', fontSize: 9 }}
                   axisLine={false}
+                />
+                <Tooltip
+                  content={<RadarHoverPopup />}
+                  cursor={{ stroke: 'rgba(155, 111, 199, 0.45)', strokeWidth: 1.5 }}
                 />
                 <Radar
                   name="能力"
                   dataKey="value"
                   stroke="#9b6fc7"
                   fill="#9b6fc7"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: '#9b6fc7', strokeWidth: 0 }}
+                  fillOpacity={0.22}
+                  strokeWidth={2.4}
+                  dot={{ r: 4, fill: '#9b6fc7', strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: 'var(--accent)', stroke: '#fff', strokeWidth: 2 }}
                 />
               </RadarChart>
             </ResponsiveContainer>
-          </div>
-          <div className={styles['radar-legend']}>
-            {radarData.map((d) => (
-              <div key={d.axis} className={styles['radar-tag']}>
-                <span className={styles['radar-tag-name']}>{d.axis}</span>
-                <span className={styles['radar-tag-val']}>{d.value}</span>
-              </div>
-            ))}
           </div>
         </div>
 

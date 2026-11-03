@@ -1,0 +1,137 @@
+.segmented {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background-color: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 12px);
+  box-sizing: border-box;
+  user-select: none;
+  width: fit-content;
+}
+
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizing */
+.sm {
+  height: 30px;
+  border-radius: var(--radius-sm, 8px);
+  padding: 2px;
+}
+
+.sm .thumb {
+  border-radius: calc(var(--radius-sm, 8px) - 2px);
+  top: 2px;
+  bottom: 2px;
+}
+
+.sm .option {
+  padding: 0 var(--space-2, 8px);
+  font-size: var(--text-caption, 12px);
+  height: 24px;
+}
+
+.md {
+  height: 36px;
+  border-radius: var(--radius-md, 12px);
+  padding: 3px;
+}
+
+.md .thumb {
+  border-radius: calc(var(--radius-md, 12px) - 3px);
+  top: 3px;
+  bottom: 3px;
+}
+
+.md .option {
+  padding: 0 var(--space-4, 16px);
+  font-size: var(--text-sub, 13px);
+  height: 28px;
+}
+
+/* Sliding Specular Thumb */
+.thumb {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-color: var(--surface);
+  box-shadow:
+    var(--ring),
+    var(--sh-xs),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition:
+    transform 0.32s var(--ease-spring, cubic-bezier(0.34, 1.36, 0.5, 1)),
+    width 0.32s var(--ease-spring, cubic-bezier(0.34, 1.36, 0.5, 1)),
+    opacity var(--dur-fast, 150ms) var(--ease-out);
+}
+
+[data-theme="light"] .thumb {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Radio Option Buttons */
+.option {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1, 4px);
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    color var(--dur-move, 200ms) var(--ease-out),
+    opacity var(--dur-fast, 150ms) var(--ease-out);
+}
+
+.option:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.option:focus-visible {
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.selected {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.optIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.optLabel {
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

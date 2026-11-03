@@ -31,10 +31,29 @@ export function fileExists(relativePath) {
 }
 
 /**
- * Parse CSS variables and their values from CSS text
+ * Parse CSS variables and their values from CSS text,
+ * optionally resolving local @import statements relative to ROOT_DIR or src/
  */
-export function parseCssVariables(cssText) {
+export function parseCssVariables(cssText, options = {}) {
   const vars = new Map()
+  const visited = options.visited || new Set()
+
+  const importRegex = /@import\s+['"]([^'"]+)['"];/g
+  let importMatch
+  while ((importMatch = importRegex.exec(cssText)) !== null) {
+    const importRel = importMatch[1]
+    const baseDir = options.baseDir || path.resolve(ROOT_DIR, 'src')
+    const fullImportPath = path.resolve(baseDir, importRel)
+    if (!visited.has(fullImportPath) && fs.existsSync(fullImportPath)) {
+      visited.add(fullImportPath)
+      const importedCss = fs.readFileSync(fullImportPath, 'utf-8')
+      const importedVars = parseCssVariables(importedCss, { baseDir: path.dirname(fullImportPath), visited })
+      for (const [k, v] of importedVars.entries()) {
+        vars.set(k, v)
+      }
+    }
+  }
+
   // Match --variable-name: value;
   const regex = /(--[\w-]+)\s*:\s*([^;]+);/g
   let match

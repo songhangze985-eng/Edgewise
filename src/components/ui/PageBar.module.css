@@ -1,42 +1,56 @@
+/**
+ * PageBar Header Component - margin-ui-kit Apple HIG Aesthetic
+ */
 .bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-md);
+  gap: var(--space-4, 16px);
   min-height: 56px;
-  padding: var(--sp-sm) 0;
-  margin-bottom: var(--sp-lg);
-  border-bottom: 1px solid var(--chalk-faint);
+  padding: var(--space-2, 8px) 0 var(--space-3, 12px);
+  margin-bottom: var(--space-6, 24px);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  transition: border-color var(--dur-move, 200ms) var(--ease-out);
 }
 
 .left {
   display: flex;
   align-items: baseline;
-  gap: var(--sp-sm);
+  gap: var(--space-2, 8px);
   min-width: 0;
   flex: 1;
 }
 
 .title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-section, 24px);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: var(--leading-tight, 1.15);
+  letter-spacing: var(--tracking-tight, -0.015em);
+  color: var(--ink);
   flex-shrink: 0;
 }
 
 .slash {
   flex-shrink: 0;
-  font-size: 14px;
-  color: var(--chalk-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--faint);
+  opacity: 0.6;
+  margin: 0 var(--space-1, 4px);
+  user-select: none;
 }
 
 .context {
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
-  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sub, 13px);
+  line-height: var(--leading-normal, 1.5);
+  letter-spacing: var(--tracking-snug, -0.005em);
+  color: var(--muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -45,5 +59,32 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: var(--sp-md);
+  gap: var(--space-2, 8px);
+}
+
+@media (max-width: 767px) {
+  .bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    min-height: auto;
+    padding-bottom: var(--space-2, 8px);
+    margin-bottom: var(--space-4, 16px);
+  }
+
+  .left {
+    width: 100%;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+
+  .title {
+    font-size: var(--text-tab, 20px);
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }

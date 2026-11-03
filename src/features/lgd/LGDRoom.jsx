@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import useLgdStore from '../../stores/lgdStore'
 import useSessionStore from '../../stores/sessionStore'
-import { getRoom } from '../../api/lgd'
+import { getRoom, scoreLgd, requestLgdAgentTurn, saveLgdMemory } from '../../api/lgd'
 import { getErrorMessage } from '../../api/client'
 import { showToast } from '../../stores/toastStore'
 import ResearchFollowupCard from '../../components/ResearchFollowupCard/ResearchFollowupCard'
@@ -11,7 +11,6 @@ import useSettingsStore from '../../stores/settingsStore'
 import useAuthStore from '../../stores/authStore'
 import { getArmForcedTtsEnabled } from '../../config/tts'
 import { buildAgentTtsProfiles } from '../../utils/lgdAgentTts'
-import { scoreLgd } from '../../api/lgd'
 import { trackResearchEvent } from '../../research/track'
 import InterviewerCaptions from '../../components/a11y/InterviewerCaptions'
 import KeyboardShortcutsHelp from '../../components/a11y/KeyboardShortcutsHelp'
@@ -27,6 +26,7 @@ import {
   ROLE_LABELS,
   STATEMENT_ORDER,
   agentById,
+  getScriptById,
   pickAgentForFreeDiscussion,
 } from './lgdScripts'
 import styles from './LGDRoom.module.css'
@@ -58,6 +58,13 @@ export default function LGDRoom() {
   const micGranted = useLgdStore((s) => s.micGranted)
   const score = useLgdStore((s) => s.score)
   const userRole = useLgdStore((s) => s.userRole)
+  const scriptId = useLgdStore((s) => s.scriptId)
+  const memoryEnabled = useLgdStore((s) => s.memoryEnabled)
+  const apiMode = useLgdStore((s) => s.apiMode)
+  const notes = useLgdStore((s) => s.notes)
+  const setNotes = useLgdStore((s) => s.setNotes)
+  const lastSandboxMeta = useLgdStore((s) => s.lastSandboxMeta)
+  const setLastSandboxMeta = useLgdStore((s) => s.setLastSandboxMeta)
   const lgdMetrics = useLgdStore((s) => s.lgdMetrics)
 
   const chatRef = useRef(null)
@@ -74,6 +81,7 @@ export default function LGDRoom() {
   const [completedSessionId, setCompletedSessionId] = useState(null)
   const [showResearchFollowup, setShowResearchFollowup] = useState(false)
   const [showMaterialModal, setShowMaterialModal] = useState(false)
+  const [showNotesModal, setShowNotesModal] = useState(false)
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
   const [captionSentenceIndex, setCaptionSentenceIndex] = useState(0)
   const [spokenCaptionText, setSpokenCaptionText] = useState('')
@@ -82,8 +90,16 @@ export default function LGDRoom() {
   const responseIndexRef = useRef({})
   const startTimeRef = useRef(Date.now())
   const agentTtsProfilesRef = useRef([])
-  const roomMetaRef = useRef({ userRole: 'member', topicType: null, roomId: null })
+  const roomMetaRef = useRef({
+    userRole: 'member',
+    topicType: null,
+    roomId: null,
+    scriptId: 'standard_flow',
+    memoryEnabled: true,
+    apiMode: 'hybrid_sandbox',
+  })
   const statementIndexRef = useRef(0)
+  const advanceUserStatementRef = useRef(null)
   const userSpokeInSummaryRef = useRef(false)
   const finalizedRef = useRef(false)
 
@@ -115,24 +131,35 @@ export default function LGDRoom() {
     let cancelled = false
 
     async function boot() {
-      let topic = DEFAULT_TOPIC
-      let material = DEFAULT_MATERIAL
+      const mem = useLgdStore.getState().memorySnapshot
+      let nextTopic = mem?.last_topic || DEFAULT_TOPIC
+      let nextMaterial = DEFAULT_MATERIAL
       let phases = []
-      let role = 'member'
+      let role = mem?.user_role || 'member'
       let topicType = null
+      let nextScriptId = mem?.script_id || 'standard_flow'
+      let nextMemoryEnabled = mem?.memory_enabled ?? true
+      let nextApiMode = mem?.api_mode || 'hybrid_sandbox'
+
       if (roomId && roomId !== 'new') {
         try {
           const room = await getRoom(roomId)
           if (!cancelled) {
-            topic = room.topic || topic
-            material = room.material || material
+            nextTopic = room.topic || nextTopic
+            nextMaterial = room.material || nextMaterial
             phases = room.phases || []
             role = room.user_role || role
             topicType = room.topic_type || null
+            nextScriptId = room.script_id || nextScriptId
+            nextMemoryEnabled = room.memory_enabled ?? nextMemoryEnabled
+            nextApiMode = room.api_mode || nextApiMode
             roomMetaRef.current = {
               userRole: role,
               topicType,
               roomId: room.id,
+              scriptId: nextScriptId,
+              memoryEnabled: nextMemoryEnabled,
+              apiMode: nextApiMode,
             }
             trackResearchEvent('lgd.role', {
               room_id: room.id,
@@ -145,10 +172,13 @@ export default function LGDRoom() {
         }
       }
       if (!cancelled) {
-        useLgdStore.getState().initRoom(topic, material, {
+        useLgdStore.getState().initRoom(nextTopic, nextMaterial, {
           phases,
           userRole: role,
           topicType,
+          scriptId: nextScriptId,
+          memoryEnabled: nextMemoryEnabled,
+          apiMode: nextApiMode,
         })
         trackResearchEvent('lgd.phase_entered', { phase: 'reading', room_id: roomMetaRef.current.roomId })
       }
@@ -223,7 +253,7 @@ export default function LGDRoom() {
       })
       trackResearchEvent('lgd.phase_entered', { phase: next, room_id: roomMetaRef.current.roomId })
     }
-  }, [])
+  }, [stopTts])
 
   /* ---- Run simulation based on phase ---- */
   useEffect(() => {
@@ -252,6 +282,54 @@ export default function LGDRoom() {
       meta: msg.meta,
       isUser: msg.isUser,
     }))
+  }
+
+  /**
+   * Fetch an isolated sandbox turn for `agent` via `/api/v1/lgd/agent-turn`,
+   * falling back seamlessly to local fast-training scripts if offline.
+   */
+  async function resolveSandboxAgentLine(agent, phaseName, fallbackContent, turnIdx = 0) {
+    const st = useLgdStore.getState()
+    if (st.apiMode === 'fast_script_only') {
+      setLastSandboxMeta({
+        sandbox_id: `sbx-${agent.seat || ''}号-${agent.id}`,
+        seat_number: agent.seat,
+        context_limit: agent.contextLimit || 4,
+        script_badge: getScriptById(st.scriptId).badge,
+        engine_source: 'fast_script_only',
+      })
+      return fallbackContent
+    }
+    try {
+      const llmCfg = st.llmConfig || {}
+      const res = await requestLgdAgentTurn({
+        agent_id: agent.id,
+        topic: st.topic || DEFAULT_TOPIC,
+        material: st.material || DEFAULT_MATERIAL,
+        phase: phaseName,
+        transcript: buildTranscriptFromMessages(st.messages),
+        script_id: st.scriptId || roomMetaRef.current.scriptId || 'standard_flow',
+        memory_enabled: st.memoryEnabled ?? true,
+        turn_index: turnIdx,
+        api_key: llmCfg.apiKey || undefined,
+        base_url: llmCfg.baseUrl || undefined,
+        model: llmCfg.model || undefined,
+      })
+      if (res && res.content) {
+        setLastSandboxMeta(res)
+        return res.content
+      }
+    } catch {
+      /* fallback to local script */
+    }
+    setLastSandboxMeta({
+      sandbox_id: `sbx-${agent.seat || ''}号-${agent.id}`,
+      seat_number: agent.seat,
+      context_limit: agent.contextLimit || 4,
+      script_badge: getScriptById(st.scriptId).badge,
+      engine_source: 'local_sandbox_fallback',
+    })
+    return fallbackContent
   }
 
   async function finalizeLgdSession() {
@@ -290,6 +368,27 @@ export default function LGDRoom() {
         overall_score: metrics.overall_score,
       })
     }
+
+    // Persist weakness dimensions & training setup into Memory Mode
+    if (lgdState.memoryEnabled) {
+      const weakDims = []
+      if (metrics?.talk_share?.status !== 'optimal') weakDims.push('talk_share')
+      if ((metrics?.built_on_others?.count || 0) < 1) weakDims.push('built_on_others')
+      if ((metrics?.progress?.count || 0) < 1) weakDims.push('progress')
+      const memUpdate = {
+        memory_enabled: true,
+        last_topic: lgdState.topic || DEFAULT_TOPIC,
+        user_role: role,
+        script_id: lgdState.scriptId || 'standard_flow',
+        api_mode: lgdState.apiMode || 'hybrid_sandbox',
+        weak_dimensions: weakDims,
+        last_score: generatedScore.overall,
+        notes: lgdState.notes || '',
+      }
+      lgdState.updateMemorySnapshot(memUpdate)
+      saveLgdMemory(memUpdate).catch(() => {})
+    }
+
     const dimensions = {
       expression: generatedScore.expression,
       logic: generatedScore.logic,
@@ -307,6 +406,7 @@ export default function LGDRoom() {
       metadata: {
         room_id: roomId,
         user_role: role,
+        script_id: lgdState.scriptId,
         topic_type: roomMetaRef.current.topicType,
         user_was_reporter: role === 'reporter' && userSpokeInSummaryRef.current,
         participant_count: 8,
@@ -326,13 +426,14 @@ export default function LGDRoom() {
     useLgdStore.getState().setPhase('completed')
   }
 
-  /* ---- Personal statement (1 min each, fixed order) ---- */
+  /* ---- Personal statement (Werewolf-style sequential order, 1 min each) ---- */
   function runPersonalStatementSimulation() {
     function speakNext() {
       if (!mountedRef.current) return
       const state = useLgdStore.getState()
       if (state.phase !== 'personal_statement') return
-      const order = STATEMENT_ORDER
+      const activeScript = getScriptById(state.scriptId)
+      const order = activeScript.turnOrder || STATEMENT_ORDER
       if (statementIndexRef.current >= order.length) {
         advancePhase('personal_statement')
         return
@@ -341,23 +442,27 @@ export default function LGDRoom() {
       if (seatId === 'user') {
         useLgdStore.getState().setCurrentSpeaker('user')
         useLgdStore.getState().grabMic()
-        simulationRef.current = setTimeout(() => {
+        const finishUserTurn = () => {
           if (!mountedRef.current) return
           const st = useLgdStore.getState()
           if (st.phase !== 'personal_statement') return
-          st.releaseMic()
+          clearTimeout(simulationRef.current)
+          advanceUserStatementRef.current = null
+          if (st.micGranted) st.releaseMic()
           st.setCurrentSpeaker(null)
           statementIndexRef.current += 1
-          simulationRef.current = setTimeout(speakNext, 800)
-        }, 60000)
+          simulationRef.current = setTimeout(speakNext, 700)
+        }
+        advanceUserStatementRef.current = finishUserTurn
+        simulationRef.current = setTimeout(finishUserTurn, 60000)
         return
       }
 
       const agent = agentById(seatId)
       const pool = RESPONSES.personal_statement[seatId] || []
       const idx = getResponseIndex(seatId, 'personal_statement')
-      const content = pool[idx % pool.length]
-      if (!agent || !content) {
+      const fallbackContent = pool[idx % pool.length]
+      if (!agent || !fallbackContent) {
         statementIndexRef.current += 1
         simulationRef.current = setTimeout(speakNext, 400)
         return
@@ -365,19 +470,21 @@ export default function LGDRoom() {
 
       setTypingAgent(agent)
       state.setCurrentSpeaker(agent.id)
-      simulationRef.current = setTimeout(() => {
+      simulationRef.current = setTimeout(async () => {
+        if (!mountedRef.current) return
+        const content = await resolveSandboxAgentLine(agent, 'personal_statement', fallbackContent, idx)
         if (!mountedRef.current) return
         setTypingAgent(null)
         deliverAgentLine(agent, content, () => {
           if (!mountedRef.current) return
           useLgdStore.getState().setCurrentSpeaker(null)
           statementIndexRef.current += 1
-          simulationRef.current = setTimeout(speakNext, 1000)
-        }, { interruption: agent.behavior === 'interrupt' })
-      }, 1200)
+          simulationRef.current = setTimeout(speakNext, 900)
+        }, { interruption: agent.behavior === 'interrupt', sandbox: `${agent.seat}号沙箱` })
+      }, 950)
     }
 
-    simulationRef.current = setTimeout(speakNext, 1500)
+    simulationRef.current = setTimeout(speakNext, 1200)
   }
 
   /* ---- Free Discussion Phase ---- */
@@ -391,7 +498,7 @@ export default function LGDRoom() {
         return
       }
 
-      const delay = 3000 + Math.random() * 3000
+      const delay = 2600 + Math.random() * 2400
       simulationRef.current = setTimeout(() => {
         if (!mountedRef.current) return
         const st = useLgdStore.getState()
@@ -400,12 +507,12 @@ export default function LGDRoom() {
           return
         }
 
-        const agent = pickAgentForFreeDiscussion()
+        const agent = pickAgentForFreeDiscussion(st.scriptId)
         const pool = RESPONSES.free_discussion[agent.id] || []
         const idx = getResponseIndex(agent.id, 'free_discussion')
-        const content = pool[idx % pool.length]
+        const fallbackContent = pool[idx % pool.length]
 
-        if (!content) {
+        if (!fallbackContent) {
           scheduleNext()
           return
         }
@@ -413,19 +520,21 @@ export default function LGDRoom() {
         setTypingAgent(agent)
         st.setCurrentSpeaker(agent.id)
 
-        simulationRef.current = setTimeout(() => {
-          if (!mountedRef.current) return
+        simulationRef.current = setTimeout(async () => {
+          if (!mountedRef.current || useLgdStore.getState().micGranted) return
+          const content = await resolveSandboxAgentLine(agent, 'free_discussion', fallbackContent, idx)
+          if (!mountedRef.current || useLgdStore.getState().micGranted) return
           setTypingAgent(null)
           deliverAgentLine(agent, content, () => {
             if (!mountedRef.current) return
             useLgdStore.getState().setCurrentSpeaker(null)
             scheduleNext()
-          }, { interruption: agent.behavior === 'interrupt' })
-        }, 1200 + Math.random() * 800)
+          }, { interruption: agent.behavior === 'interrupt', sandbox: `${agent.seat}号沙箱` })
+        }, 1000)
       }, delay)
     }
 
-    simulationRef.current = setTimeout(scheduleNext, 2000)
+    simulationRef.current = setTimeout(scheduleNext, 1800)
   }
 
   function runSummaryReportSimulation() {
@@ -451,10 +560,12 @@ export default function LGDRoom() {
 
     const reporterAgent = AGENTS.find((a) => a.id === 'logician') || AGENTS[0]
     const pool = RESPONSES.summary_report[reporterAgent.id] || []
-    const content = pool[0]
+    const fallbackContent = pool[0]
     setTypingAgent(reporterAgent)
     useLgdStore.getState().setCurrentSpeaker(reporterAgent.id)
-    simulationRef.current = setTimeout(() => {
+    simulationRef.current = setTimeout(async () => {
+      if (!mountedRef.current) return
+      const content = await resolveSandboxAgentLine(reporterAgent, 'summary_report', fallbackContent, 0)
       if (!mountedRef.current) return
       setTypingAgent(null)
       deliverAgentLine(
@@ -465,9 +576,9 @@ export default function LGDRoom() {
           useLgdStore.getState().setCurrentSpeaker(null)
           finalizeLgdSession()
         },
-        { summary: true },
+        { summary: true, sandbox: `${reporterAgent.seat}号沙箱` },
       )
-    }, 1500)
+    }, 1200)
   }
 
   function stopAgentSpeech() {
@@ -579,12 +690,20 @@ export default function LGDRoom() {
       senderRole: ROLE_LABELS[roomMetaRef.current.userRole || userRole] || '成员',
       content: text,
       isUser: true,
-      meta: st.phase === 'summary_report' ? { summary: true } : undefined,
+      meta:
+        st.phase === 'summary_report'
+          ? { summary: true, sandbox: '4号玩家' }
+          : { sandbox: '4号玩家' },
     })
 
     setInputValue('')
     if (useLgdStore.getState().micGranted) {
       useLgdStore.getState().releaseMic()
+    }
+    if (st.phase === 'personal_statement' && typeof advanceUserStatementRef.current === 'function') {
+      const nextStep = advanceUserStatementRef.current
+      advanceUserStatementRef.current = null
+      nextStep()
     }
     if (inputRef.current) inputRef.current.focus()
   }
@@ -617,12 +736,13 @@ export default function LGDRoom() {
   function getSeatPositions() {
     const userProfile = {
       id: 'user',
+      seat: 4,
       name: '你',
       role: ROLE_LABELS[roomMetaRef.current.userRole || userRole] || '成员',
       color: '#9b6fc7',
       emoji: '👤',
     }
-    const allSeats = [...AGENTS, userProfile]
+    const allSeats = [...AGENTS, userProfile].sort((a, b) => (a.seat || 99) - (b.seat || 99))
     const total = allSeats.length
     const radius = 155
     const cx = 190
@@ -646,6 +766,7 @@ export default function LGDRoom() {
     if (id === 'user') {
       return {
         id: 'user',
+        seat: 4,
         name: '你',
         role: ROLE_LABELS[roomMetaRef.current.userRole || userRole] || '成员',
         color: '#9b6fc7',
@@ -659,6 +780,7 @@ export default function LGDRoom() {
   const phaseIndex = PHASES.findIndex((p) => p.key === phase)
   const canInteract =
     phase === 'personal_statement' || phase === 'free_discussion' || phase === 'summary_report'
+  const activeScript = getScriptById(scriptId)
 
   const readingCaptionText =
     phase === 'reading' && topic
@@ -721,15 +843,44 @@ export default function LGDRoom() {
         </button>
       </div>
 
+      {/* Multi-Agent Sandbox & Werewolf Turn Order Strip */}
+      <div className={styles['sandbox-status-bar']}>
+        <div className={styles['sandbox-badges']}>
+          <span className={styles['sandbox-pill']} title={activeScript.description}>
+            ⚡ 剧本：{activeScript.name}
+          </span>
+          <span className={styles['sandbox-pill']}>
+            🛡️ 沙箱隔离：{lastSandboxMeta ? `${lastSandboxMeta.sandbox_id} · 窗口 ${lastSandboxMeta.context_limit} 条` : '7角色独立沙箱 · 上下文受限'}
+          </span>
+          <span className={styles['sandbox-pill']}>
+            {memoryEnabled ? '🧠 记忆模式开启' : '单次训练'}
+          </span>
+        </div>
+        <div className={styles['turn-order-strip']} aria-label="圆桌发言顺位">
+          {seatPositions.map((s) => {
+            const active = currentSpeaker === s.id
+            return (
+              <span
+                key={s.id}
+                className={`${styles['turn-chip']} ${active ? styles['turn-chip-active'] : ''} ${s.id === 'user' ? styles['turn-chip-user'] : ''}`}
+                style={active ? { borderColor: s.color, color: s.color } : undefined}
+              >
+                {s.seat}号·{s.name}
+              </span>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Main Area */}
       <div className={styles['main-area']}>
         {/* Roundtable */}
         <div className={styles['roundtable-panel']}>
           <div className={styles['roundtable-container']}>
             <div className={styles['table-center']}>
-              <div className={styles['table-center-label']}>LGD</div>
+              <div className={styles['table-center-label']}>LGD 8人局</div>
               <div className={styles['table-center-topic']}>
-                {topic ? `${topic.slice(0, 8)}...` : ''}
+                {topic ? `${topic.slice(0, 10)}...` : ''}
               </div>
             </div>
 
@@ -766,7 +917,9 @@ export default function LGDRoom() {
                     style={{ borderColor: isActive ? seat.color : undefined }}
                   >
                     <span className={styles['seat-emoji']}>{seat.emoji}</span>
-                    <span className={styles['seat-name']}>{seat.name}</span>
+                    <span className={styles['seat-name']}>
+                      {seat.seat}号·{seat.name}
+                    </span>
                   </div>
                   <span
                     className={styles['seat-role']}
@@ -823,13 +976,19 @@ export default function LGDRoom() {
                   </div>
                   <div className={styles['msg-body']}>
                     <div className={styles['msg-header']}>
-                      <span className={styles['msg-name']}>{msg.senderName}</span>
+                      <span className={styles['msg-name']}>
+                        {agent?.seat ? `${agent.seat}号 · ` : ''}
+                        {msg.senderName}
+                      </span>
                       <span
                         className={styles['msg-role-badge']}
                         style={{ color: agent?.color, borderColor: agent?.color }}
                       >
                         {msg.senderRole}
                       </span>
+                      {msg.meta?.sandbox && (
+                        <span className={styles['msg-sandbox-tag']}>{msg.meta.sandbox}</span>
+                      )}
                     </div>
                     <div className={styles['msg-content']}>{msg.content}</div>
                   </div>
@@ -870,7 +1029,9 @@ export default function LGDRoom() {
                   <span />
                   <span />
                 </div>
-                <span className={styles['typing-name']}>{typingAgent.name} 正在思考...</span>
+                <span className={styles['typing-name']}>
+                  {typingAgent.seat}号 · {typingAgent.name} 正在独立沙箱中思考...
+                </span>
               </div>
             )}
           </div>
@@ -914,7 +1075,12 @@ export default function LGDRoom() {
             </span>
           </button>
 
-          <button type="button" className={`${styles['hw-btn']} ${styles['note-btn']}`} aria-label="笔记（即将推出）">
+          <button
+            type="button"
+            className={`${styles['hw-btn']} ${styles['note-btn']}`}
+            onClick={() => setShowNotesModal(true)}
+            aria-label="打开讨论笔记"
+          >
             <span className={styles['hw-btn-well']}>
               <span className={styles['hw-btn-cap']}>
                 📝
@@ -1007,6 +1173,34 @@ export default function LGDRoom() {
             </div>
             <div className={styles['material-modal-topic']}>{topic}</div>
             <div className={styles['material-modal-body']}>{material}</div>
+          </div>
+        </div>
+      )}
+
+      {showNotesModal && (
+        <div
+          className={styles['material-modal-overlay']}
+          role="dialog"
+          aria-modal="true"
+          aria-label="群面随手笔记"
+          onClick={(e) => e.target === e.currentTarget && setShowNotesModal(false)}
+        >
+          <div className={styles['material-modal']}>
+            <div className={styles['material-modal-head']}>
+              <h2>📝 群面随手笔记（仅自己可见 · 沙箱隔离）</h2>
+              <button type="button" className={styles['material-modal-close']} onClick={() => setShowNotesModal(false)}>
+                完成
+              </button>
+            </div>
+            <div className={styles['notes-modal-body']}>
+              <textarea
+                className={styles['notes-textarea']}
+                rows={8}
+                placeholder="记录各号位候选人的核心观点、分歧点或框架草稿（如：1号主张A、2号质疑成本...）"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       )}

@@ -19,3 +19,20 @@ export function listTopics() {
 export function scoreLgd(payload) {
   return api.post('/lgd/score', payload).then((r) => r.data)
 }
+
+export function listLgdScripts() {
+  return api.get('/lgd/scripts').then((r) => r.data)
+}
+
+export function getLgdMemory() {
+  return api.get('/lgd/memory').then((r) => r.data)
+}
+
+export function saveLgdMemory(payload) {
+  return api.post('/lgd/memory', payload).then((r) => r.data)
+}
+
+export function requestLgdAgentTurn(payload) {
+  return api.post('/lgd/agent-turn', payload).then((r) => r.data)
+}
+
