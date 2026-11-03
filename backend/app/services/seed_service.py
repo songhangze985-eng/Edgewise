@@ -266,7 +266,6 @@ async def seed_demo_user_if_needed(redis: Redis) -> dict | None:
 
     now = datetime.now(timezone.utc).isoformat()
     user_id = uuid4().hex
-    is_admin = (await redis.scard("users:all")) == 0
     user_record = {
         "id": user_id,
         "email": DEMO_EMAIL,
@@ -276,7 +275,7 @@ async def seed_demo_user_if_needed(redis: Redis) -> dict | None:
         "tier_label": "黄金专业版",
         "credits": 1280,
         "join_date": now[:10],
-        "is_admin": is_admin or True,
+        "is_admin": True,
         "created_at": now,
         "updated_at": now,
         "password_hash": hash_password(DEMO_PASSWORD),

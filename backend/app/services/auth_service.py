@@ -81,7 +81,6 @@ async def register_user(redis: Redis, payload: UserRegister) -> UserPublic:
 
     now = datetime.now(timezone.utc).isoformat()
     user_id = uuid4().hex
-    is_admin = (await redis.scard("users:all")) == 0
 
     user_record = {
         "id": user_id,
@@ -92,7 +91,7 @@ async def register_user(redis: Redis, payload: UserRegister) -> UserPublic:
         "tier_label": DEFAULT_TIER_LABEL,
         "credits": DEFAULT_CREDITS,
         "join_date": now[:10],
-        "is_admin": is_admin,
+        "is_admin": False,
         "created_at": now,
         "updated_at": now,
         "password_hash": hash_password(payload.password),

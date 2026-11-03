@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import api_router
-from app.config import settings
+from app.config import INSECURE_JWT_SECRET, settings
 from app.core.redis_client import close_redis, init_redis
 from app.services.seed_service import seed_all
+
+logger = logging.getLogger("edgewise")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings.require_secure_jwt()
+    if (settings.JWT_SECRET or "").strip() == INSECURE_JWT_SECRET:
+        logger.warning(
+            "JWT_SECRET is still the insecure default. Set a strong secret in backend/.env before deploying."
+        )
     redis = await init_redis()
     app.state.redis = redis
     await seed_all(redis)
