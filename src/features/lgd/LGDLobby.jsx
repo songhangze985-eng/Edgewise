@@ -10,11 +10,11 @@ import styles from './LGDLobby.module.css'
 const DEFAULT_AGENTS = ['破冰者', '点子王', '逻辑王', '抢话者', '跑题者', '和事佬', '计时员']
 
 const DURATION_OPTIONS = [
-  { value: 15, label: '15 分钟（紧凑）' },
-  { value: 20, label: '20 分钟（推荐）' },
-  { value: 30, label: '30 分钟（标准）' },
-  { value: 45, label: '45 分钟（充分）' },
-  { value: 60, label: '60 分钟（完整）' },
+  { value: 15, label: '15 分钟' },
+  { value: 20, label: '20 分钟' },
+  { value: 30, label: '30 分钟' },
+  { value: 45, label: '45 分钟' },
+  { value: 60, label: '60 分钟' },
 ]
 
 export default function LGDLobby() {
@@ -164,8 +164,6 @@ export default function LGDLobby() {
     }
   }
 
-  const activeScript = getScriptById(scriptId)
-
   return (
     <div className={styles['lgd-lobby']}>
       <PageBar
@@ -177,29 +175,32 @@ export default function LGDLobby() {
               className={styles['api-config-btn']}
               onClick={() => setShowApiConfig((v) => !v)}
             >
-              {llmConfig?.apiKey ? '🟢 多Agent沙箱API已就绪' : '⚙ 群面多Agent API与沙箱设定'}
+              {llmConfig?.apiKey ? 'API 已连接' : '群面多Agent API与沙箱设定'}
             </button>
             <button type="button" className={styles['create-btn']} onClick={handleCreateRoom}>
-              + 创建新房间
+              + 创建房间
             </button>
           </div>
         }
       />
 
-      {/* Multi-Agent Sandbox, Fast-Training Scripts & Memory Mode Control Deck */}
+      {/* Compact Sandbox & Memory Bar */}
       <div className={`hw-panel ${styles['sandbox-deck']}`}>
-        <div className={styles['sandbox-deck-top']}>
-          <div className={styles['sandbox-deck-title-group']}>
-            <span className={styles['sandbox-kicker']}>WEREWOLF-STYLE MULTI-AGENT SANDBOX · 快训练脚本引擎</span>
-            <h2 className={styles['sandbox-title']}>单模型多角色沙箱隔离 · 狼人杀式按号轮流发言 · 记忆模式</h2>
-            <p className={styles['sandbox-desc']}>
-              单个大模型通过独立沙箱提示词与受限上下文窗口（仅可见最近 3–6 条公开记录）扮演 7 位性格迥异的候选人（1号–8号），
-              保留后端快训练流程设定脚本自动执行触发，并支持记忆模式复现上次配置与针对性强化薄弱项。
-            </p>
-          </div>
-          <div className={styles['memory-toggle-box']}>
-            <div className={styles['memory-toggle-header']}>
-              <span className={styles['memory-badge']}>MEMORY MODE · 记忆模式</span>
+        <div className={styles['sandbox-header-row']}>
+          <span className={styles['sandbox-title']}>训练预设</span>
+          <div className={styles['memory-inline-bar']}>
+            {memorySnapshot?.last_topic && (
+              <button
+                type="button"
+                className={styles['memory-quick-start']}
+                onClick={() => handleStartRoom(memorySnapshot)}
+                disabled={creating}
+              >
+                延续上次：{memorySnapshot.last_topic}
+              </button>
+            )}
+            <label className={styles['memory-toggle-label']}>
+              <span>记忆模式</span>
               <button
                 type="button"
                 role="switch"
@@ -214,36 +215,13 @@ export default function LGDLobby() {
               >
                 <span className={styles['memory-switch-dot']} />
               </button>
-            </div>
-            <div className={styles['memory-summary']}>
-              {memorySnapshot?.last_topic ? (
-                <>
-                  <div>上次记忆：<strong>{memorySnapshot.last_topic}</strong></div>
-                  <div>
-                    角色：{ROLE_LABELS[memorySnapshot.user_role] || '普通成员'} · 时长：{memorySnapshot.duration_minutes || 20}min · 脚本：{getScriptById(memorySnapshot.script_id).badge}
-                  </div>
-                  {memorySnapshot.last_score != null && (
-                    <div>上次得分：{memorySnapshot.last_score} 分</div>
-                  )}
-                  <button
-                    type="button"
-                    className={styles['memory-quick-start']}
-                    onClick={() => handleStartRoom(memorySnapshot)}
-                    disabled={creating}
-                  >
-                    ⚡ 按上次记忆设定一键开局 →
-                  </button>
-                </>
-              ) : (
-                <div>开启后将自动记住你的议题、角色偏好、快训练脚本与上次薄弱维度。</div>
-              )}
-            </div>
+            </label>
           </div>
         </div>
 
         <div className={styles['sandbox-controls-grid']}>
           <div className={styles['control-col']}>
-            <label className={styles['modal-label']}>快训练流程设定脚本（后端自动触发）</label>
+            <label className={styles['modal-label']}>快训练脚本</label>
             <select
               className={styles['unified-control']}
               value={scriptId}
@@ -251,17 +229,17 @@ export default function LGDLobby() {
                 setScriptId(e.target.value)
                 if (memoryEnabled) updateMemorySnapshot({ script_id: e.target.value })
               }}
-              aria-label="快训练流程设定脚本"
+              aria-label="快训练脚本"
             >
               {FAST_TRAINING_SCRIPTS.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {s.badge}
                 </option>
               ))}
             </select>
           </div>
           <div className={styles['control-col']}>
-            <label className={styles['modal-label']}>你的默认角色（4号位）</label>
+            <label className={styles['modal-label']}>默认角色（4号位）</label>
             <select
               className={styles['unified-control']}
               value={userRole}
@@ -269,17 +247,17 @@ export default function LGDLobby() {
                 setUserRole(e.target.value)
                 if (memoryEnabled) updateMemorySnapshot({ user_role: e.target.value })
               }}
-              aria-label="你的默认群面角色"
+              aria-label="默认角色"
             >
               {USER_ROLES.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.label} — {r.hint}
+                  {r.label}
                 </option>
               ))}
             </select>
           </div>
           <div className={styles['control-col']}>
-            <label className={styles['modal-label']}>多Agent运行模式（仅服务于群面）</label>
+            <label className={styles['modal-label']}>多Agent模式</label>
             <select
               className={styles['unified-control']}
               value={apiMode}
@@ -287,25 +265,16 @@ export default function LGDLobby() {
                 setApiMode(e.target.value)
                 if (memoryEnabled) updateMemorySnapshot({ api_mode: e.target.value })
               }}
-              aria-label="多Agent运行模式"
+              aria-label="多Agent模式"
             >
-              <option value="hybrid_sandbox">API 多Agent沙箱 + 快训练脚本双擎协同（推荐）</option>
-              <option value="fast_script_only">纯快训练预设脚本极速触发</option>
+              <option value="hybrid_sandbox">API 沙箱协同</option>
+              <option value="fast_script_only">预设快训练脚本</option>
             </select>
           </div>
         </div>
 
-        <div className={styles['script-preview-strip']}>
-          <span className={styles['script-badge-pill']}>{activeScript.badge}</span>
-          <span className={styles['script-desc-text']}>{activeScript.description}</span>
-        </div>
-
         {showApiConfig && (
           <div className={styles['api-config-drawer']}>
-            <div className={styles['api-config-header']}>
-              <span>群面专属大模型 API 接口配置（单模型扮演 7 角色 · 沙箱隔离 · 上下文限制）</span>
-              <span className={styles['api-config-note']}>此接口仅服务于 LGD 群面功能；留空则自动使用内置快训练沙箱脚本引擎</span>
-            </div>
             <div className={styles['api-config-row']}>
               <div className={styles['control-col']}>
                 <label className={styles['modal-label']}>API Base URL</label>
@@ -318,7 +287,7 @@ export default function LGDLobby() {
                 />
               </div>
               <div className={styles['control-col']}>
-                <label className={styles['modal-label']}>模型名称 (Model)</label>
+                <label className={styles['modal-label']}>Model</label>
                 <input
                   type="text"
                   className={styles['unified-control']}
@@ -328,13 +297,13 @@ export default function LGDLobby() {
                 />
               </div>
               <div className={styles['control-col']}>
-                <label className={styles['modal-label']}>API Key（仅本地与群面沙箱请求使用）</label>
+                <label className={styles['modal-label']}>API Key</label>
                 <input
                   type="password"
                   className={styles['unified-control']}
                   value={llmConfig?.apiKey || ''}
                   onChange={(e) => updateLlmConfig({ apiKey: e.target.value })}
-                  placeholder="sk-...（留空使用内置上下文感知沙箱引擎）"
+                  placeholder="sk-..."
                 />
               </div>
             </div>
@@ -342,11 +311,11 @@ export default function LGDLobby() {
         )}
       </div>
 
-      {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', fontSize: '0.8rem' }}>{error}</div>}
+      {error && <div className={styles['error-banner']}>{error}</div>}
 
       <div className={styles['rooms-grid']}>
-        {loading && <div style={{ opacity: 0.6 }}>加载房间中...</div>}
-        {!loading && rooms.length === 0 && <div style={{ opacity: 0.6 }}>暂无房间，创建一个开始讨论</div>}
+        {loading && <div className={styles['empty-hint']}>加载中...</div>}
+        {!loading && rooms.length === 0 && <div className={styles['empty-hint']}>暂无房间</div>}
         {rooms.map((room) => (
           <div
             key={room.id}
@@ -360,17 +329,11 @@ export default function LGDLobby() {
               </span>
             </div>
             <div className={styles['room-meta']}>
-              <span>👥 {room.participant_count}/{room.max_participants}</span>
-              <span>⏱ {room.duration_minutes} min</span>
-              {room.user_role && <span>🎭 {ROLE_LABELS[room.user_role] || room.user_role}</span>}
-              {room.script_id && <span>📜 {getScriptById(room.script_id).badge}</span>}
+              <span>{room.participant_count}/{room.max_participants} 人</span>
+              <span>{room.duration_minutes} 分钟</span>
+              {room.user_role && <span>{ROLE_LABELS[room.user_role] || room.user_role}</span>}
+              {room.script_id && <span>{getScriptById(room.script_id).badge}</span>}
             </div>
-            <div className={styles['room-agents']}>
-              {(room.agents || []).map((agent) => (
-                <span key={agent} className={styles['agent-badge']}>{agent}</span>
-              ))}
-            </div>
-            <div className={styles['room-enter']}>进入房间 →</div>
           </div>
         ))}
       </div>
@@ -378,10 +341,7 @@ export default function LGDLobby() {
       {showModal && (
         <div className={styles['modal-overlay']} onClick={handleCloseModal}>
           <div className={styles['modal-card']}>
-            <div className={styles['modal-title']}>创建新房间</div>
-            <div className={styles['modal-subtitle']}>
-              配置练习题、快训练设定脚本、狼人杀式座位角色与记忆模式
-            </div>
+            <div className={styles['modal-title']}>创建房间</div>
 
             <div className={styles['modal-field']}>
               <label className={styles['modal-label']}>练习题</label>
@@ -392,18 +352,18 @@ export default function LGDLobby() {
               >
                 {topics.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.title}（{t.topic_type}）
+                    {t.title}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className={styles['modal-field']}>
-              <label className={styles['modal-label']}>自定义标题（可选）</label>
+              <label className={styles['modal-label']}>自定义议题（可选）</label>
               <input
                 type="text"
                 className={styles['modal-input']}
-                placeholder="留空则使用所选练习题标题"
+                placeholder="留空则使用所选练习题"
                 value={customTopic}
                 onChange={(e) => setCustomTopic(e.target.value)}
               />
@@ -411,7 +371,7 @@ export default function LGDLobby() {
 
             <div className={styles['modal-row-2col']}>
               <div className={styles['modal-field']}>
-                <label className={styles['modal-label']}>讨论时长</label>
+                <label className={styles['modal-label']}>时长</label>
                 <select
                   className={styles['modal-input']}
                   value={durationMinutes}
@@ -426,7 +386,7 @@ export default function LGDLobby() {
               </div>
 
               <div className={styles['modal-field']}>
-                <label className={styles['modal-label']}>快训练设定脚本</label>
+                <label className={styles['modal-label']}>训练脚本</label>
                 <select
                   className={styles['modal-input']}
                   value={scriptId}
@@ -434,7 +394,7 @@ export default function LGDLobby() {
                 >
                   {FAST_TRAINING_SCRIPTS.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name}
+                      {s.badge}
                     </option>
                   ))}
                 </select>
@@ -442,33 +402,33 @@ export default function LGDLobby() {
             </div>
 
             <div className={styles['modal-field']}>
-              <label className={styles['modal-label']}>你的角色（4号位）</label>
-              <div className={styles['modal-info-row']} style={{ marginBottom: '8px' }}>
-                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <label className={styles['modal-label']}>角色（4号位）</label>
+              <div className={styles['modal-role-options']}>
+                <label className={styles['radio-label']}>
                   <input
                     type="radio"
                     name="roleMode"
                     checked={roleMode === 'pick'}
                     onChange={() => setRoleMode('pick')}
                   />
-                  指定角色
+                  指定
                 </label>
-                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <label className={styles['radio-label']}>
                   <input
                     type="radio"
                     name="roleMode"
                     checked={roleMode === 'random'}
                     onChange={() => setRoleMode('random')}
                   />
-                  随机分配
+                  随机
                 </label>
-                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginLeft: 'auto' }}>
+                <label className={styles['radio-label']} style={{ marginLeft: 'auto' }}>
                   <input
                     type="checkbox"
                     checked={memoryEnabled}
                     onChange={(e) => setMemoryEnabled(e.target.checked)}
                   />
-                  记忆本次设定
+                  记忆设定
                 </label>
               </div>
               {roleMode === 'pick' && (
@@ -479,29 +439,18 @@ export default function LGDLobby() {
                 >
                   {USER_ROLES.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.label} — {r.hint}
+                      {r.label}
                     </option>
                   ))}
                 </select>
               )}
             </div>
 
-            <div className={styles['modal-info']}>
-              <div className={styles['modal-info-row']}>
-                <span className={styles['modal-info-label']}>AI 沙箱</span>
-                <span className={styles['modal-info-value']}>7 位独立沙箱角色（含抢话者、跑题者隐藏任务卡，上下文隔离）</span>
-              </div>
-              <div className={styles['modal-info-row']}>
-                <span className={styles['modal-info-label']}>流程</span>
-                <span className={styles['modal-info-value']}>阅读 → 狼人杀式按号个人陈述 → 自由交锋 → 总结汇报</span>
-              </div>
-            </div>
-
             <div className={styles['modal-actions']}>
-              <button className={styles['modal-cancel']} onClick={() => setShowModal(false)}>
+              <button type="button" className={styles['modal-cancel']} onClick={() => setShowModal(false)}>
                 取消
               </button>
-              <button className={styles['modal-start']} onClick={() => handleStartRoom()} disabled={creating}>
+              <button type="button" className={styles['modal-start']} onClick={() => handleStartRoom()} disabled={creating}>
                 {creating ? '创建中...' : '开始讨论'}
               </button>
             </div>
@@ -511,4 +460,3 @@ export default function LGDLobby() {
     </div>
   )
 }
-

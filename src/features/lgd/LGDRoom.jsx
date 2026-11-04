@@ -812,7 +812,7 @@ export default function LGDRoom() {
       <div className="sr-only" aria-live="polite">
         {phaseCountdownAnnounce}
       </div>
-      {/* Phase Bar */}
+      {/* Single Unified Top Status Bar */}
       <div className={styles['phase-bar']}>
         <div className={styles['phase-indicator']}>
           {PHASES.map((p, i) => (
@@ -826,6 +826,7 @@ export default function LGDRoom() {
         <span className={styles['phase-label']}>
           {PHASES[phaseIndex]?.label || phase}
         </span>
+        <span className={styles['sandbox-pill']}>{activeScript.badge}</span>
         <span
           className={`${styles.timer} ${remainingSeconds < 60 && remainingSeconds > 0 ? styles.urgent : ''}`}
           aria-hidden="true"
@@ -839,7 +840,7 @@ export default function LGDRoom() {
             onClick={() => setShowMaterialModal(true)}
             aria-label="打开讨论材料"
           >
-            阅读材料
+            材料
           </button>
         )}
         <button
@@ -852,45 +853,13 @@ export default function LGDRoom() {
         </button>
       </div>
 
-      {/* Multi-Agent Sandbox & Werewolf Turn Order Strip */}
-      <div className={styles['sandbox-status-bar']}>
-        <div className={styles['sandbox-badges']}>
-          <span className={styles['sandbox-pill']} title={activeScript.description}>
-            ⚡ 剧本：{activeScript.name}
-          </span>
-          <span className={styles['sandbox-pill']}>
-            🛡️ 沙箱隔离：{lastSandboxMeta ? `${lastSandboxMeta.sandbox_id} · 窗口 ${lastSandboxMeta.context_limit} 条` : '7角色独立沙箱 · 上下文受限'}
-          </span>
-          <span className={styles['sandbox-pill']}>
-            {memoryEnabled ? '🧠 记忆模式开启' : '单次训练'}
-          </span>
-        </div>
-        <div className={styles['turn-order-strip']} aria-label="圆桌发言顺位">
-          {seatPositions.map((s) => {
-            const active = currentSpeaker === s.id
-            return (
-              <span
-                key={s.id}
-                className={`${styles['turn-chip']} ${active ? styles['turn-chip-active'] : ''} ${s.id === 'user' ? styles['turn-chip-user'] : ''}`}
-                style={active ? { borderColor: s.color, color: s.color } : undefined}
-              >
-                {s.seat}号·{s.name}
-              </span>
-            )
-          })}
-        </div>
-      </div>
-
       {/* Main Area */}
       <div className={styles['main-area']}>
         {/* Roundtable */}
         <div className={styles['roundtable-panel']}>
           <div className={styles['roundtable-container']}>
             <div className={styles['table-center']}>
-              <div className={styles['table-center-label']}>LGD 8人局</div>
-              <div className={styles['table-center-topic']}>
-                {topic ? `${topic.slice(0, 10)}...` : ''}
-              </div>
+              <div className={styles['table-center-label']}>8人圆桌</div>
             </div>
 
             {seatPositions.map((seat) => {
@@ -948,8 +917,8 @@ export default function LGDRoom() {
         {/* Chat Panel */}
         <div className={styles['chat-panel']}>
           <div className={styles['chat-header']}>
-            <span className={styles['chat-title']}>对话流</span>
-            <span className={styles['chat-count']}>{messages.length} 条消息</span>
+            <span className={styles['chat-title']}>{topic || '群面讨论'}</span>
+            <span className={styles['chat-count']}>{messages.length} 条</span>
           </div>
 
           {captionsEnabled && (readingCaptionText || spokenCaptionText) && (
@@ -963,7 +932,7 @@ export default function LGDRoom() {
 
           <div className={styles['chat-stream']} ref={chatRef}>
             {messages.length === 0 && (
-              <div className={styles['system-message']}>讨论开始后，所有发言会出现在这里</div>
+              <div className={styles['system-message']}>等待发言</div>
             )}
             {messages.map((msg) => {
               if (msg.isSystem) {
@@ -986,7 +955,7 @@ export default function LGDRoom() {
                   <div className={styles['msg-body']}>
                     <div className={styles['msg-header']}>
                       <span className={styles['msg-name']}>
-                        {agent?.seat ? `${agent.seat}号 · ` : ''}
+                        {agent?.seat ? `${agent.seat}号·` : ''}
                         {msg.senderName}
                       </span>
                       <span
@@ -995,9 +964,6 @@ export default function LGDRoom() {
                       >
                         {msg.senderRole}
                       </span>
-                      {msg.meta?.sandbox && (
-                        <span className={styles['msg-sandbox-tag']}>{msg.meta.sandbox}</span>
-                      )}
                     </div>
                     <div className={styles['msg-content']}>{msg.content}</div>
                   </div>
@@ -1039,7 +1005,7 @@ export default function LGDRoom() {
                   <span />
                 </div>
                 <span className={styles['typing-name']}>
-                  {typingAgent.seat}号 · {typingAgent.name} 正在独立沙箱中思考...
+                  {typingAgent.seat}号·{typingAgent.name} 发言中...
                 </span>
               </div>
             )}
@@ -1061,7 +1027,7 @@ export default function LGDRoom() {
               <span className={styles['hw-btn-cap']}>
                 {micGranted ? '🔊' : '🎤'}
                 <span className={styles['hw-btn-label']}>
-                  {micGranted ? '释放麦克风' : '抢麦发言'}
+                  {micGranted ? '释放' : '抢麦'}
                 </span>
               </span>
             </span>
@@ -1120,9 +1086,9 @@ export default function LGDRoom() {
             className={styles['message-input']}
             placeholder={
               micGranted
-                ? '你已获得麦克风，输入你的发言...'
+                ? '输入发言内容...'
                 : canInteract
-                  ? '先点击"抢麦发言"获取发言权...'
+                  ? '点击「抢麦」后输入发言...'
                   : '当前阶段不可发言'
             }
             value={inputValue}
@@ -1146,21 +1112,19 @@ export default function LGDRoom() {
       {phase === 'reading' && (
         <div className={styles['reading-overlay']}>
           <div className={styles['reading-card']}>
-            <div className={styles['reading-label']}>阅读阶段</div>
             <div className={styles['reading-topic']}>{topic}</div>
             <div className={styles['reading-material']}>{material}</div>
-            <div className={styles['reading-timer']}>{formatTime(remainingSeconds)}</div>
-            <div className={styles['reading-hint']}>
-              请仔细阅读材料，准备你的观点 — 也可点击下方按钮提前开始讨论
+            <div className={styles['reading-footer']}>
+              <span className={styles['reading-timer']}>{formatTime(remainingSeconds)}</span>
+              <button
+                type="button"
+                className={styles['reading-start-btn']}
+                onClick={() => advancePhase('reading')}
+                aria-label="进入发言阶段"
+              >
+                进入发言
+              </button>
             </div>
-            <button
-              type="button"
-              className={styles['reading-start-btn']}
-              onClick={() => advancePhase('reading')}
-              aria-label="我已读完，进入发言阶段"
-            >
-              我已读完，进入发言
-            </button>
           </div>
         </div>
       )}
@@ -1191,12 +1155,12 @@ export default function LGDRoom() {
           className={styles['material-modal-overlay']}
           role="dialog"
           aria-modal="true"
-          aria-label="群面随手笔记"
+          aria-label="讨论笔记"
           onClick={(e) => e.target === e.currentTarget && setShowNotesModal(false)}
         >
           <div className={styles['material-modal']}>
             <div className={styles['material-modal-head']}>
-              <h2>📝 群面随手笔记（仅自己可见 · 沙箱隔离）</h2>
+              <h2>讨论笔记</h2>
               <button type="button" className={styles['material-modal-close']} onClick={() => setShowNotesModal(false)}>
                 完成
               </button>
@@ -1205,7 +1169,7 @@ export default function LGDRoom() {
               <textarea
                 className={styles['notes-textarea']}
                 rows={8}
-                placeholder="记录各号位候选人的核心观点、分歧点或框架草稿（如：1号主张A、2号质疑成本...）"
+                placeholder="记录要点与框架..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -1227,14 +1191,11 @@ export default function LGDRoom() {
       {phase === 'completed' && score && (
         <div className={styles['summary-overlay']}>
           <div className={styles['summary-card']}>
-            <div className={styles['summary-title']}>讨论评分报告</div>
+            <div className={styles['summary-title']}>群面评分</div>
             <div className={styles['score-grid']}>
               <div className={styles['score-item']}>
                 <div className={styles['score-value']}>{score.overall ?? '—'}</div>
                 <div className={styles['score-label']}>综合评分</div>
-                {score.overall != null && (
-                  <div className={styles['score-grade-text']}>{formatScoreGrade(score.overall)}</div>
-                )}
               </div>
               <div className={styles['score-item']}>
                 <div className={styles['score-value']}>
@@ -1258,6 +1219,7 @@ export default function LGDRoom() {
             <div className={styles['summary-feedback']}>{score.feedback}</div>
             <div className={styles['summary-actions']}>
               <button
+                type="button"
                 className={`${styles['hw-btn']} ${styles['note-btn']}`}
                 onClick={() => navigate('/lgd/lobby')}
               >

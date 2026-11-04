@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import PageBar from '../../components/ui/PageBar'
 import { listJobs } from '../../api/jobs'
 import { listStories } from '../../api/stories'
@@ -168,13 +168,13 @@ function getStageStatus(index, currentStage, gameState, stageScores) {
 function getStatusLabel(status) {
   switch (status) {
     case 'locked':
-      return 'LOCKED'
+      return '待解锁'
     case 'current':
-      return 'IN COMBAT'
+      return '进行中'
     case 'passed':
-      return 'CLEARED'
+      return '已通过'
     case 'failed':
-      return 'K.O.'
+      return '失败'
     default:
       return ''
   }
@@ -920,34 +920,21 @@ export default function PermadeathChallenge() {
   return (
     <div className={styles.page}>
       <PageBar
-        title="一血通关 · 全链路终极考场"
+        title="一血通关"
         actions={
           <div className={styles['header-badges']}>
-            <div className={styles['hero-hp-display']}>
-              <span className={`${styles['hp-value']} ${styles[`hp-value-${hpColor}`]}`}>
-                {hp}
-              </span>
-              <span className={styles['hp-label']}>HP / {maxHp}</span>
-            </div>
-            <div className={styles['hero-streak-display']}>
-              <span className={styles['streak-value']}>{streak}</span>
-              <span className={styles['streak-label']}>连胜纪录</span>
-              <span className={styles['streak-best']}>最高 {bestStreak}</span>
-            </div>
+            <span className={`${styles['stat-pill']} ${styles[`hp-value-${hpColor}`]}`}>
+              HP {hp}/{maxHp}
+            </span>
+            <span className={styles['stat-pill']}>
+              连胜 {streak} · 最高 {bestStreak}
+            </span>
           </div>
         }
       />
 
-      {/* HP Blood Bar */}
+      {/* Slim HP Bar */}
       <div className={styles['hp-bar-container']}>
-        <div className={styles['hp-bar-header']}>
-          <span className={styles['hp-bar-label']}>
-            PERMADEATH LIFE BAR · 真实引擎评分驱动（单轮 ≥85 分触发 +8 HP 完美反击回血）
-          </span>
-          <span className={`${styles['hp-bar-number']} ${styles[`hp-value-${hpColor}`]}`}>
-            {hp} / {maxHp} HP ({hpPercent}%)
-          </span>
-        </div>
         <div className={styles['hp-bar-track']}>
           <div
             className={`${styles['hp-bar-fill']} ${styles[`hp-fill-${hpColor}`]}`}
@@ -956,39 +943,25 @@ export default function PermadeathChallenge() {
         </div>
       </div>
 
-      {/* 4-Stage Pipeline */}
+      {/* 4-Stage Pipeline (Minimal 2-Row Cards) */}
       <div className={styles.pipeline}>
         {STAGES.map((stage, index) => {
           const status = getStageStatus(index, currentStage, gameState, stageScores)
-          const showConnector = index > 0
           return (
             <div key={stage.id} className={styles['stage-wrapper']}>
-              {showConnector && (
-                <div
-                  className={`${styles['stage-connector']} ${
-                    index <= currentStage && gameState !== 'ready' ? styles['connector-active'] : ''
-                  }`}
-                >
-                  <div className={styles['stage-connector-line']} />
-                </div>
-              )}
               <div className={`${styles['stage-card']} ${styles[`stage-${status}`]}`}>
                 <div className={styles['stage-top-row']}>
-                  <div className={styles['stage-number']}>{String(index + 1).padStart(2, '0')}</div>
-                  <span className={styles['stage-engine-tag']}>{stage.engineBadge}</span>
-                </div>
-                <div className={styles['stage-icon']} aria-hidden="true">
-                  {stage.icon}
-                </div>
-                <div className={styles['stage-name']}>{stage.name}</div>
-                <div className={styles['stage-desc']}>{stage.desc}</div>
-                <div className={styles['stage-footer-row']}>
-                  <span className={`${styles['stage-status']} ${styles[`status-${status}`]}`}>
-                    {getStatusLabel(status)}
+                  <span className={styles['stage-name']}>
+                    0{index + 1} · {stage.name}
                   </span>
-                  {stageScores[index] !== undefined && (
-                    <span className={styles['stage-score']}>{stageScores[index]} PTS</span>
-                  )}
+                  <span className={`${styles['stage-status']} ${styles[`status-${status}`]}`}>
+                    {stageScores[index] !== undefined
+                      ? `${stageScores[index]} 分`
+                      : getStatusLabel(status)}
+                  </span>
+                </div>
+                <div className={styles['stage-footer-row']}>
+                  <span className={styles['stage-time']}>限时 {stage.time}</span>
                 </div>
               </div>
             </div>
@@ -1005,12 +978,9 @@ export default function PermadeathChallenge() {
             lastStageFeedback.hpDelta >= 0 ? styles['feedback-heal'] : styles['feedback-damage']
           }`}
         >
-          <div>
-            <strong>
-              [{lastStageFeedback.stageName}] {lastStageFeedback.title}
-            </strong>
-            <span className={styles['feedback-detail-text']}>{lastStageFeedback.detail}</span>
-          </div>
+          <span>
+            {lastStageFeedback.stageName}：{lastStageFeedback.title}（{lastStageFeedback.score} 分）
+          </span>
           <span className={styles['feedback-hp-pill']}>
             {lastStageFeedback.hpDelta >= 0
               ? `+${lastStageFeedback.hpDelta} HP`
@@ -1022,20 +992,10 @@ export default function PermadeathChallenge() {
       {/* ==================== READY STATE: PRE-RUN LOADOUT ==================== */}
       {gameState === 'ready' && (
         <div className={styles['loadout-panel']}>
-          <div className={styles['loadout-header']}>
-            <div>
-              <span className={styles['loadout-kicker']}>FULL-PIPELINE GAUNTLET · 战前资产挂载</span>
-              <h2 className={styles['loadout-title']}>串联四大核心引擎的一命通关终极考场</h2>
-              <p className={styles['loadout-sub']}>
-                不同于单项训练场的反复修改，一血通关将依次调起「LGD 多Agent群面沙箱 ➔ 1v1 四维逻辑核验 ➔ 跨部门二连追问压测 ➔ HR 薪资博弈状态机」，全程真实评分并在结束后自动归档至复盘报告中心。
-              </p>
-            </div>
-          </div>
-
           <div className={styles['loadout-grid']}>
             <div className={styles['loadout-field']}>
               <label className={styles['field-label']} htmlFor="challenge-pos-select">
-                目标冲刺岗位
+                目标岗位
               </label>
               <select
                 id="challenge-pos-select"
@@ -1053,7 +1013,7 @@ export default function PermadeathChallenge() {
 
             <div className={styles['loadout-field']}>
               <label className={styles['field-label']} htmlFor="challenge-jd-select">
-                关联已保存的 JD 标的（可选）
+                关联 JD
               </label>
               <select
                 id="challenge-jd-select"
@@ -1066,7 +1026,7 @@ export default function PermadeathChallenge() {
                   if (found?.title) setSelectedPosition(found.title)
                 }}
               >
-                <option value="">默认通用岗位标准题池</option>
+                <option value="">通用题库</option>
                 {jobs.map((j) => (
                   <option key={j.id} value={j.id}>
                     {j.title || '未命名岗位'}
@@ -1077,7 +1037,7 @@ export default function PermadeathChallenge() {
 
             <div className={styles['loadout-field']}>
               <label className={styles['field-label']} htmlFor="challenge-diff-select">
-                通关难度与初始血量档位
+                挑战难度
               </label>
               <select
                 id="challenge-diff-select"
@@ -1094,37 +1054,11 @@ export default function PermadeathChallenge() {
             </div>
           </div>
 
-          <div className={styles['difficulty-cards']}>
-            {DIFFICULTY_TIERS.map((tier) => (
-              <button
-                key={tier.id}
-                type="button"
-                className={`${styles['diff-card']} ${
-                  difficultyId === tier.id ? styles['diff-card-active'] : ''
-                }`}
-                onClick={() => setDifficultyId(tier.id)}
-              >
-                <div className={styles['diff-card-top']}>
-                  <span className={styles['diff-badge']}>{tier.badge}</span>
-                  <span className={styles['diff-hp']}>{tier.initialHp} HP</span>
-                </div>
-                <div className={styles['diff-name']}>{tier.label}</div>
-                <div className={styles['diff-desc']}>{tier.sub}</div>
-              </button>
-            ))}
-          </div>
-
           <div className={styles['loadout-footer']}>
             <div className={styles['asset-status-row']}>
-              <span className={styles['asset-pill']}>
-                已挂载 STAR 故事素材：{stories.length} 篇
-              </span>
-              <span className={styles['asset-pill']}>
-                已挂载岗位 JD：{jobs.length} 份
-              </span>
-              <span className={styles['asset-pill']}>
-                终面期望底线锚点：{difficultyTier.floorK}k/月
-              </span>
+              <span className={styles['asset-pill']}>STAR 案例 {stories.length}</span>
+              <span className={styles['asset-pill']}>JD {jobs.length}</span>
+              <span className={styles['asset-pill']}>底薪线 {difficultyTier.floorK}k</span>
             </div>
             <button
               type="button"
@@ -1132,7 +1066,7 @@ export default function PermadeathChallenge() {
               onClick={handleStart}
               disabled={starting}
             >
-              {starting ? '正在构建四关实战考场…' : '开始一血挑战'}
+              {starting ? '创建中…' : '开始挑战'}
             </button>
           </div>
         </div>
@@ -1142,21 +1076,16 @@ export default function PermadeathChallenge() {
       {gameState === 'playing' && (
         <div className={styles['combat-workbench']}>
           <div className={styles['detail-header']}>
-            <div>
-              <span className={styles['stage-kicker']}>
-                STAGE 0{currentStage + 1} / 04 · {STAGES[currentStage].engineBadge}
-              </span>
-              <h2 className={styles['detail-title']}>
-                {STAGES[currentStage].icon} {STAGES[currentStage].name}
-              </h2>
-            </div>
+            <h2 className={styles['detail-title']}>
+              0{currentStage + 1} · {STAGES[currentStage].name}
+            </h2>
             <div className={styles['header-right-tools']}>
               <button
                 type="button"
                 className={styles['tool-btn']}
                 onClick={() => setShowStoryDrawer((v) => !v)}
               >
-                {showStoryDrawer ? '收起 STAR 素材库' : `展开 STAR 素材库 (${stories.length})`}
+                {showStoryDrawer ? '收起 STAR' : `STAR 素材 (${stories.length})`}
               </button>
               <div
                 className={`${styles['detail-timer']} ${
@@ -1164,7 +1093,7 @@ export default function PermadeathChallenge() {
                 }`}
               >
                 <span>{formatTime(timer)}</span>
-                <span className={styles['timer-limit']}>/ {formatTime(currentStageLimitSec)}</span>
+                <span className={styles['timer-limit']}> / {formatTime(currentStageLimitSec)}</span>
               </div>
             </div>
           </div>
@@ -1172,13 +1101,8 @@ export default function PermadeathChallenge() {
           {/* Optional STAR Story Side Drawer */}
           {showStoryDrawer && (
             <div className={styles['story-drawer']}>
-              <div className={styles['story-drawer-title']}>
-                STAR 故事库速览（可点击一键引用至作答框）
-              </div>
               {stories.length === 0 ? (
-                <p className={styles['story-empty']}>
-                  当前暂无保存的 STAR 故事，可前往「STAR 故事库」添加，或直接使用下方「填入高分战术范例」。
-                </p>
+                <p className={styles['story-empty']}>暂无保存的 STAR 案例</p>
               ) : (
                 <div className={styles['story-grid']}>
                   {stories.slice(0, 4).map((st) => (
@@ -1191,15 +1115,15 @@ export default function PermadeathChallenge() {
                           onClick={() =>
                             setAnswerInput(
                               (prev) =>
-                                `${prev ? `${prev}\n` : ''}【项目案例：${st.title}】背景(S)：${st.S || ''}；任务(T)：${st.T || ''}；行动(A)：${st.A || ''}；结果(R)：${st.R || ''}。`,
+                                `${prev ? `${prev}\n` : ''}【案例：${st.title}】S：${st.S || ''}；T：${st.T || ''}；A：${st.A || ''}；R：${st.R || ''}。`,
                             )
                           }
                         >
-                          引用此案例
+                          引用
                         </button>
                       </div>
                       <p className={styles['story-card-excerpt']}>
-                        A: {st.A || '—'} ｜ R: {st.R || '—'}
+                        {st.R || st.A || '—'}
                       </p>
                     </div>
                   ))}
@@ -1212,9 +1136,8 @@ export default function PermadeathChallenge() {
           {currentStage === 0 && (
             <div className={styles['stage-arena']}>
               <div className={styles['arena-prompt-box']}>
-                <div className={styles['prompt-tag']}>群面圆桌议题 · 狼人杀式高压对抗脚本</div>
                 <p className={styles['prompt-main']}>
-                  议题：「AI 面试产品如何在保证诊断深度的同时降低新用户首轮流失率？」—— 请回应 5 号韩抢的质询，兼顾 1 号框架与 3 号量化指标，给出收敛方案。
+                  议题：AI 面试产品如何在保证诊断深度的同时降低新用户首轮流失率？
                 </p>
               </div>
               <div className={styles['chat-stream']}>
@@ -1237,9 +1160,6 @@ export default function PermadeathChallenge() {
           {currentStage === 1 && (
             <div className={styles['stage-arena']}>
               <div className={styles['arena-prompt-box']}>
-                <div className={styles['prompt-tag']}>
-                  业务主管深挖 · 考察维度：结论先行 / STAR 结构 / 量化论据 / 扣题度
-                </div>
                 <p className={styles['prompt-main']}>{stage2Question}</p>
               </div>
             </div>
@@ -1254,7 +1174,7 @@ export default function PermadeathChallenge() {
                     pressurePhase === 'hit1' ? styles['combo-active'] : styles['combo-done']
                   }`}
                 >
-                  第一击：高压首问防守
+                  1. 首问防守
                 </span>
                 <span className={styles['combo-arrow']}>➔</span>
                 <span
@@ -1262,16 +1182,11 @@ export default function PermadeathChallenge() {
                     pressurePhase === 'hit2' ? styles['combo-active'] : ''
                   }`}
                 >
-                  第二击：AI 漏洞连环追问
+                  2. 漏洞追问
                 </span>
               </div>
 
               <div className={styles['arena-prompt-box']}>
-                <div className={styles['prompt-tag']}>
-                  {pressurePhase === 'hit1'
-                    ? '交叉面试官 · 首轮极限施压'
-                    : '交叉面试官 · 二连击漏洞追问（回答此追问完成本关结算）'}
-                </div>
                 <p className={styles['prompt-main']}>
                   {pressurePhase === 'hit1' ? stage3Question : pendingFollowup?.text}
                 </p>
@@ -1282,32 +1197,27 @@ export default function PermadeathChallenge() {
           {/* ---- STAGE 4: HR FINAL BOSS & SALARY NEGOTIATION ---- */}
           {currentStage === 3 && (
             <div className={styles['stage-arena']}>
-              <div className={styles['arena-prompt-box']}>
-                <div className={styles['prompt-tag']}>
-                  HR 终面谈薪博弈 · 目标底线：{difficultyTier.floorK}k/月 ｜ 报价区间 + 量化依据 + 结构化话术可得高分
-                </div>
-                <div className={styles['chat-stream']}>
-                  {negotiationChat.map((m, idx) => (
-                    <div
-                      key={`neg-${idx}`}
-                      className={`${styles['chat-bubble']} ${
-                        m.role === 'user' ? styles['chat-user'] : styles['chat-ai']
-                      }`}
-                    >
-                      <div className={styles['chat-meta']}>{m.name}</div>
-                      <div className={styles['chat-text']}>{m.text}</div>
-                    </div>
-                  ))}
-                </div>
+              <div className={styles['chat-stream']}>
+                {negotiationChat.map((m, idx) => (
+                  <div
+                    key={`neg-${idx}`}
+                    className={`${styles['chat-bubble']} ${
+                      m.role === 'user' ? styles['chat-user'] : styles['chat-ai']
+                    }`}
+                  >
+                    <div className={styles['chat-meta']}>{m.name}</div>
+                    <div className={styles['chat-text']}>{m.text}</div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* ---- UNIFIED ANSWER COMPOSER (TEXT + VOICE STT + TACTICAL TEMPLATE) ---- */}
+          {/* ---- UNIFIED ANSWER COMPOSER ---- */}
           <div className={styles['composer-box']}>
             <div className={styles['composer-toolbar']}>
               <span className={styles['composer-hint']}>
-                当前字数：{answerInput.trim().length} 字（建议 ≥ 30 字，包含具体指标与结构词以触发 +8 HP 回血）
+                {answerInput.trim().length} 字
               </span>
               <div className={styles['composer-tools']}>
                 <button
@@ -1315,7 +1225,7 @@ export default function PermadeathChallenge() {
                   className={styles['tool-btn']}
                   onClick={handleFillTemplate}
                 >
-                  ⚡ 填入高分战术范例
+                  填入范例
                 </button>
                 {sttSupported && (
                   <button
@@ -1325,7 +1235,7 @@ export default function PermadeathChallenge() {
                     }`}
                     onClick={toggleStt}
                   >
-                    {sttListening ? '● 停止语音识别' : '🎤 语音作答'}
+                    {sttListening ? '停止语音' : '语音输入'}
                   </button>
                 )}
               </div>
@@ -1336,17 +1246,7 @@ export default function PermadeathChallenge() {
               rows={4}
               value={answerInput}
               onChange={(e) => setAnswerInput(e.target.value)}
-              placeholder={
-                currentStage === 0
-                  ? '输入你的 4 号位群面破局发言（回应抢话者质疑 + 明确北极星指标 + 推进阶段收敛）…'
-                  : currentStage === 1
-                    ? '按「结论先行 + STAR（背景/任务/个人行动/量化结果）」作答业务主管提问…'
-                    : currentStage === 2
-                      ? pressurePhase === 'hit1'
-                        ? '针对高压场景给出你的优先级取舍、降级兜底方案与核心保障指标…'
-                        : '针对交叉面试官的追问补充具体量化阈值与边界条件…'
-                      : '给出期望薪资区间（如 26k-30k）、过往产出依据，或输入「接受 offer」直接拍板定稿…'
-              }
+              placeholder="输入作答内容…"
             />
 
             <div className={styles['detail-actions']}>
@@ -1357,7 +1257,7 @@ export default function PermadeathChallenge() {
                   onClick={handleSubmitStage1Lgd}
                   disabled={submitting || !answerInput.trim()}
                 >
-                  {submitting ? '群面沙箱评定中…' : '抢麦发言并结算第一关'}
+                  {submitting ? '评定中…' : '提交发言'}
                 </button>
               )}
               {currentStage === 1 && (
@@ -1367,7 +1267,7 @@ export default function PermadeathChallenge() {
                   onClick={handleSubmitStage2Manager}
                   disabled={submitting || !answerInput.trim()}
                 >
-                  {submitting ? '四维逻辑引擎核验中…' : '提交主管面回答并结算第二关'}
+                  {submitting ? '核验中…' : '提交回答'}
                 </button>
               )}
               {currentStage === 2 && (
@@ -1378,10 +1278,10 @@ export default function PermadeathChallenge() {
                   disabled={submitting || !answerInput.trim()}
                 >
                   {submitting
-                    ? '交叉面试官评估中…'
+                    ? '评估中…'
                     : pressurePhase === 'hit1'
-                      ? '提交首问防守（迎接追问）'
-                      : '提交二连追问防守并结算第三关'}
+                      ? '提交首问'
+                      : '提交追问'}
                 </button>
               )}
               {currentStage === 3 && (
@@ -1392,7 +1292,7 @@ export default function PermadeathChallenge() {
                     onClick={() => handleSubmitStage4Hr(false)}
                     disabled={submitting || !answerInput.trim()}
                   >
-                    {submitting ? 'HR 总监评估中…' : '发送谈判话术'}
+                    {submitting ? '评估中…' : '发送报价'}
                   </button>
                   <button
                     type="button"
@@ -1400,7 +1300,7 @@ export default function PermadeathChallenge() {
                     onClick={() => handleSubmitStage4Hr(true)}
                     disabled={submitting}
                   >
-                    接受当前 Offer 并完成终面通关
+                    接受 Offer 通关
                   </button>
                 </>
               )}
@@ -1409,21 +1309,20 @@ export default function PermadeathChallenge() {
         </div>
       )}
 
-      {/* ==================== COMBAT STREAM LOG ==================== */}
+      {/* ==================== COMPACT COMBAT LOG ==================== */}
       {combatLogs.length > 0 && (
         <div className={styles['combat-log-panel']}>
           <div className={styles['combat-log-header']}>
-            <span>REAL-TIME COMBAT STREAM · 全链路评分与 HP 奖惩日志</span>
-            <span>会话 ID：{sessionId ? `#${sessionId.slice(0, 8)}` : '待启动'}</span>
+            <span>对战记录</span>
+            <span>{sessionId ? `#${sessionId.slice(0, 8)}` : ''}</span>
           </div>
           <div className={styles['combat-log-list']}>
             {combatLogs.map((log) => (
               <div key={log.id} className={styles['combat-log-item']}>
                 <div className={styles['combat-log-left']}>
                   <span className={styles['combat-log-ts']}>{log.ts}</span>
-                  <span className={styles['combat-log-stage']}>[{log.stage}]</span>
-                  <strong className={styles['combat-log-title']}>{log.title}</strong>
-                  <span className={styles['combat-log-detail']}>{log.detail}</span>
+                  <span className={styles['combat-log-stage']}>{log.stage}</span>
+                  <span className={styles['combat-log-title']}>{log.title}</span>
                 </div>
                 {log.hpDelta !== 0 && (
                   <span
@@ -1443,48 +1342,42 @@ export default function PermadeathChallenge() {
       {/* ==================== GAME OVER OVERLAY ==================== */}
       {gameState === 'gameover' && (
         <div className={`${styles.overlay} ${styles['overlay-gameover']}`}>
-          <div className={styles['overlay-icon']}>&#128128;</div>
-          <div className={styles['overlay-title']}>挑战失败 · K.O.</div>
-          <div className={styles['overlay-sub']}>
-            GAME OVER · HP 归零，本次闯关已自动归档至复盘中心
-          </div>
-          {stageScores.length > 0 && (
-            <div className={styles['overlay-scores']}>
-              {stageScores.map((score, i) => (
-                <div key={STAGES[i].id} className={styles['overlay-score-item']}>
-                  <span className={styles['overlay-score-stage']}>
-                    R{i + 1} · {STAGES[i].name}
-                  </span>
-                  <span className={styles['overlay-score-val']}>{score}</span>
-                </div>
-              ))}
+          <div className={styles['overlay-card']}>
+            <div className={styles['overlay-title']}>挑战失败</div>
+            <div className={styles['overlay-sub']}>HP 归零，记录已归档至复盘中心</div>
+            {stageScores.length > 0 && (
+              <div className={styles['overlay-scores']}>
+                {stageScores.map((score, i) => (
+                  <div key={STAGES[i].id} className={styles['overlay-score-item']}>
+                    <span className={styles['overlay-score-stage']}>{STAGES[i].name}</span>
+                    <span className={styles['overlay-score-val']}>{score} 分</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={styles['overlay-actions']}>
+              <button type="button" className={styles['btn-retry']} onClick={handleRetry}>
+                重新挑战
+              </button>
+              {sessionId && (
+                <button
+                  type="button"
+                  className={styles['btn-complete']}
+                  onClick={() => navigate(`/analytics/report/${sessionId}`)}
+                >
+                  查看报告
+                </button>
+              )}
+              {weakestStageRecord && (
+                <button
+                  type="button"
+                  className={styles['btn-victory']}
+                  onClick={() => navigate(weakestStageRecord.route)}
+                >
+                  专项训练（{weakestStageRecord.stageName}）
+                </button>
+              )}
             </div>
-          )}
-          <div className={styles['overlay-actions']}>
-            <button type="button" className={styles['btn-retry']} onClick={handleRetry}>
-              重新发起挑战
-            </button>
-            {sessionId && (
-              <button
-                type="button"
-                className={styles['btn-complete']}
-                onClick={() => navigate(`/analytics/report/${sessionId}`)}
-              >
-                查看本场诊断报告
-              </button>
-            )}
-            {weakestStageRecord && (
-              <button
-                type="button"
-                className={styles['btn-victory']}
-                onClick={() => navigate(weakestStageRecord.route)}
-              >
-                前往「{weakestStageRecord.stageName}」专项补强
-              </button>
-            )}
-            <Link to="/" className={styles['overlay-back']}>
-              返回概览
-            </Link>
           </div>
         </div>
       )}
@@ -1492,56 +1385,45 @@ export default function PermadeathChallenge() {
       {/* ==================== VICTORY OVERLAY ==================== */}
       {gameState === 'victory' && (
         <div className={`${styles.overlay} ${styles['overlay-victory']}`}>
-          <div className={styles['overlay-icon']}>&#127942;</div>
-          <div className={styles['overlay-title']}>一命通关！</div>
-          <div className={styles['overlay-sub']}>
-            PERMADEATH CLEARED · 四大关卡全链路突破（剩余 {hp} HP · 当前连胜 {streak}）
-          </div>
-          <div className={styles['overlay-scores']}>
-            {stageScores.map((score, i) => (
-              <div key={STAGES[i].id} className={styles['overlay-score-item']}>
-                <span className={styles['overlay-score-stage']}>
-                  R{i + 1} · {STAGES[i].name}
-                </span>
-                <span className={styles['overlay-score-val']}>{score}</span>
-              </div>
-            ))}
-          </div>
-          <div className={styles['overlay-actions']}>
-            {sessionId && (
-              <button
-                type="button"
-                className={styles['btn-victory']}
-                onClick={() => navigate(`/analytics/report/${sessionId}`)}
-              >
-                查看本场完整复盘报告
+          <div className={styles['overlay-card']}>
+            <div className={styles['overlay-title']}>一命通关</div>
+            <div className={styles['overlay-sub']}>
+              剩余 {hp} HP · 连胜 {streak}
+            </div>
+            <div className={styles['overlay-scores']}>
+              {stageScores.map((score, i) => (
+                <div key={STAGES[i].id} className={styles['overlay-score-item']}>
+                  <span className={styles['overlay-score-stage']}>{STAGES[i].name}</span>
+                  <span className={styles['overlay-score-val']}>{score} 分</span>
+                </div>
+              ))}
+            </div>
+            <div className={styles['overlay-actions']}>
+              {sessionId && (
+                <button
+                  type="button"
+                  className={styles['btn-victory']}
+                  onClick={() => navigate(`/analytics/report/${sessionId}`)}
+                >
+                  查看报告
+                </button>
+              )}
+              <button type="button" className={styles['btn-complete']} onClick={handleRetry}>
+                再来一局
               </button>
-            )}
-            <button type="button" className={styles['btn-complete']} onClick={handleRetry}>
-              冲击更高连胜
-            </button>
-            {weakestStageRecord && (
-              <button
-                type="button"
-                className={styles['btn-retry']}
-                onClick={() => navigate(weakestStageRecord.route)}
-              >
-                专项特训（{weakestStageRecord.stageName}）
-              </button>
-            )}
-            <Link to="/" className={styles['overlay-back']}>
-              返回概览
-            </Link>
+              {weakestStageRecord && (
+                <button
+                  type="button"
+                  className={styles['btn-retry']}
+                  onClick={() => navigate(weakestStageRecord.route)}
+                >
+                  专项训练
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
-
-      {/* Bottom Nav */}
-      <div className={styles['bottom-nav']}>
-        <Link to="/" className={styles['back-link']}>
-          ← 返回工作台概览
-        </Link>
-      </div>
     </div>
   )
 }
