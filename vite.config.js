@@ -2,8 +2,37 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+function devServiceWorkerCleanupPlugin() {
+  return {
+    name: 'edgewise-dev-sw-cleanup',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url === '/sw.js' || req.url?.startsWith('/sw.js?')) {
+          res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+          res.end(
+            `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+    await self.registration.unregister();
+    const clientsList = await self.clients.matchAll({ type: 'window' });
+    clientsList.forEach((client) => client.navigate(client.url));
+  })());
+});\n`,
+          )
+          return
+        }
+        next()
+      })
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
+    devServiceWorkerCleanupPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -65,6 +94,7 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: '0.0.0.0',
     port: 3000,
     open: true,
     allowedHosts: true,
