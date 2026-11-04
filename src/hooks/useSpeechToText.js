@@ -7,7 +7,7 @@ function getSpeechRecognitionCtor() {
 }
 
 /**
- * Pluggable STT: Web Speech API in-browser; use api/stt.transcribeAudio for recorded blobs later.
+ * Browser Speech-to-Text hook using the native Web Speech API.
  */
 export default function useSpeechToText({ lang = 'zh-CN', onTranscript, onFinalChunk, onError } = {}) {
   const [supported] = useState(() => isWebSpeechAvailable())

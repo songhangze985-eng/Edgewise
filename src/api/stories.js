@@ -5,11 +5,6 @@ export async function listStories() {
   return data
 }
 
-export async function getStory(id) {
-  const { data } = await api.get(`/stories/${id}`)
-  return data
-}
-
 export async function createStory(payload) {
   const { data } = await api.post('/stories', payload)
   return data

@@ -119,11 +119,11 @@
   --reflex-dark: 1.3;
 
   /* ==========================================================================
-     5. Typography Font Stacks (Apple Humanist & Grotesque + CJK Fallback)
+     5. Typography Font Stacks (100% Open-Source OFL Fonts + Generic System Fallbacks)
      ========================================================================== */
-  --font-sans: Geist, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Noto Serif SC", "Songti SC", Georgia, "Times New Roman", serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Pro Mono", Menlo, Monaco, Consolas, monospace;
+  --font-sans: 'Geist', 'Noto Sans SC', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Instrument Serif', 'Noto Serif SC', ui-serif, Georgia, serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
   --font-display: var(--font-serif);
   --font-body: var(--font-sans);
   --font-head: var(--font-sans);

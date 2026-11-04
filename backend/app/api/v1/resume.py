@@ -241,23 +241,3 @@ async def upload_resume(
     await redis.sadd(f"user:{current_user.id}:resumes", resume_record["id"])
     await regenerate_user_resume_questions(redis, current_user.id, resume_record["id"])
     return ResumeResponse.model_validate(resume_record)
-
-
-@router.get("/{resume_id}", response_model=ResumeResponse)
-async def get_resume(
-    resume_id: str,
-    current_user: UserInDB = Depends(get_current_user),
-    redis: Redis = Depends(get_redis),
-) -> ResumeResponse:
-    resume_record = await get_json(redis, f"resume:{resume_id}")
-    if resume_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resume not found",
-        )
-    if resume_record["user_id"] != current_user.id and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have access to this resume",
-        )
-    return ResumeResponse.model_validate(resume_record)

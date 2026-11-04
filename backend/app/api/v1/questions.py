@@ -239,29 +239,3 @@ async def get_question(
     if question.get("star"):
         question["star"] = QuestionStar.model_validate(question["star"]).model_dump()
     return QuestionResponse.model_validate(question)
-
-
-@router.post("", response_model=QuestionResponse, status_code=status.HTTP_201_CREATED)
-async def create_question(
-    payload: QuestionCreate,
-    redis: Redis = Depends(get_redis),
-    _: object = Depends(get_current_admin),
-) -> QuestionResponse:
-    question_id = payload.id or uuid4().hex[:8].upper()
-    if await redis.sismember("questions:all", question_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Question ID already exists",
-        )
-
-    existing_questions = await _load_all_questions(redis)
-    question_record = build_question_record(
-        {
-            **payload.model_dump(exclude_none=True),
-            "id": question_id,
-        },
-        existing_questions=existing_questions,
-    )
-    await set_json(redis, f"question:{question_id}", question_record)
-    await redis.sadd("questions:all", question_id)
-    return QuestionResponse.model_validate(question_record)

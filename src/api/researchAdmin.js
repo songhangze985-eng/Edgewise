@@ -25,11 +25,6 @@ export function fetchResearchSurveyItems(filters) {
   return api.get(`/research/admin/survey/items?${qs(filters)}`).then((r) => r.data)
 }
 
-export function fetchResearchSurveyItem(itemId, filters, opts = {}) {
-  const q = { ...filters, ...opts }
-  return api.get(`/research/admin/survey/items/${itemId}?${qs(q)}`).then((r) => r.data)
-}
-
 export function fetchResearchExperiment(filters, outcome, bootSeed = {}) {
   return api
     .get(
@@ -56,10 +51,6 @@ export function fetchResearchUserTimeline(userHash) {
 
 export function fetchBlindReviewProgress() {
   return api.get('/research/admin/blind-review/progress').then((r) => r.data)
-}
-
-export function postResearchCoding(itemId, body) {
-  return api.post(`/research/admin/coding/${itemId}`, body).then((r) => r.data)
 }
 
 export async function postResearchAdminExport(format, filters) {

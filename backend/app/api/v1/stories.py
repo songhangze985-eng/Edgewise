@@ -43,18 +43,6 @@ async def create_story(
     return StoryView(**row)
 
 
-@router.get("/{story_id}", response_model=StoryView)
-async def read_story(
-    story_id: str,
-    current_user: UserInDB = Depends(get_current_user),
-    redis: Redis = Depends(get_redis),
-) -> StoryView:
-    row = await story_service.get_user_story(redis, current_user.id, story_id)
-    if not row:
-        raise HTTPException(status_code=404, detail="故事不存在")
-    return StoryView(**row)
-
-
 @router.patch("/{story_id}", response_model=StoryView)
 async def patch_story(
     story_id: str,

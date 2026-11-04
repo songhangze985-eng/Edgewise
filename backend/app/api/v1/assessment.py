@@ -24,23 +24,6 @@ async def create_assessment_session(
     return AssessmentSessionResponse.model_validate(row)
 
 
-@router.get("/sessions/{assessment_id}", response_model=AssessmentSessionResponse)
-async def get_assessment_session(
-    assessment_id: str,
-    current_user: UserInDB = Depends(get_current_user),
-    redis: Redis = Depends(get_redis),
-) -> AssessmentSessionResponse:
-    try:
-        row = await assessment_service.get_assessment_for_user(
-            redis, current_user.id, assessment_id
-        )
-    except KeyError:
-        raise HTTPException(status_code=404, detail="Assessment not found") from None
-    except PermissionError:
-        raise HTTPException(status_code=403, detail="Forbidden") from None
-    return AssessmentSessionResponse.model_validate(row)
-
-
 @router.post("/sessions/{assessment_id}/answers", response_model=AssessmentSessionResponse)
 async def post_assessment_answer(
     assessment_id: str,

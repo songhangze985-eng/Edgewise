@@ -40,10 +40,6 @@ export function adminCreateOrg(body) {
   return api.post('/org/admin/orgs', body).then((r) => r.data)
 }
 
-export function adminUpdateOrg(orgId, body) {
-  return api.patch(`/org/admin/orgs/${encodeURIComponent(orgId)}`, body).then((r) => r.data)
-}
-
 export function adminAddWorkshop(orgId, body) {
   return api.post(`/org/admin/orgs/${encodeURIComponent(orgId)}/workshops`, body).then((r) => r.data)
 }

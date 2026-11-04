@@ -149,42 +149,6 @@ async def admin_survey_items(
     return body
 
 
-@router.get("/survey/items/{item_id}")
-async def admin_survey_item_detail(
-    item_id: str,
-    include_text: int = Query(default=0, ge=0, le=1),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-    _admin: UserInDB = Depends(get_current_admin),
-    redis: Redis = Depends(get_redis),
-    filters: StatsFilters = Depends(_filter_dep),
-) -> dict[str, Any]:
-    require_admin_stats_deps()
-    from app.research.admin_stats.metrics import compute_survey_items
-    from app.research.admin_stats.text import word_frequencies
-
-    rows, _ = await load_cohort(redis, filters)
-    item_def = next((i for i in load_survey_items() if i["id"] == item_id), None)
-    if not item_def:
-        raise HTTPException(status_code=404, detail="Unknown item")
-    summary = compute_survey_items(rows)["items"].get(item_id, {})
-    texts: list[str] = []
-    if item_def.get("type") == "open" or include_text:
-        for r in rows:
-            rec = (r.get("survey") or {}).get(item_id)
-            if rec and rec.get("status") == "answered" and rec.get("value"):
-                texts.append(str(rec.get("value")))
-        summary["word_freq"] = word_frequencies(texts)
-        if include_text and len(texts) >= 5:
-            start = (page - 1) * page_size
-            summary["texts"] = [
-                {"user_hash": r["user_hash"], "text": mask_sensitive_text(str((r.get("survey") or {}).get(item_id, {}).get("value")))}
-                for r in rows
-                if (r.get("survey") or {}).get(item_id, {}).get("status") == "answered"
-            ][start : start + page_size]
-    return summary
-
-
 @router.get("/experiment")
 async def admin_experiment(
     outcome: str = Query(default="qualified_activation"),
@@ -306,29 +270,6 @@ async def admin_blind_progress(
         "disagreements": [],
         "note": "详细一致性指标需积累双评数据后显示",
     }
-
-
-@router.post("/coding/{item_id}")
-async def save_open_coding(
-    item_id: str,
-    payload: dict[str, Any],
-    admin: UserInDB = Depends(get_current_admin),
-    redis: Redis = Depends(get_redis),
-) -> MessageResponse:
-    user_h = payload.get("user_hash")
-    label = payload.get("label")
-    if not user_h or not label:
-        raise HTTPException(status_code=400, detail="user_hash and label required")
-    key = f"research:coding:{item_id}:{user_h}"
-    await redis.hset(
-        key,
-        mapping={
-            "coder": admin.id,
-            "label": str(label),
-            "ts": datetime.now(timezone.utc).isoformat(),
-        },
-    )
-    return MessageResponse(message="Coding saved")
 
 
 @router.post("/export")

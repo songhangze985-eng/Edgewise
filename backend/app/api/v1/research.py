@@ -50,14 +50,6 @@ from app.services.research_service import (
 router = APIRouter(prefix="/research", tags=["research"])
 
 
-@router.get("/consent", response_model=ResearchConsentView)
-async def read_consent(
-    current_user: UserInDB = Depends(get_current_user),
-    redis: Redis = Depends(get_redis),
-) -> ResearchConsentView:
-    return await get_research_consent(redis, current_user)
-
-
 @router.post("/consent", response_model=ResearchConsentView)
 async def write_consent(
     payload: ResearchConsentUpdate,
@@ -139,21 +131,6 @@ async def referral_stats(
 ) -> list[ReferralStatsRow]:
     rows = await build_referral_stats(redis)
     return [ReferralStatsRow.model_validate(row) for row in rows]
-
-
-@router.patch("/referral/incentive/{user_id}", response_model=MessageResponse)
-async def set_referral_incentive(
-    user_id: str,
-    incentive: str = Query(pattern="^(task_equity|cash|none)$"),
-    _admin: UserInDB = Depends(get_current_admin),
-    redis: Redis = Depends(get_redis),
-) -> MessageResponse:
-    user_data = await get_json(redis, f"user:{user_id}")
-    if user_data is None:
-        return MessageResponse(message="User not found")
-    user_data["referral_incentive"] = incentive
-    await set_json(redis, f"user:{user_id}", user_data)
-    return MessageResponse(message="Referral incentive updated")
 
 
 @router.post("/events", response_model=ResearchEventsBatchResponse)

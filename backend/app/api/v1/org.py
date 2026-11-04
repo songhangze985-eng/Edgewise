@@ -62,37 +62,6 @@ async def admin_list_orgs(
     return [OrgAdminListItem.model_validate(row) for row in rows]
 
 
-@router.patch("/admin/orgs/{org_id}", response_model=OrgAdminListItem)
-async def admin_update_org(
-    org_id: str,
-    payload: OrgUpdate,
-    _admin: UserInDB = Depends(get_current_admin),
-    redis: Redis = Depends(get_redis),
-) -> OrgAdminListItem:
-    org = await org_service.update_org_admin(
-        redis,
-        org_id,
-        name=payload.name,
-        pilot_period=payload.pilot_period,
-        service_description=payload.service_description,
-        fee_paid=payload.fee_paid,
-        invite_method=payload.invite_method,
-        human_coaching=payload.human_coaching,
-    )
-    member_count = await redis.scard(f"org:{org_id}:members")
-    return OrgAdminListItem(
-        id=org_id,
-        name=org["name"],
-        pilot_period=org["pilot_period"],
-        invite_code=org["invite_code"],
-        fee_paid=org["fee_paid"],
-        invite_method=org["invite_method"],
-        human_coaching=org["human_coaching"],
-        member_count=member_count,
-        created_at=org.get("created_at"),
-    )
-
-
 @router.post("/admin/orgs/{org_id}/workshops", response_model=OrgWorkshopView)
 async def admin_add_workshop(
     org_id: str,

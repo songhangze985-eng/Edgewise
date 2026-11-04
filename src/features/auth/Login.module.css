@@ -8,14 +8,14 @@
   height: 100vh;
   background: #030407;
   overflow: hidden;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 /* Tech labels */
 .tech-label {
   position: absolute;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.2em;
   color: rgba(255, 255, 255, 0.2);
@@ -30,7 +30,7 @@
   position: absolute;
   top: 48px;
   right: 48px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: rgba(255, 255, 255, 0.4);
   z-index: 20;
@@ -82,7 +82,7 @@
 }
 
 .badge {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: #fff;
   background: rgba(255, 255, 255, 0.05);
@@ -99,7 +99,7 @@
   letter-spacing: -0.02em;
   line-height: 1.1;
   color: #fff;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-sans);
   text-transform: none;
 }
 
@@ -123,7 +123,7 @@
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 600;
   transition: background 0.3s ease, transform 0.2s ease;
@@ -143,7 +143,7 @@
   align-items: center;
   gap: 16px;
   color: rgba(255, 255, 255, 0.2);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -176,7 +176,7 @@
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
   padding-left: 16px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.1em;
 }
 
@@ -189,7 +189,7 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   transition: background 0.3s ease;
 }
@@ -206,7 +206,7 @@
   font-size: 12px;
   color: #FF4757;
   padding-left: 16px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.04em;
 }
 
@@ -218,7 +218,7 @@
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;

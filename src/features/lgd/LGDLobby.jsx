@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listRooms, createRoom, listTopics, getLgdMemory, saveLgdMemory } from '../../api/lgd'
+import { listRooms, createRoom, listTopics, listLgdScripts, getLgdMemory, saveLgdMemory } from '../../api/lgd'
 import { getErrorMessage } from '../../api/client'
 import PageBar from '../../components/ui/PageBar'
 import useLgdStore from '../../stores/lgdStore'
@@ -62,6 +62,7 @@ export default function LGDLobby() {
         listRooms(),
         listTopics(),
         getLgdMemory().catch(() => null),
+        listLgdScripts().catch(() => null),
       ])
       setRooms(roomData)
       setTopics(topicData)

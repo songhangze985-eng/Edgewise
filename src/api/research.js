@@ -1,10 +1,6 @@
 import api from './client'
 import useResearchStore from '../stores/researchStore'
 
-export function fetchResearchConsent() {
-  return api.get('/research/consent').then((r) => r.data)
-}
-
 export function submitResearchConsent(accepted, { experimentArm } = {}) {
   const body = { accepted }
   const arm = experimentArm || useResearchStore.getState().touchpoint?.experiment_arm

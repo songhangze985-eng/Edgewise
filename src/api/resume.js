@@ -10,7 +10,3 @@ export function uploadResume(file) {
     })
     .then((r) => r.data)
 }
-
-export function getResume(resumeId) {
-  return api.get(`/resume/${resumeId}`).then((r) => r.data)
-}

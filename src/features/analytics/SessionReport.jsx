@@ -576,7 +576,7 @@ export default function SessionReport() {
                 <PolarGrid stroke="rgba(226,224,229,0.08)" />
                 <PolarAngleAxis
                   dataKey="axis"
-                  tick={{ fill: 'rgba(226,224,229,0.6)', fontSize: 11, fontFamily: "'Space Mono', monospace" }}
+                  tick={{ fill: 'rgba(226,224,229,0.6)', fontSize: 11, fontFamily: 'var(--font-mono)' }}
                 />
                 <Radar
                   dataKey="chartValue"

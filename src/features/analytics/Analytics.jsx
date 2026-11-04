@@ -104,7 +104,7 @@ function Analytics() {
                 <PolarGrid stroke="rgba(226,224,229,0.08)" />
                 <PolarAngleAxis
                   dataKey="axis"
-                  tick={{ fill: 'rgba(226,224,229,0.6)', fontSize: 11, fontFamily: "'Space Mono', monospace" }}
+                  tick={{ fill: 'rgba(226,224,229,0.6)', fontSize: 11, fontFamily: 'var(--font-mono)' }}
                 />
                 <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
                 <Radar

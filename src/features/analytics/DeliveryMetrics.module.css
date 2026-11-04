@@ -18,7 +18,7 @@
   border-radius: 8px;
   background: rgba(155, 111, 199, 0.08);
   border: 1px solid rgba(155, 111, 199, 0.2);
-  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   color: rgba(226, 224, 229, 0.85);
 }
@@ -71,7 +71,7 @@
 }
 
 .metric-value {
-  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-family: var(--font-mono);
   font-size: 1rem;
   font-weight: 600;
 }
