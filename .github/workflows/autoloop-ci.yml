@@ -1,0 +1,43 @@
+name: Edgewise Agent-Autoloop CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  autoloop-verification:
+    name: Autoloop Regression & Contract Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Validate Neat-Freak Doc Sync & Interface Contracts
+        run: npm run autoloop:sync
+
+      - name: Verify Agent-Autoloop Rules Configuration
+        run: npm run autoloop:check
+
+      - name: Execute Full Test Suites (Unit + 172 E2E Tests)
+        run: npm test
+
+      - name: Run Academic Empirical 2x2 Factorial Audit
+        run: npm run autoloop:empirical -- --json

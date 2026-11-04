@@ -113,7 +113,7 @@ npm install
 npm run dev             # http://localhost:3000，会先运行 build-tasks
 ```
 
-### 前端脚本
+### 前端脚本与自动化命令
 
 | 命令 | 作用 |
 | --- | --- |
@@ -121,6 +121,14 @@ npm run dev             # http://localhost:3000，会先运行 build-tasks
 | `npm run build` | 生成任务静态页，然后执行 `vite build` |
 | `npm run preview` | 预览构建产物 |
 | `npm run build:tasks` | 只生成 `public/tasks` 和 `sitemap.xml` |
+| `npm test` | 执行全量单元测试与 172 个 E2E 端到端测试 |
+| `npm run test:e2e` | 运行分层端到端测试（Tiers 1–4） |
+| `npm run autoloop` | 运行 Agent-Autoloop 自动化管线（防腐 + QA + 实证 + UGC） |
+| `npm run autoloop:check` | 验证 `.autoloop/rules.json` 规则与环境依赖 |
+| `npm run autoloop:sync` | 运行 Neat-Freak 架构与文档防脑腐校验 |
+| `npm run autoloop:qa` | 运行 E2E QA 守卫与自愈卡片生成器 |
+| `npm run autoloop:empirical` | 运行 2×2 学术对照组均衡度与信度日常巡检 |
+| `npm run autoloop:ugc` | 运行 UGC 面经隐私脱敏与 STAR 结构审核流水线 |
 
 ### 环境变量
 
@@ -188,10 +196,11 @@ npm run dev             # http://localhost:3000，会先运行 build-tasks
 - 摄像头和麦克风需要用户授权。MediaPipe 模型和 Pyodide 首次使用时会从 CDN（jsDelivr、storage.googleapis.com）加载，离线环境下这两项功能不能用。
 - 支持 PWA，`/api/*` 请求一律走网络，不缓存。
 
-## 开发说明
+## 开发与自动化说明
 
-- 后端测试用 pytest：`cd backend && pip install pytest && pytest`（`requirements.txt` 里没有包含 pytest）。
-- 前端部分模块用 Node 内置的测试运行器：`node --test src/features/interview/*.test.js`。
+- **自动化中台**：项目集成了基于数字生命卡兹克 `agent-autoloop` 架构的后台自治与人机协同系统（见 [`docs/AGENT_AUTOLOOP_INTEGRATION.md`](./docs/AGENT_AUTOLOOP_INTEGRATION.md)），支持 E2E 测试守护、Neat-Freak 文档防腐、实证数据巡检及 UGC 审核。
+- **全量测试**：`npm test` 一键运行全量单元测试与 172 个 E2E 测试；后端测试使用 `PYTHONPATH=backend python3 -m unittest discover -s backend/tests`。
+- **文档与代码防腐**：运行 `npm run autoloop:sync` 验证规范与契约一致性。
 - Redis 里已有的 key 和接口只能新增、不要修改，研究数据依赖它们保持稳定。研究相关的 key 统一写在 `backend/app/research/keys.py`。
 - 推导规则或题库改动后，要同步更新 `RULE_VERSION` / `SURVEY_ITEMS_VERSION`，这样统计时可以按版本筛选。
 - 缺失值不能当成 0；跳过、拒答、未作答要分开记录。

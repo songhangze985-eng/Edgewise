@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/KKKKhazix/agent-autoloop/main/schema/rules.schema.json",
+  "version": "1.0.0",
+  "name": "edgewise-automation-suite",
+  "description": "Edgewise Autonomous Engineering, QA, Academic Data & UGC Operations Suite based on agent-autoloop",
+  "environment": {
+    "node": ">=20.0.0",
+    "python": ">=3.10.0"
+  },
+  "rules": [
+    {
+      "id": "edgewise-qa-watchdog",
+      "name": "E2E QA Regression & Self-Healing Watchdog",
+      "description": "Monitors code commits and runs full E2E & unit test suites. In case of failure, analyzes errors, prepares patch context, and emits HITL card.",
+      "when": {
+        "git": {
+          "branches": ["main", "feature/*"],
+          "events": ["post-commit", "pre-push"]
+        },
+        "cron": "0 2 * * *"
+      },
+      "to": "claude-code",
+      "cwd": ".",
+      "exec": "node scripts/autoloop/qa-watchdog.mjs",
+      "hitl": {
+        "policy": "on_failure",
+        "channels": ["terminal", "feishu", "desktop"],
+        "timeout_seconds": 86400,
+        "actions": ["approve_patch", "retry", "discard"]
+      }
+    },
+    {
+      "id": "edgewise-empirical-monitor",
+      "name": "Academic Empirical Data & Arm Balance Monitor",
+      "description": "Daily audit of ZC x ZP 2x2 experimental arms balance, response rates, and reliability metrics for paper data collection.",
+      "when": {
+        "cron": "0 4 * * *"
+      },
+      "to": "claude-code",
+      "cwd": ".",
+      "exec": "python3 scripts/autoloop/empirical-monitor.py",
+      "hitl": {
+        "policy": "on_anomaly",
+        "channels": ["feishu", "terminal"],
+        "threshold": {
+          "arm_imbalance_ratio": 1.5,
+          "min_records_warning": 50
+        }
+      }
+    },
+    {
+      "id": "edgewise-ugc-audit-pipeline",
+      "name": "UGC Experiences & STAR Stories Auto-Reviewer",
+      "description": "Listens for community submitted interview experiences and questions, runs privacy sanitization, STAR structural scoring, and queues for 1-click approval.",
+      "when": {
+        "event": "ugc:submitted",
+        "cron": "*/30 * * * *"
+      },
+      "to": "claude-code",
+      "cwd": ".",
+      "exec": "python3 scripts/autoloop/ugc-reviewer.py",
+      "hitl": {
+        "policy": "always",
+        "channels": ["feishu", "desktop"],
+        "actions": ["publish", "request_revision", "reject"]
+      }
+    },
+    {
+      "id": "edgewise-neat-freak-sync",
+      "name": "Neat-Freak Architecture & Doc Anti-Rot Validator",
+      "description": "Verifies strict alignment between PROJECT.md feature contracts, UI primitives, CSS tokens, and route trees to eliminate documentation decay.",
+      "when": {
+        "git": {
+          "events": ["pre-commit"]
+        }
+      },
+      "to": "claude-code",
+      "cwd": ".",
+      "exec": "node scripts/autoloop/neat-freak-sync.mjs",
+      "hitl": {
+        "policy": "on_failure",
+        "channels": ["terminal"]
+      }
+    }
+  ]
+}

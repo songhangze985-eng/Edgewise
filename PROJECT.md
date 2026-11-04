@@ -46,6 +46,7 @@
 | F26 | Tier 4 Real-World End-to-End User Scenarios | Validate realistic user journeys (Landing → Login → Dashboard → Interview setup → Question bank → Profile → Session report). | E2E | Test Track |
 | F27 | 100% E2E Test Pass Verification | Execute full opaque-box test suite against the overhauled codebase; fix any regressions until 100% passing. | M5 | AC, Implementation |
 | F28 | Tier 5 Adversarial Coverage Hardening | Run white-box adversarial testing, probe edge cases, ensure zero console errors and full responsive integrity. | M5 | AC, Final Milestone |
+| F29 | Agent-Autoloop Engineering & Academic Operations Suite | Integrated background autonomous daemon (.autoloop/rules.json), E2E QA watchdog, neat-freak sync, empirical monitor, and UGC reviewer. | M6 | Ops |
 
 ---
 
@@ -58,6 +59,7 @@
 | M3 | Public & Core Workspace Pages Overhaul | F10, F11, F12, F13, F14: Promo landing page, Login split view, Dashboard workbench, Profile & account page, Task directory and Sharing flows. | M2 | PLANNED |
 | M4 | Interactive Simulation & Practice Workflows | F15, F16, F17, F18, F19, F20, F21: 1v1 Interview lobby & rooms, LGD, Coding arena, Case study, Question bank, Resume workbench, Schedule, Analytics. | M2 | PLANNED |
 | M5 | E2E Verification & Adversarial Hardening | F27, F28: Execute complete E2E test suite (Tiers 1–4) after `TEST_READY.md` published; pass 100% tests; run Tier 5 adversarial hardening and forensic integrity audit. | M3, M4, TEST_READY.md | PLANNED |
+| M6 | Agent-Autoloop Automation & DevOps Suite | F29: Full integration of agent-autoloop background daemon, neat-freak sync, daily empirical checks, and HITL approval cards. | M5 | COMPLETED |
 
 ### Parallel Track: E2E Testing Track
 | Track | Scope | Dependencies | Deliverable | Status |
@@ -113,3 +115,4 @@
 - **Public & Workspace Features**: `src/features/promo/*`, `src/features/auth/*`, `src/features/dashboard/*`, `src/features/profile/*`, `src/features/tasks/*`, `src/features/share/*`
 - **Practice & Simulation Features**: `src/features/interview/*`, `src/features/lgd/*`, `src/features/coding/*`, `src/features/case/*`, `src/features/questions/*`, `src/features/resume/*`, `src/features/schedule/*`, `src/features/analytics/*`
 - **E2E Testing Infrastructure**: `tests/e2e/*`, `scripts/run-e2e-tests.mjs`, `TEST_INFRA.md`, `TEST_READY.md`
+- **Autoloop Automation Infrastructure**: `.autoloop/rules.json`, `scripts/autoloop/*`, `docs/AGENT_AUTOLOOP_INTEGRATION.md`, `.github/workflows/autoloop-ci.yml`
