@@ -1,7 +1,24 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PageBar from '../../components/ui/PageBar'
+import SnapSlider from '../../components/ui/SnapSlider'
+import useSettingsStore from '../../stores/settingsStore'
 import styles from './CreativeStudio.module.css'
+
+const TTS_RATE_STOPS = [0.8, 0.9, 1.0, 1.2, 1.4]
+
+function rateToSpeedLevel(rate) {
+  let bestIdx = 2
+  let bestDist = Infinity
+  TTS_RATE_STOPS.forEach((r, idx) => {
+    const d = Math.abs(r - Number(rate || 1.0))
+    if (d < bestDist) {
+      bestDist = d
+      bestIdx = idx
+    }
+  })
+  return bestIdx + 1
+}
 
 const INTERVIEW_STYLES = [
   { id: 'structured', name: '结构化面试' },
@@ -26,8 +43,17 @@ const DEFAULT_EVENTS = [
 ]
 
 export default function CreativeStudio() {
-  const [strictness, setStrictness] = useState(3)
-  const [speed, setSpeed] = useState(3)
+  const strictness = useSettingsStore((s) => s.strictnessLevel ?? 3)
+  const setStrictness = useSettingsStore((s) => s.setStrictnessLevel)
+  const ttsRate = useSettingsStore((s) => s.ttsRate ?? 1.0)
+  const setTtsRate = useSettingsStore((s) => s.setTtsRate)
+
+  const speed = rateToSpeedLevel(ttsRate)
+  const setSpeed = (lvl) => {
+    const idx = Math.max(0, Math.min(4, Math.round(Number(lvl)) - 1))
+    setTtsRate(TTS_RATE_STOPS[idx])
+  }
+
   const [interviewStyle, setInterviewStyle] = useState('structured')
   const [customPrompt, setCustomPrompt] = useState('')
 
@@ -92,22 +118,14 @@ export default function CreativeStudio() {
               <span className={styles['slider-label']}>严厉程度</span>
               <span className={styles['slider-value']}>{strictness}</span>
             </div>
-            <div className={styles['slider-track']}>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="1"
-                value={strictness}
-                onChange={(e) => setStrictness(Number(e.target.value))}
-                className={styles['slider-input']}
-                style={styleFill(strictness)}
-              />
-            </div>
-            <div className={styles['slider-labels']}>
-              <span className={styles['slider-end']}>温和</span>
-              <span className={styles['slider-end']}>高压</span>
-            </div>
+            <SnapSlider
+              stops={[1, 2, 3, 4, 5]}
+              value={strictness}
+              onChange={setStrictness}
+              minLabel="温和"
+              maxLabel="高压"
+              ariaLabel="严厉程度"
+            />
           </div>
 
           {/* Speed Slider */}
@@ -116,22 +134,14 @@ export default function CreativeStudio() {
               <span className={styles['slider-label']}>语速节奏</span>
               <span className={styles['slider-value']}>{speed}</span>
             </div>
-            <div className={styles['slider-track']}>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="1"
-                value={speed}
-                onChange={(e) => setSpeed(Number(e.target.value))}
-                className={styles['slider-input']}
-                style={styleFill(speed)}
-              />
-            </div>
-            <div className={styles['slider-labels']}>
-              <span className={styles['slider-end']}>慢速</span>
-              <span className={styles['slider-end']}>快速</span>
-            </div>
+            <SnapSlider
+              stops={[1, 2, 3, 4, 5]}
+              value={speed}
+              onChange={setSpeed}
+              minLabel="慢速"
+              maxLabel="快速"
+              ariaLabel="语速节奏"
+            />
           </div>
 
           {/* Interview Style */}

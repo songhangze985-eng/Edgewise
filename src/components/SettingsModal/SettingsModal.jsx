@@ -10,6 +10,7 @@ import useTTS, { listZhVoices } from '../../hooks/useTTS'
 import { getArmForcedTtsEnabled, TTS_FORCED_BY_ARM } from '../../config/tts'
 import { trackResearchEvent } from '../../research/track'
 import { PRESENCE_CONSENT_MODEL_MB } from '../../features/interview/presenceMetrics'
+import SnapSlider from '../ui/SnapSlider'
 import styles from './SettingsModal.module.css'
 
 const TABS = [
@@ -264,16 +265,15 @@ export default function SettingsModal({ onClose }) {
                     <div className={styles['setting-label']}>语速</div>
                     <div className={styles['setting-desc']}>{ttsRate.toFixed(2)}×</div>
                   </div>
-                  <input
-                    type="range"
-                    className={styles['setting-range']}
-                    min={0.8}
-                    max={1.4}
-                    step={0.01}
-                    value={ttsRate}
-                    onChange={(e) => setTtsRate(Number(e.target.value))}
-                    aria-label="语音语速"
-                  />
+                  <div className={styles['setting-range']}>
+                    <SnapSlider
+                      stops={[0.8, 0.9, 1.0, 1.2, 1.4]}
+                      value={ttsRate}
+                      onChange={setTtsRate}
+                      formatStopLabel={(v) => `${v}×`}
+                      ariaLabel="语音语速"
+                    />
+                  </div>
                 </div>
                 <div className={styles['setting-row']}>
                   <div>

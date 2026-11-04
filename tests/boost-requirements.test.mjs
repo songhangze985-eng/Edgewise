@@ -99,4 +99,19 @@ describe('Boost 6 User Requirements & Reviewer Fixes Verification', () => {
     assert.match(challengeJsx, /checkPendingSurvey\('challenge'\)/)
     assert.doesNotMatch(challengeJsx, /Math\.random\(\)\s*\*\s*35/)
   })
+
+  it('Req 8: SnapSlider mounts circular thumb at progress bar tip, renders snap detents, detects drag trend, and syncs globally', () => {
+    const snapJsx = read('src/components/ui/SnapSlider.jsx')
+    const snapCss = read('src/components/ui/SnapSlider.module.css')
+    const studioJsx = read('src/features/studio/CreativeStudio.jsx')
+    const settingsJsx = read('src/components/SettingsModal/SettingsModal.jsx')
+
+    assert.match(snapJsx, /trendThreshold/)
+    assert.match(snapJsx, /detent-node/)
+    assert.match(snapJsx, /thumb-wheel/)
+    assert.match(snapCss, /\.thumb-wheel\s*\{[\s\S]*top:\s*50%[\s\S]*transform:\s*translate\(-50%,\s*-50%\)/)
+    assert.match(studioJsx, /SnapSlider/)
+    assert.match(studioJsx, /useSettingsStore/)
+    assert.match(settingsJsx, /SnapSlider/)
+  })
 })

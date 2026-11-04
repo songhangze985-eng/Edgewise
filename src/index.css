@@ -267,6 +267,16 @@ select:not([data-custom-select="true"]) {
   border-radius: var(--radius-md, 10px);
 }
 
+/* Global Range Slider Fallback: keep circular thumb centered on runnable track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  margin-top: -5px;
+}
+
 /* ---- Modern Refined Scrollbar ---- */
 ::-webkit-scrollbar {
   width: 6px;

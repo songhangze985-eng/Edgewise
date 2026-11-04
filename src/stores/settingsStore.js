@@ -13,7 +13,8 @@ const useSettingsStore = create(
       emailNotifyEnabled: false,
 
       ttsEnabled: true,
-      ttsRate: 1.05,
+      ttsRate: 1.0,
+      strictnessLevel: 3,
       ttsVoiceURI: null,
       deliveryLiveHintEnabled: false,
       presenceAnalysisEnabled: false,
@@ -62,6 +63,12 @@ const useSettingsStore = create(
         const n = Number(ttsRate)
         if (Number.isNaN(n)) return
         set({ ttsRate: Math.min(1.4, Math.max(0.8, n)) })
+      },
+
+      setStrictnessLevel(strictnessLevel) {
+        const n = Math.round(Number(strictnessLevel))
+        if (Number.isNaN(n)) return
+        set({ strictnessLevel: Math.min(5, Math.max(1, n)) })
       },
 
       setTtsVoiceURI(ttsVoiceURI) {
@@ -115,6 +122,7 @@ const useSettingsStore = create(
         emailNotifyEnabled: state.emailNotifyEnabled,
         ttsEnabled: state.ttsEnabled,
         ttsRate: state.ttsRate,
+        strictnessLevel: state.strictnessLevel,
         ttsVoiceURI: state.ttsVoiceURI,
         deliveryLiveHintEnabled: state.deliveryLiveHintEnabled,
         presenceAnalysisEnabled: state.presenceAnalysisEnabled,
