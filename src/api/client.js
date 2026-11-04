@@ -3,6 +3,19 @@ import { showToast } from '../stores/toastStore'
 
 const TOKEN_KEY = 'edgewise-auth'
 
+const SILENT_BG_PATHS = [
+  '/research/events',
+  '/research/survey/pending',
+  '/research/posttest/status',
+  '/research/experiment',
+  '/org/me',
+]
+
+function isSilentBackgroundRequest(config) {
+  if (!config?.url) return false
+  return SILENT_BG_PATHS.some((p) => config.url.includes(p))
+}
+
 function readPersistedToken() {
   try {
     const raw = localStorage.getItem(TOKEN_KEY)
@@ -73,7 +86,7 @@ api.interceptors.response.use(
             : '/login'
         window.location.assign(dest)
       }
-    } else if (!error.config?.skipErrorToast) {
+    } else if (!error.config?.skipErrorToast && !isSilentBackgroundRequest(error.config)) {
       showToast(getErrorMessage(error), 'error')
     }
     return Promise.reject(error)
@@ -84,6 +97,10 @@ export function getErrorMessage(error, fallback = '请求失败') {
   const detail = error?.response?.data?.detail
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg
+  const status = error?.response?.status
+  if (status === 502 || status === 503 || status === 504 || error?.code === 'ERR_NETWORK') {
+    return '后端服务正在连接中，请稍候刷新重试'
+  }
   return error?.message || fallback
 }
 

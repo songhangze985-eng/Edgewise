@@ -6,6 +6,10 @@ const useToastStore = create((set, get) => ({
   toasts: [],
 
   push(message, variant = 'error') {
+    const existing = get().toasts.find((t) => t.message === message && t.variant === variant)
+    if (existing) {
+      return existing.id
+    }
     const id = ++toastCounter
     set((state) => ({
       toasts: [...state.toasts, { id, message, variant }].slice(-5),
