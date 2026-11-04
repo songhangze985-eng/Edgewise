@@ -21,6 +21,24 @@ from app.services.document_parse import UPLOAD_TEXT_MAX_CHARS, extract_text_from
 from app.services.question_text_parse import parse_questions_from_text
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+CHUNK_SIZE = 64 * 1024
+
+
+async def _read_upload_file_bounded(file: UploadFile, max_bytes: int = MAX_UPLOAD_BYTES) -> bytes:
+    chunks: list[bytes] = []
+    total_size = 0
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"文件大小超过限制（最大 {max_bytes // (1024 * 1024)}MB）",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 router = APIRouter(prefix="/questions", tags=["questions"])
 
@@ -152,16 +170,11 @@ async def upload_questions_file(
     current_user: UserInDB = Depends(get_current_user),
     redis: Redis = Depends(get_redis),
 ) -> QuestionUploadResponse:
-    file_bytes = await file.read()
+    file_bytes = await _read_upload_file_bounded(file, MAX_UPLOAD_BYTES)
     if not file_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty",
-        )
-    if len(file_bytes) > MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件不能超过 10MB",
         )
 
     file_name = file.filename or "questions.bin"

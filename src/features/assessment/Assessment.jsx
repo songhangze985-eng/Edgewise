@@ -7,6 +7,7 @@ import {
 } from '../../api/assessment'
 import { getErrorMessage } from '../../api/client'
 import { showToast } from '../../stores/toastStore'
+import { sanitizeHtml } from '../../utils/sanitizeHtml'
 import styles from './Assessment.module.css'
 
 const PHASE = {
@@ -287,7 +288,7 @@ export default function Assessment() {
           {currentAptitudeItem.figural_svg && (
             <div
               className={styles.figural}
-              dangerouslySetInnerHTML={{ __html: currentAptitudeItem.figural_svg }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentAptitudeItem.figural_svg) }}
             />
           )}
           <div className={styles.options} role="listbox" aria-label="选项">

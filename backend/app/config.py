@@ -1,5 +1,7 @@
+import json
 from typing import Optional
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Insecure placeholder — production boot refuses this value.
@@ -13,7 +15,12 @@ class Settings(BaseSettings):
     JWT_SECRET: str = INSECURE_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://edgewise.app",
+        "https://www.edgewise.app",
+    ]
     RESEARCH_HASH_SECRET: Optional[str] = None
     # Open API interface dedicated exclusively to LGD group discussion multi-agent roleplay
     LGD_LLM_API_KEY: Optional[str] = None
@@ -23,17 +30,35 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env")
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            s = v.strip()
+            if s.startswith("["):
+                try:
+                    return json.loads(s)
+                except Exception:
+                    pass
+            return [item.strip() for item in s.split(",") if item.strip()]
+        return v
+
     @property
     def is_production(self) -> bool:
-        return self.APP_ENV.strip().lower() in {"production", "prod"}
+        return self.APP_ENV.strip().lower() in {"production", "prod", "staging", "uat"}
+
+    @property
+    def is_development(self) -> bool:
+        return self.APP_ENV.strip().lower() in {"development", "dev", "local", "test"}
 
     def require_secure_jwt(self) -> None:
         secret = (self.JWT_SECRET or "").strip()
         if not secret or secret == INSECURE_JWT_SECRET:
-            if self.is_production:
+            if not self.is_development:
                 raise RuntimeError(
-                    "JWT_SECRET must be set to a strong random value when APP_ENV=production. "
-                    "Copy .env.example to backend/.env and replace the placeholder."
+                    f"JWT_SECRET cannot use the insecure default placeholder when APP_ENV='{self.APP_ENV}'. "
+                    "Only local development/test environments may use the default placeholder. "
+                    "Set a strong random JWT_SECRET in backend/.env or your deployment environment."
                 )
 
 

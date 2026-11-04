@@ -11,6 +11,7 @@ import {
   markTaskViewed,
   taskEntryPrefillEnabled,
 } from './taskUtils'
+import { sanitizeHtml } from '../../utils/sanitizeHtml'
 import styles from './Tasks.module.css'
 
 const SECTION_ORDER = [
@@ -135,7 +136,7 @@ export default function TaskPage() {
             <h2>{key}</h2>
             <div
               className={styles.sectionBody}
-              dangerouslySetInnerHTML={{ __html: task.sectionHtml[key] }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.sectionHtml[key]) }}
             />
           </section>
         ))}

@@ -218,13 +218,34 @@ def _build_resume_record(
     }
 
 
+MAX_RESUME_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
+CHUNK_SIZE = 64 * 1024  # 64KB chunk
+
+
+async def _read_upload_file_bounded(file: UploadFile, max_bytes: int = MAX_RESUME_SIZE_BYTES) -> bytes:
+    chunks: list[bytes] = []
+    total_size = 0
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"文件大小超过限制（最大 {max_bytes // (1024 * 1024)}MB）",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 @router.post("/upload", response_model=ResumeResponse, status_code=status.HTTP_201_CREATED)
 async def upload_resume(
     file: UploadFile = File(...),
     current_user: UserInDB = Depends(get_current_user),
     redis: Redis = Depends(get_redis),
 ) -> ResumeResponse:
-    file_bytes = await file.read()
+    file_bytes = await _read_upload_file_bounded(file, MAX_RESUME_SIZE_BYTES)
     if not file_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
