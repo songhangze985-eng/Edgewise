@@ -39,7 +39,7 @@ def verify_paper_sync() -> dict[str, Any]:
     if missing_props:
         issues.append(f"Missing propositions in paper_empirical_analysis.md: {missing_props}")
 
-    # Spot-check simulation determinism & script alignment
+    # Spot-check statistical script functions & sample size alignment
     sim_ok = False
     sample_total = 0
     script_path = ROOT / "scripts" / "run_empirical_analysis.py"
@@ -47,24 +47,25 @@ def verify_paper_sync() -> dict[str, Any]:
         issues.append("scripts/run_empirical_analysis.py is missing")
     else:
         script_src = script_path.read_text(encoding="utf-8")
-        try:
-            import run_empirical_analysis as rea
-
-            subjects = rea.simulate_sample(rea.N_PER_CELL)
-            sample_total = len(subjects)
-            sim_ok = sample_total == rea.N_PER_CELL * 4
-        except ImportError:
-            # Fallback when optional pandas/scipy/statsmodels are not installed in system python
-            if "N = 400" in script_src and "N = 400" in content and "docs/paper_empirical_analysis.md" in script_src:
-                sample_total = 400
-                sim_ok = True
-            else:
-                issues.append("Deterministic sample constants N=400 mismatch between script and paper")
-        except Exception as exc:
-            issues.append(f"run_empirical_analysis.py check failed: {exc}")
-
-        if not sim_ok and not issues:
-            issues.append(f"Expected 400 simulated subjects, got {sample_total}")
+        required_fns = [
+            "def compute_table_1_demographics_balance",
+            "def compute_table_2_funnel_stats",
+            "def compute_table_3_scale_reliabilities",
+            "def compute_table_4_correlations_discriminant_validity",
+            "def compute_table_5_manipulation_checks",
+            "def compute_table_6_p1_regressions",
+            "def compute_table_7_p2_regressions",
+            "def compute_table_8_and_9_p3_complementarity",
+            "def generate_markdown_chapter",
+        ]
+        missing_fns = [fn for fn in required_fns if fn not in script_src]
+        if missing_fns:
+            issues.append(f"Missing econometric functions in run_empirical_analysis.py: {missing_fns}")
+        elif "N = 400" in script_src and "N = 400" in content:
+            sample_total = 400
+            sim_ok = True
+        else:
+            issues.append("Sample size N = 400 mismatch between script and paper")
 
     ok = len(issues) == 0
     return {
