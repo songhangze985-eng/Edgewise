@@ -21,7 +21,7 @@ class TestLgdMultiAgentSandbox(unittest.IsolatedAsyncioTestCase):
         user_seat = next(s for s in SEAT_ORDER if s["id"] == "user")
         self.assertEqual(user_seat["seat"], 4)
         self.assertEqual(len(AGENT_SANDBOX_PROFILES), 7)
-        self.assertEqual(len(FAST_TRAINING_SCRIPTS), 4)
+        self.assertEqual(len(FAST_TRAINING_SCRIPTS), 6)
 
     def test_sandbox_context_isolation_and_window_limit(self):
         transcript = [
@@ -156,7 +156,7 @@ class TestLgdMultiAgentSandbox(unittest.IsolatedAsyncioTestCase):
         fake_user = SimpleNamespace(id="user-42")
 
         scripts_resp = await list_fast_training_scripts()
-        self.assertEqual(len(scripts_resp["scripts"]), 4)
+        self.assertEqual(len(scripts_resp["scripts"]), 6)
         self.assertEqual(len(scripts_resp["seats"]), 8)
         self.assertEqual(len(scripts_resp["sandboxes"]), 7)
 

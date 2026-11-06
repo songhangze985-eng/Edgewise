@@ -17,16 +17,20 @@ import KeyboardShortcutsHelp from '../../components/a11y/KeyboardShortcutsHelp'
 import { useCountdownAnnouncer } from '../../hooks/useCountdownAnnouncer'
 import { useRoomKeyboardShortcuts } from '../../hooks/useRoomKeyboardShortcuts'
 import { formatScoreGrade } from '../../utils/scoreGrades'
+import { createBrowserSpeechRecognizer, isBrowserSttSupported } from '../../api/stt'
 import {
   AGENTS,
   DEFAULT_MATERIAL,
   DEFAULT_TOPIC,
+  LGD_SCAFFOLD_LEVELS,
   PHASE_DEFS,
   RESPONSES,
   ROLE_LABELS,
   STATEMENT_ORDER,
   agentById,
+  computeLiveProgressiveSummary,
   getScriptById,
+  getTacticalCuesForContext,
   pickAgentForFreeDiscussion,
 } from './lgdScripts'
 import styles from './LGDRoom.module.css'
@@ -86,7 +90,12 @@ export default function LGDRoom() {
   const [captionSentenceIndex, setCaptionSentenceIndex] = useState(0)
   const [spokenCaptionText, setSpokenCaptionText] = useState('')
   const [captionSpeaking, setCaptionSpeaking] = useState(false)
+  const [scaffoldLevel, setScaffoldLevel] = useState('keywords')
+  const [electedReporterId, setElectedReporterId] = useState(null)
+  const [isVoiceListening, setIsVoiceListening] = useState(false)
 
+  const sttRef = useRef(null)
+  const handYieldTimerRef = useRef(null)
   const responseIndexRef = useRef({})
   const startTimeRef = useRef(Date.now())
   const agentTtsProfilesRef = useRef([])
@@ -190,6 +199,11 @@ export default function LGDRoom() {
       cancelled = true
       mountedRef.current = false
       stopTts()
+      if (sttRef.current) {
+        sttRef.current.stop()
+        sttRef.current = null
+      }
+      clearTimeout(handYieldTimerRef.current)
       clearInterval(timerRef.current)
       clearTimeout(simulationRef.current)
       clearInterval(typewriterRef.current)
@@ -546,7 +560,8 @@ export default function LGDRoom() {
 
   function runSummaryReportSimulation() {
     const role = roomMetaRef.current.userRole || userRole
-    if (role === 'reporter') {
+    const userIsReporter = role === 'reporter' || electedReporterId === 'user'
+    if (userIsReporter) {
       useLgdStore.getState().setCurrentSpeaker('user')
       useLgdStore.getState().grabMic()
       useLgdStore.getState().addMessage({
@@ -565,8 +580,11 @@ export default function LGDRoom() {
       return
     }
 
-    const reporterAgent = AGENTS.find((a) => a.id === 'logician') || AGENTS[0]
-    const pool = RESPONSES.summary_report[reporterAgent.id] || []
+    const reporterAgent =
+      AGENTS.find((a) => a.id === electedReporterId) ||
+      AGENTS.find((a) => a.id === 'logician') ||
+      AGENTS[0]
+    const pool = RESPONSES.summary_report[reporterAgent.id] || RESPONSES.summary_report.logician || []
     const fallbackContent = pool[0]
     const turnEpoch = turnEpochRef.current
     setTypingAgent(reporterAgent)
@@ -741,6 +759,130 @@ export default function LGDRoom() {
     }
   }
 
+  /* ---- Active Hand-Raise Floor Yielding (7号和事佬/8号计时员礼貌让麦) ---- */
+  function handleToggleHandRaise() {
+    const nextRaised = !handRaised
+    setHandRaised(nextRaised)
+    clearTimeout(handYieldTimerRef.current)
+
+    if (!nextRaised) return
+    const st = useLgdStore.getState()
+    trackResearchEvent('lgd.hand_raised', { room_id: roomMetaRef.current.roomId, phase: st.phase })
+
+    if (st.phase === 'free_discussion' && !st.micGranted) {
+      handYieldTimerRef.current = setTimeout(() => {
+        if (!mountedRef.current) return
+        const cur = useLgdStore.getState()
+        if (cur.phase !== 'free_discussion' || cur.micGranted) return
+        stopAgentSpeech()
+        const mediator = AGENTS.find((a) => a.id === 'mediator') || AGENTS[0]
+        cur.addMessage({
+          senderId: mediator.id,
+          senderName: mediator.name,
+          senderRole: mediator.role,
+          content: '看到 4号同学 举手示意了，我们先暂停一下，请 4号同学 先发表核心观点！',
+          isUser: false,
+          meta: { floor_yield: true, sandbox: `${mediator.seat}号沙箱` },
+        })
+        cur.setCurrentSpeaker('user')
+        cur.grabMic()
+        setHandRaised(false)
+        if (inputRef.current) inputRef.current.focus()
+      }, 950)
+    }
+  }
+
+  /* ---- Interactive Reporter Election (推选汇报人) ---- */
+  function handleElectReporter(targetId) {
+    setElectedReporterId(targetId)
+    const st = useLgdStore.getState()
+    if (targetId === 'user') {
+      roomMetaRef.current.userRole = 'reporter'
+      showToast('已自荐成为本组汇报人，进入总结汇报阶段后将由你代表小组发言', 'success')
+    } else {
+      const picked = agentById(targetId)
+      showToast(`已推选 ${picked?.seat || ''}号·${picked?.name || '队友'} 担任本组汇报人`, 'info')
+    }
+    trackResearchEvent('lgd.reporter_elected', {
+      room_id: roomMetaRef.current.roomId,
+      elected_reporter: targetId,
+      phase: st.phase,
+    })
+  }
+
+  /* ---- Sync Live Progressive Consensus to Notes ---- */
+  function handleSyncSummaryToNotes() {
+    const summary = computeLiveProgressiveSummary(messages, topic)
+    const block = [
+      `【渐进式共识白板 · ${summary.topic}】`,
+      `✅ 已达成共识：${summary.agreedPoints.length ? summary.agreedPoints.join(' ｜ ') : '待进一步收敛'}`,
+      `⚡ 待收敛分歧：${summary.activeClashes.length ? summary.activeClashes.join(' ｜ ') : '暂无明显冲突'}`,
+      `🎯 4号（我）贡献：${summary.userContributions.length ? summary.userContributions.join(' ｜ ') : '尚未发言'}`,
+    ].join('\n')
+    const nextNotes = notes ? `${notes}\n\n${block}` : block
+    setNotes(nextNotes)
+    showToast('已将实时共识白板同步至讨论笔记', 'success')
+  }
+
+  /* ---- Apply Tactical Cue Card (3-Tier Scaffolding) ---- */
+  function handleApplyTacticalCue(cue) {
+    if (!cue?.template) return
+    const st = useLgdStore.getState()
+    if (!st.micGranted && canInteract) {
+      stopAgentSpeech()
+      st.grabMic()
+    }
+    setInputValue(cue.template)
+    trackResearchEvent('lgd.tactical_cue_applied', {
+      room_id: roomMetaRef.current.roomId,
+      scaffold_level: scaffoldLevel,
+      cue_tag: cue.tag,
+      phase: st.phase,
+    })
+    if (inputRef.current) inputRef.current.focus()
+  }
+
+  /* ---- Browser STT Voice-to-Text Input ---- */
+  function handleToggleVoiceInput() {
+    if (isVoiceListening && sttRef.current) {
+      sttRef.current.stop()
+      setIsVoiceListening(false)
+      return
+    }
+    if (!isBrowserSttSupported()) {
+      showToast('当前浏览器环境未开启 Web Speech 语音识别，请直接键盘输入或使用快捷键抢麦', 'info')
+      return
+    }
+    const st = useLgdStore.getState()
+    if (!st.micGranted && canInteract) {
+      stopAgentSpeech()
+      st.grabMic()
+    }
+    const recognizer = createBrowserSpeechRecognizer({
+      lang: 'zh-CN',
+      continuous: false,
+      interimResults: true,
+      onInterim: (interim) => {
+        if (interim) setInputValue(interim)
+      },
+      onFinal: (finalText) => {
+        if (finalText) {
+          setInputValue((prev) => (prev && !prev.endsWith(finalText) ? `${prev}${finalText}` : finalText))
+        }
+      },
+      onError: () => {
+        setIsVoiceListening(false)
+      },
+      onEnd: () => {
+        setIsVoiceListening(false)
+      },
+    })
+    sttRef.current = recognizer
+    if (recognizer.start()) {
+      setIsVoiceListening(true)
+    }
+  }
+
   /* ---- Seat positions ---- */
   function getSeatPositions() {
     const userProfile = {
@@ -790,6 +932,9 @@ export default function LGDRoom() {
   const canInteract =
     phase === 'personal_statement' || phase === 'free_discussion' || phase === 'summary_report'
   const activeScript = getScriptById(scriptId)
+  const effectiveUserRole = roomMetaRef.current.userRole || userRole || 'member'
+  const liveSummary = computeLiveProgressiveSummary(messages, topic || DEFAULT_TOPIC)
+  const tacticalCues = getTacticalCuesForContext(phase, effectiveUserRole, scaffoldLevel)
 
   const readingCaptionText =
     phase === 'reading' && topic
@@ -911,6 +1056,74 @@ export default function LGDRoom() {
                 </div>
               )
             })}
+          </div>
+
+          {/* Live Progressive Consensus Whiteboard (渐进式共识白板) */}
+          <div className={styles['progressive-board']}>
+            <div className={styles['progressive-head']}>
+              <span className={styles['progressive-title']}>📌 渐进式共识白板</span>
+              <button
+                type="button"
+                className={styles['progressive-sync-btn']}
+                onClick={handleSyncSummaryToNotes}
+                title="一键将实时共识白板导入讨论笔记"
+              >
+                📋 同步至笔记
+              </button>
+            </div>
+            <div className={styles['progressive-list']}>
+              <div className={styles['progressive-row']}>
+                <span className={styles['progressive-tag-agree']}>已达成共识</span>
+                <span className={styles['progressive-text']}>
+                  {liveSummary.agreedPoints.length
+                    ? liveSummary.agreedPoints[liveSummary.agreedPoints.length - 1]
+                    : '等待破冰立框与共识收敛…'}
+                </span>
+              </div>
+              <div className={styles['progressive-row']}>
+                <span className={styles['progressive-tag-clash']}>焦点分歧</span>
+                <span className={styles['progressive-text']}>
+                  {liveSummary.activeClashes.length
+                    ? liveSummary.activeClashes[liveSummary.activeClashes.length - 1]
+                    : '暂无剧烈冲突，注意控时防跑题'}
+                </span>
+              </div>
+              <div className={styles['progressive-row']}>
+                <span className={styles['progressive-tag-user']}>4号锚点</span>
+                <span className={styles['progressive-text']}>
+                  {liveSummary.userContributions.length
+                    ? liveSummary.userContributions[liveSummary.userContributions.length - 1]
+                    : '尚未发言（可点击下方锦囊或举手抢麦）'}
+                </span>
+              </div>
+            </div>
+
+            {/* Interactive Reporter Election Strip (推选汇报人) */}
+            <div className={styles['reporter-election-strip']}>
+              <span className={styles['election-label']}>🗳️ 推选汇报人：</span>
+              <div className={styles['election-chips']}>
+                {[
+                  { id: 'user', label: '4号·我（自荐）' },
+                  { id: 'logician', label: '3号·李理' },
+                  { id: 'mediator', label: '7号·王和' },
+                  { id: 'timekeeper', label: '8号·刘时' },
+                ].map((cand) => {
+                  const active =
+                    electedReporterId === cand.id ||
+                    (!electedReporterId && cand.id === 'user' && effectiveUserRole === 'reporter')
+                  return (
+                    <button
+                      key={cand.id}
+                      type="button"
+                      className={`${styles['election-chip']} ${active ? styles['election-chip-active'] : ''}`}
+                      onClick={() => handleElectReporter(cand.id)}
+                    >
+                      {cand.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1036,7 +1249,7 @@ export default function LGDRoom() {
           <button
             type="button"
             className={`${styles['hw-btn']} ${styles['hand-btn']}`}
-            onClick={() => setHandRaised(!handRaised)}
+            onClick={handleToggleHandRaise}
             disabled={!canInteract}
             aria-label={handRaised ? '取消举手' : '举手示意'}
           >
@@ -1077,18 +1290,64 @@ export default function LGDRoom() {
               </span>
             </span>
           </button>
+
+          {/* 3-Tier De-Cheatified Tactical Scaffolding Level Switcher */}
+          {canInteract && (
+            <div className={styles['scaffold-switcher']}>
+              <span className={styles['scaffold-label']}>💡 破局脚手架：</span>
+              {LGD_SCAFFOLD_LEVELS.map((lvl) => (
+                <button
+                  key={lvl.id}
+                  type="button"
+                  className={`${styles['scaffold-lvl-btn']} ${scaffoldLevel === lvl.id ? styles['scaffold-lvl-active'] : ''}`}
+                  onClick={() => setScaffoldLevel(lvl.id)}
+                  title={lvl.hint}
+                >
+                  {lvl.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Tactical Cue Cards Strip (抢麦破局锦囊) */}
+        {canInteract && tacticalCues.length > 0 && (
+          <div className={styles['tactical-cues-bar']}>
+            {tacticalCues.map((cue, idx) => (
+              <button
+                key={`${cue.tag}-${idx}`}
+                type="button"
+                className={styles['tactical-cue-chip']}
+                onClick={() => handleApplyTacticalCue(cue)}
+                title="点击自动抢麦并填入结构化破局框架（可自行增删具体细节）"
+              >
+                <span className={styles['tactical-cue-tag']}>{cue.tag}</span>
+                <span className={styles['tactical-cue-text']}>{cue.text}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className={styles['input-row']}>
+          <button
+            type="button"
+            className={`${styles['voice-stt-btn']} ${isVoiceListening ? styles['voice-stt-active'] : ''}`}
+            onClick={handleToggleVoiceInput}
+            disabled={!canInteract}
+            aria-label={isVoiceListening ? '停止语音识别' : '语音转文字输入'}
+            title="语音直接转文字（支持反提词器停顿真实度监测）"
+          >
+            {isVoiceListening ? '🔴 聆听中' : '🎙️ 语音'}
+          </button>
           <input
             ref={inputRef}
             type="text"
             className={styles['message-input']}
             placeholder={
               micGranted
-                ? '输入发言内容...'
+                ? '输入发言内容（或点击上方破局锦囊填入话术骨架）...'
                 : canInteract
-                  ? '点击「抢麦」后输入发言...'
+                  ? '点击「抢麦」/「举手」或点击上方破局锦囊发言...'
                   : '当前阶段不可发言'
             }
             value={inputValue}
@@ -1216,6 +1475,71 @@ export default function LGDRoom() {
                 <div className={styles['score-label']}>推进进度</div>
               </div>
             </div>
+
+            {/* lgd_v2 Role-Fit & Anti-Scripted Authenticity Row */}
+            {(lgdMetrics?.role_fit || lgdMetrics?.anti_scripted) && (
+              <div className={styles['v2-diagnostics-grid']}>
+                {lgdMetrics?.role_fit && (
+                  <div className={styles['v2-diag-card']}>
+                    <div className={styles['v2-diag-head']}>
+                      <span>🎭 角色契合度（{lgdMetrics.role_fit.role_label}）</span>
+                      <strong>{lgdMetrics.role_fit.display || `${lgdMetrics.role_fit.score ?? '—'}分`}</strong>
+                    </div>
+                    <div className={styles['v2-diag-hint']}>
+                      {lgdMetrics.role_fit.comment || lgdMetrics.role_fit.hint}
+                    </div>
+                  </div>
+                )}
+                {lgdMetrics?.anti_scripted && (
+                  <div className={styles['v2-diag-card']}>
+                    <div className={styles['v2-diag-head']}>
+                      <span>🛡️ 反提词器真实度（{lgdMetrics.anti_scripted.display || lgdMetrics.anti_scripted.label}）</span>
+                      <strong>
+                        {lgdMetrics.anti_scripted.authenticity_score != null
+                          ? `${lgdMetrics.anti_scripted.authenticity_score}分`
+                          : '—'}
+                      </strong>
+                    </div>
+                    <div className={styles['v2-diag-hint']}>
+                      {lgdMetrics.anti_scripted.comment || lgdMetrics.anti_scripted.hint}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* lgd_v2 Dual-Evaluator Verdicts (Business Director + HRBP) */}
+            {lgdMetrics?.dual_evaluators && (
+              <div className={styles['dual-eval-grid']}>
+                {lgdMetrics.dual_evaluators.business_examiner && (
+                  <div className={styles['dual-eval-card']}>
+                    <div className={styles['dual-eval-title']}>
+                      <span>👔 {lgdMetrics.dual_evaluators.business_examiner.name || lgdMetrics.dual_evaluators.business_examiner.title}</span>
+                      <strong>
+                        {lgdMetrics.dual_evaluators.business_examiner.verdict}（{lgdMetrics.dual_evaluators.business_examiner.score ?? '—'}分）
+                      </strong>
+                    </div>
+                    <div className={styles['dual-eval-verdict']}>
+                      {lgdMetrics.dual_evaluators.business_examiner.comment || lgdMetrics.dual_evaluators.business_examiner.verdict}
+                    </div>
+                  </div>
+                )}
+                {lgdMetrics.dual_evaluators.hr_examiner && (
+                  <div className={styles['dual-eval-card']}>
+                    <div className={styles['dual-eval-title']}>
+                      <span>🧭 {lgdMetrics.dual_evaluators.hr_examiner.name || lgdMetrics.dual_evaluators.hr_examiner.title}</span>
+                      <strong>
+                        {lgdMetrics.dual_evaluators.hr_examiner.verdict}（{lgdMetrics.dual_evaluators.hr_examiner.score ?? '—'}分）
+                      </strong>
+                    </div>
+                    <div className={styles['dual-eval-verdict']}>
+                      {lgdMetrics.dual_evaluators.hr_examiner.comment || lgdMetrics.dual_evaluators.hr_examiner.verdict}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className={styles['summary-feedback']}>{score.feedback}</div>
             <div className={styles['summary-actions']}>
               <button

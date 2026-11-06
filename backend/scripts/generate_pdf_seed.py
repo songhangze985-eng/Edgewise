@@ -3,21 +3,54 @@
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
 import pprint
 import re
 import sys
 from pathlib import Path
 
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except ImportError:  # pragma: no cover
+    PdfReader = None  # type: ignore[assignment]
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parent
 OUT_PATH = ROOT / "app" / "data" / "pdf_import_seed.py"
 
-PDF_PATHS = {
-    "alg": Path("/Users/zzz/Downloads/大厂算法与手撕代码高频题库.pdf"),
-    "bagu": Path("/Users/zzz/Downloads/综合八股文与大厂面经题库.pdf"),
-    "ai": Path("/Users/zzz/Downloads/AI大模型与前沿方向面试题库.pdf"),
+PDF_FILENAMES = {
+    "alg": "大厂算法与手撕代码高频题库.pdf",
+    "bagu": "综合八股文与大厂面经题库.pdf",
+    "ai": "AI大模型与前沿方向面试题库.pdf",
 }
+
+
+def resolve_pdf_paths(input_dir: str | None = None) -> dict[str, Path]:
+    candidate_dirs = []
+    if input_dir:
+        candidate_dirs.append(Path(input_dir).expanduser().resolve())
+    if os.environ.get("EDGEWISE_PDF_DIR"):
+        candidate_dirs.append(Path(os.environ["EDGEWISE_PDF_DIR"]).expanduser().resolve())
+    candidate_dirs.extend([
+        REPO_ROOT / "面试数据集" / "pdfs",
+        REPO_ROOT / "面试数据集",
+        REPO_ROOT.parent,
+    ])
+    resolved: dict[str, Path] = {}
+    for key, fname in PDF_FILENAMES.items():
+        found = None
+        for d in candidate_dirs:
+            cand = d / fname
+            if cand.is_file():
+                found = cand
+                break
+        resolved[key] = found or (candidate_dirs[0] / fname)
+    return resolved
+
+
+PDF_PATHS = resolve_pdf_paths()
 
 PAGE_FOOTER = re.compile(
     r"^大厂(?:算法与手撕代码高频题库|综合八股文与真实面经题库|AI 大模型与前沿方向高频面试题库)"
@@ -432,12 +465,44 @@ SEED_PDF_IMPORT_QUESTIONS: list[dict] = '''
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Extract interview questions from handbook PDFs or verify seed.")
+    parser.add_argument("--input-dir", type=str, default=None, help="Directory containing source PDF handbooks")
+    parser.add_argument("--check", action="store_true", help="Verify existing pdf_import_seed.py without overwriting")
+    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
+    args = parser.parse_args()
+
+    pdf_paths = resolve_pdf_paths(args.input_dir)
+    missing_pdfs = [k for k, p in pdf_paths.items() if not p.is_file()]
+
+    if args.check or missing_pdfs or PdfReader is None:
+        if OUT_PATH.is_file():
+            sys.path.insert(0, str(ROOT))
+            from app.data.pdf_import_seed import SEED_PDF_IMPORT_QUESTIONS
+
+            payload = {
+                "ok": True,
+                "mode": "verified_existing_seed",
+                "seed_file": str(OUT_PATH.relative_to(REPO_ROOT)),
+                "total_questions": len(SEED_PDF_IMPORT_QUESTIONS),
+                "missing_source_pdfs": missing_pdfs,
+            }
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False))
+            else:
+                print(
+                    f"[pdf-seed] Verified existing {OUT_PATH.relative_to(REPO_ROOT)} "
+                    f"({len(SEED_PDF_IMPORT_QUESTIONS)} questions)."
+                )
+            return 0
+        print(f"[pdf-seed] Error: Missing PDFs {missing_pdfs} and {OUT_PATH} does not exist.", file=sys.stderr)
+        return 1
+
     taken = existing_seed_ids()
     all_items: list[dict] = []
 
-    alg_text = read_pdf_text(PDF_PATHS["alg"])
-    bagu_text = read_pdf_text(PDF_PATHS["bagu"])
-    ai_text = read_pdf_text(PDF_PATHS["ai"])
+    alg_text = read_pdf_text(pdf_paths["alg"])
+    bagu_text = read_pdf_text(pdf_paths["bagu"])
+    ai_text = read_pdf_text(pdf_paths["ai"])
 
     parsers = [
         ("alg_top30", parse_alg_top30(alg_text)),
@@ -474,9 +539,12 @@ def main() -> int:
 
     emit_seed_py(all_items)
 
-    print("Wrote", OUT_PATH, "total", len(all_items))
-    for k, v in counts.items():
-        print(f"  {k}: {v}")
+    if args.json:
+        print(json.dumps({"ok": True, "mode": "regenerated", "total_questions": len(all_items), "counts": counts}, ensure_ascii=False))
+    else:
+        print("Wrote", OUT_PATH, "total", len(all_items))
+        for k, v in counts.items():
+            print(f"  {k}: {v}")
     return 0
 
 

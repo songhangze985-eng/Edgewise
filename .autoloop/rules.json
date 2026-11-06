@@ -1,85 +1,200 @@
 {
   "$schema": "https://raw.githubusercontent.com/KKKKhazix/agent-autoloop/main/schema/rules.schema.json",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "name": "edgewise-automation-suite",
-  "description": "Edgewise Autonomous Engineering, QA, Academic Data & UGC Operations Suite based on agent-autoloop",
-  "environment": {
-    "node": ">=20.0.0",
-    "python": ">=3.10.0"
+  "description": "Edgewise (谈锋) 工程、QA 与学术实证全自动运维编排套件 — 基于数字生命卡兹克 Agent-Autoloop 规范构建（9大自治流水线）",
+  "defaults": {
+    "cooldown": "60s",
+    "timeout": "300s",
+    "notify_channel": "feishu_or_desktop",
+    "zero_token_when_idle": true
   },
   "rules": [
     {
       "id": "edgewise-qa-watchdog",
-      "name": "E2E QA Regression & Self-Healing Watchdog",
-      "description": "Monitors code commits and runs full E2E & unit test suites. In case of failure, analyzes errors, prepares patch context, and emits HITL card.",
+      "name": "全栈单元与 E2E 回归测试自愈守卫",
+      "enabled": true,
       "when": {
-        "git": {
-          "branches": ["main", "feature/*"],
-          "events": ["post-commit", "pre-push"]
-        },
-        "cron": "0 2 * * *"
+        "any": [
+          "fs_watch:src/**",
+          "fs_watch:backend/app/**",
+          "fs_watch:tests/**",
+          "manual:qa"
+        ]
       },
+      "if": "exit_code != 0",
       "to": "claude-code",
-      "cwd": ".",
-      "exec": "node scripts/autoloop/qa-watchdog.mjs",
+      "exec": "node scripts/autoloop/qa-watchdog.mjs --json",
+      "prompt_template": "Edgewise 全栈测试（Node 单测 + Python 后端单测 + 172 E2E）出现断言失败。请读取诊断报告，定位回归点，修复代码并重新验证通过，严禁破坏现有 Token Bridge 与路由契约。",
       "hitl": {
-        "policy": "on_failure",
-        "channels": ["terminal", "feishu", "desktop"],
-        "timeout_seconds": 86400,
-        "actions": ["approve_patch", "retry", "discard"]
+        "require_approval": true,
+        "card_title": "🚨 [Edgewise QA Watchdog] 检测到测试回归异常",
+        "actions": ["Approve Patch", "Re-run Tests", "Ignore"]
       }
     },
     {
       "id": "edgewise-empirical-monitor",
-      "name": "Academic Empirical Data & Arm Balance Monitor",
-      "description": "Daily audit of ZC x ZP 2x2 experimental arms balance, response rates, and reliability metrics for paper data collection.",
+      "name": "2×2 学术实验组均衡、信度与漏斗健康巡检",
+      "enabled": true,
       "when": {
-        "cron": "0 4 * * *"
+        "any": [
+          "cron:0 9 * * *",
+          "cron:0 21 * * *",
+          "manual:empirical"
+        ]
       },
-      "to": "claude-code",
-      "cwd": ".",
-      "exec": "python3 scripts/autoloop/empirical-monitor.py",
+      "if": "imbalance_ratio > 1.25 || chi_square_p < 0.05 || min_alpha < 0.70",
+      "to": "codex",
+      "exec": "python3 scripts/autoloop/empirical-monitor.py --json",
+      "prompt_template": "Edgewise 论文 2×2 实验组（ZC × ZP：00, 01, 10, 11）样本分布或量表 Cronbach's α 出现告警。请生成实验组分配诊断简报并推送飞书卡片。",
       "hitl": {
-        "policy": "on_anomaly",
-        "channels": ["feishu", "terminal"],
-        "threshold": {
-          "arm_imbalance_ratio": 1.5,
-          "min_records_warning": 50
-        }
+        "require_approval": false,
+        "card_title": "📊 [Edgewise 学术实证巡检] 实验组样本均衡与信度日报",
+        "actions": ["Acknowledge", "Rebalance Traffic", "Export CSV"]
       }
     },
     {
       "id": "edgewise-ugc-audit-pipeline",
-      "name": "UGC Experiences & STAR Stories Auto-Reviewer",
-      "description": "Listens for community submitted interview experiences and questions, runs privacy sanitization, STAR structural scoring, and queues for 1-click approval.",
+      "name": "面经与题库 UGC 内容真实队列初审流水线",
+      "enabled": true,
       "when": {
-        "event": "ugc:submitted",
-        "cron": "*/30 * * * *"
+        "any": [
+          "redis_stream:experience.submitted",
+          "manual:ugc"
+        ]
       },
+      "if": "pending_count > 0",
       "to": "claude-code",
-      "cwd": ".",
-      "exec": "python3 scripts/autoloop/ugc-reviewer.py",
+      "exec": "python3 scripts/autoloop/ugc-reviewer.py --json",
+      "prompt_template": "收到用户新提交的面经或自定义面试题。请连接 Redis 待审队列执行 PII 敏感联系方式脱敏校验、STAR 结构完整度评分，并生成飞书审批卡片等待管理员一键入库。",
       "hitl": {
-        "policy": "always",
-        "channels": ["feishu", "desktop"],
-        "actions": ["publish", "request_revision", "reject"]
+        "require_approval": true,
+        "card_title": "📝 [Edgewise UGC 审核] 新提交面经待入库审批",
+        "actions": ["Approve & Publish", "Request Revision", "Reject"]
       }
     },
     {
       "id": "edgewise-neat-freak-sync",
-      "name": "Neat-Freak Architecture & Doc Anti-Rot Validator",
-      "description": "Verifies strict alignment between PROJECT.md feature contracts, UI primitives, CSS tokens, and route trees to eliminate documentation decay.",
+      "name": "文档、大小写敏感路径、SEO 任务清单与架构契约防腐同步器",
+      "enabled": true,
       "when": {
-        "git": {
-          "events": ["pre-commit"]
-        }
+        "any": [
+          "git_hook:pre-commit",
+          "cron:0 4 * * *",
+          "manual:sync"
+        ]
       },
+      "if": "drift_count > 0",
       "to": "claude-code",
-      "cwd": ".",
-      "exec": "node scripts/autoloop/neat-freak-sync.mjs",
+      "exec": "node scripts/autoloop/neat-freak-sync.mjs --json",
+      "prompt_template": "检测到源码物理路径（区分大小写）、任务页 manifest 与 PROJECT.md 契约清单存在漂移。请按照 neat-freak 规范对齐。",
       "hitl": {
-        "policy": "on_failure",
-        "channels": ["terminal"]
+        "require_approval": true,
+        "card_title": "🧹 [Edgewise Neat-Freak] 架构与文档契约同步校验",
+        "actions": ["Sync Docs", "Dismiss"]
+      }
+    },
+    {
+      "id": "edgewise-daily-derive",
+      "name": "每日学术时间窗指标派生与 3 日未活跃流失微问卷唤醒",
+      "enabled": true,
+      "when": {
+        "any": [
+          "cron:0 2 * * *",
+          "manual:derive"
+        ]
+      },
+      "if": "inactive_3d_survey_triggered > 0",
+      "to": "codex",
+      "exec": "python3 scripts/autoloop/daily-derive-scheduler.py --json",
+      "prompt_template": "每日凌晨自动执行 derive_daily_aggregates，计算 7 日留存（H1）、触发 3 日未活跃微问卷（inactive_3d / H4）、标记 7 日自然流失与 14 日自主激活率。",
+      "hitl": {
+        "require_approval": false,
+        "card_title": "✅ [Edgewise 学术派生] H1/H4 每日时间窗指标派生完成",
+        "actions": ["View Retention Funnel", "Dismiss"]
+      }
+    },
+    {
+      "id": "edgewise-blind-review-dispatcher",
+      "name": "P2 命题双盲专家评审池预检与派单调度器",
+      "enabled": true,
+      "when": {
+        "any": [
+          "cron:0 18 * * *",
+          "manual:blind_review"
+        ]
+      },
+      "if": "valid_pairs >= 2",
+      "to": "claude-code",
+      "exec": "python3 scripts/autoloop/blind-review-dispatcher.py --json",
+      "prompt_template": "扫描 Redis research:blind_review:pool 双盲评审池，校验首答与修订版文本完整性，向独立评分员推送盲审任务卡片。",
+      "hitl": {
+        "require_approval": false,
+        "card_title": "🔬 [Edgewise P2 双盲评审] 专家盲审样本对就绪提醒",
+        "actions": ["Dispatch Raters", "Export Blind CSV"]
+      }
+    },
+    {
+      "id": "edgewise-paper-sync",
+      "name": "论文第四章实证表 4-1~4-9 与 P1~P6 统计引擎同步守卫",
+      "enabled": true,
+      "when": {
+        "any": [
+          "fs_watch:scripts/run_empirical_analysis.py",
+          "fs_watch:docs/paper_empirical_analysis.md",
+          "cron:0 22 * * 0",
+          "manual:paper_sync"
+        ]
+      },
+      "if": "ok == false",
+      "to": "claude-code",
+      "exec": "python3 scripts/autoloop/paper-sync-verifier.py --json",
+      "prompt_template": "核验 docs/paper_empirical_analysis.md 中的表 4-1 至表 4-9 及命题 P1-P6 是否与统计脚本完全一致。",
+      "hitl": {
+        "require_approval": true,
+        "card_title": "📑 [Edgewise 论文同步守卫] 第四章实证表与统计模型校验",
+        "actions": ["Regenerate Paper Tables", "Dismiss"]
+      }
+    },
+    {
+      "id": "edgewise-dataset-etl",
+      "name": "95万行中文面试数据集与 PDF 题库种子健康守卫",
+      "enabled": true,
+      "when": {
+        "any": [
+          "fs_watch:面试数据集/**",
+          "fs_watch:backend/scripts/etl_chinese_interview_dataset.py",
+          "manual:dataset_etl"
+        ]
+      },
+      "if": "ok == false",
+      "to": "claude-code",
+      "exec": "python3 scripts/autoloop/dataset-etl-watcher.py --json",
+      "prompt_template": "核验 Chinese_interview_large.json 与 PDF 题库种子是否已完成清洗入库并具备完整追问链。",
+      "hitl": {
+        "require_approval": false,
+        "card_title": "🗂️ [Edgewise 题库 ETL 守卫] 外部真题库与追问覆盖率巡检",
+        "actions": ["Re-run ETL", "Dismiss"]
+      }
+    },
+    {
+      "id": "edgewise-scripted-auditor",
+      "name": "反 AI 提词器 / 反背稿真实度检测阈值校准器",
+      "enabled": true,
+      "when": {
+        "any": [
+          "cron:0 6 * * 1",
+          "manual:scripted_audit"
+        ]
+      },
+      "if": "ok == false",
+      "to": "claude-code",
+      "exec": "python3 scripts/autoloop/scripted-answer-auditor.py --json",
+      "prompt_template": "对标市面 AI 面试提词器（Final Round AI / 多面鹅等）生成特征，校准语速停顿与套话密度检测阈值。",
+      "hitl": {
+        "require_approval": false,
+        "card_title": "🛡️ [Edgewise 反提词器审计] 背稿感与真实度检测阈值校准",
+        "actions": ["Calibrate Thresholds", "Dismiss"]
       }
     }
   ]

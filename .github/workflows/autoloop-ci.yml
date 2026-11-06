@@ -1,25 +1,25 @@
-name: Edgewise Agent-Autoloop CI
+name: Edgewise Autoloop & QA CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
   autoloop-verification:
-    name: Autoloop Regression & Contract Verification
+    name: Autoloop Hygiene, Full-Stack Unit & E2E Guard
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
           cache: 'npm'
 
       - name: Setup Python 3.12
@@ -27,17 +27,30 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Node Dependencies
+      - name: Install Frontend Dependencies
         run: npm ci
 
-      - name: Validate Neat-Freak Doc Sync & Interface Contracts
+      - name: Install Backend Test Dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: 1. Neat-Freak Architecture & Doc Sync Check
         run: npm run autoloop:sync
 
-      - name: Verify Agent-Autoloop Rules Configuration
+      - name: 2. Autoloop Rules & Pipeline Environment Check (9 Rules)
         run: npm run autoloop:check
 
-      - name: Execute Full Test Suites (Unit + 172 E2E Tests)
+      - name: 3. Execute Frontend Unit & E2E Regression Suite
         run: npm test
 
-      - name: Run Academic Empirical 2x2 Factorial Audit
-        run: npm run autoloop:empirical -- --json
+      - name: 4. Execute Backend Python Unit Test Suite
+        run: npm run test:backend
+
+      - name: 5. Empirical Monitor, Daily Derive, Blind Review, Paper Sync & Dataset ETL Checks
+        run: |
+          npm run autoloop:empirical -- --json
+          npm run autoloop:ugc -- --json
+          npm run autoloop:derive -- --json
+          npm run autoloop:blind -- --json
+          npm run autoloop:paper -- --json
+          npm run autoloop:dataset -- --json
+          npm run autoloop:scripted -- --json

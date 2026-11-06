@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Edgewise Neat-Freak Architecture & Doc Anti-Rot Validator
+ * Edgewise Autoloop Neat-Freak Architecture & Documentation Synchronizer
+ * Inspired by khazix-skills `neat-freak` & `agent-autoloop` repository hygiene rules.
  *
- * Implements the Neat-Freak synchronization principle from khazix-skills:
- * Strictly validates that PROJECT.md documentation contracts, feature inventory,
- * UI primitive specifications, and source code implementations remain 100% synchronized
- * with ZERO "documentation brain rot" (文档脑腐).
- *
- * Usage:
- *   node scripts/autoloop/neat-freak-sync.mjs
- *   node scripts/autoloop/neat-freak-sync.mjs --json
+ * Ensures zero "documentation rot" between:
+ *  - PROJECT.md Feature Inventory & Interface Contracts
+ *  - Actual source files in `src/` & `backend/` (with strict case-sensitive verification)
+ *  - Route declarations in `src/App.jsx`
+ *  - CSS Token Bridge variables in `src/styles/tokens.css` & `src/index.css`
+ *  - Task SEO manifest (`public/tasks/manifest.json`) vs `content/tasks/*.md`
  */
 
 import fs from 'node:fs'
@@ -23,166 +22,188 @@ const ROOT = path.resolve(__dirname, '../..')
 const args = process.argv.slice(2)
 const isJson = args.includes('--json')
 
+function existsCaseSensitive(relPath) {
+  const fullPath = path.join(ROOT, relPath)
+  if (!fs.existsSync(fullPath)) return false
+  const dir = path.dirname(fullPath)
+  const base = path.basename(fullPath)
+  try {
+    const entries = fs.readdirSync(dir)
+    return entries.includes(base)
+  } catch {
+    return false
+  }
+}
+
 export function runNeatFreakCheck() {
   const issues = []
   const checks = []
 
-  // Check 1: PROJECT.md exists
-  const projectMdPath = path.join(ROOT, 'PROJECT.md')
-  if (!fs.existsSync(projectMdPath)) {
-    issues.push('Missing PROJECT.md in repository root')
-    return { ok: false, issues, checks }
-  }
-  const projectMd = fs.readFileSync(projectMdPath, 'utf8')
-  checks.push('PROJECT.md is present')
-
-  // Check 2: Core Feature Inventories (F01–F21) File Mapping
-  const coreFiles = [
-    { feature: 'F01', path: 'src/index.css' },
-    { feature: 'F01', path: 'src/styles/tokens.css' },
-    { feature: 'F05', path: 'src/components/Layout/Sidebar.jsx' },
-    { feature: 'F06', path: 'src/components/Layout/MobileTabBar.jsx' },
-    { feature: 'F07', path: 'src/components/ui/PageBar.jsx' },
-    { feature: 'F08 (Button)', path: 'src/components/ui/Button.jsx' },
-    { feature: 'F08 (Card)', path: 'src/components/ui/Card.jsx' },
-    { feature: 'F08 (Input)', path: 'src/components/ui/Input.jsx' },
-    { feature: 'F08 (SegmentedControl)', path: 'src/components/ui/SegmentedControl.jsx' },
-    { feature: 'F08 (Switch)', path: 'src/components/ui/Switch.jsx' },
-    { feature: 'F08 (Badge)', path: 'src/components/ui/Badge.jsx' },
-    { feature: 'F08 (Modal)', path: 'src/components/ui/Modal.jsx' },
-    { feature: 'F09 (SettingsModal)', path: 'src/components/SettingsModal/SettingsModal.jsx' },
-    { feature: 'F09 (AICopilot)', path: 'src/components/AICopilot/AICopilot.jsx' },
-    { feature: 'F09 (MicroSurveyModal)', path: 'src/components/MicroSurveyModal/MicroSurveyModal.jsx' },
-    { feature: 'F09 (ResearchConsentModal)', path: 'src/components/ResearchConsentModal/ResearchConsentModal.jsx' },
-    { feature: 'F10', path: 'src/features/promo/PromoLanding.jsx' },
-    { feature: 'F11', path: 'src/features/auth/Login.jsx' },
-    { feature: 'F12', path: 'src/features/dashboard/Dashboard.jsx' },
-    { feature: 'F13', path: 'src/features/profile/Profile.jsx' },
-    { feature: 'F15', path: 'src/features/interview/InterviewRoom.jsx' },
-    { feature: 'F16', path: 'src/features/lgd/LgdRoom.jsx' },
-    { feature: 'F17 (Coding)', path: 'src/features/coding/CodingRoom.jsx' },
-    { feature: 'F17 (Case)', path: 'src/features/case/CaseWhiteboard.jsx' },
-    { feature: 'F18', path: 'src/features/questions/QuestionBank.jsx' },
-    { feature: 'F19', path: 'src/features/resume/Resume.jsx' },
-    { feature: 'F20', path: 'src/features/schedule/Schedule.jsx' },
-    { feature: 'F21', path: 'src/features/analytics/Analytics.jsx' }
+  // 1. Verify Core Documentation Files Exist
+  const requiredDocs = [
+    'PROJECT.md',
+    'README.md',
+    'TEST_INFRA.md',
+    'TEST_READY.md',
+    '.autoloop/rules.json',
   ]
 
-  let missingFiles = 0
-  for (const item of coreFiles) {
-    const full = path.join(ROOT, item.path)
-    if (!fs.existsSync(full)) {
-      issues.push(`Feature ${item.feature} mapping broken: Missing ${item.path}`)
-      missingFiles++
+  for (const doc of requiredDocs) {
+    const exists = existsCaseSensitive(doc)
+    checks.push({ category: 'Documentation', target: doc, ok: exists })
+    if (!exists) {
+      issues.push(`Missing core documentation or config file (case-sensitive): ${doc}`)
     }
   }
-  checks.push(`Feature files existence verified (${coreFiles.length - missingFiles}/${coreFiles.length} present)`)
 
-  // Check 3: UI Primitives Index Re-exports Contract
-  const uiIndexPath = path.join(ROOT, 'src/components/ui/index.js')
-  if (fs.existsSync(uiIndexPath)) {
-    const uiIndex = fs.readFileSync(uiIndexPath, 'utf8')
-    const requiredPrimitives = ['Button', 'Card', 'Input', 'SegmentedControl', 'Switch', 'Badge', 'Modal', 'PageBar']
-    for (const prim of requiredPrimitives) {
-      if (!uiIndex.includes(prim)) {
-        issues.push(`src/components/ui/index.js does not export primitive: ${prim}`)
-      }
+  // 2. Verify UI Primitives Contract from PROJECT.md
+  const uiPrimitives = [
+    'Button.jsx',
+    'Card.jsx',
+    'Input.jsx',
+    'SegmentedControl.jsx',
+    'Switch.jsx',
+    'Badge.jsx',
+    'Modal.jsx',
+    'PageBar.jsx',
+  ]
+
+  for (const prim of uiPrimitives) {
+    const relPath = `src/components/ui/${prim}`
+    const exists = existsCaseSensitive(relPath)
+    checks.push({ category: 'UI Contract', target: relPath, ok: exists })
+    if (!exists) {
+      issues.push(`UI Primitive contract violation: ${relPath} does not exist (case-sensitive)`)
     }
-    checks.push('UI Primitives exports adhere to Contract 2')
-  } else {
-    issues.push('Missing src/components/ui/index.js')
   }
 
-  // Check 4: CSS Token Bridge Contract
-  const tokensCssPath = path.join(ROOT, 'src/styles/tokens.css')
+  // 3. Verify Feature Modules (F01 - F21) Source Layout (strictly case-sensitive)
+  const featurePaths = [
+    'src/styles/tokens.css',
+    'src/index.css',
+    'src/components/Layout/Layout.jsx',
+    'src/components/Layout/Sidebar.jsx',
+    'src/components/Layout/MobileTabBar.jsx',
+    'src/components/SettingsModal/SettingsModal.jsx',
+    'src/components/AICopilot/AICopilot.jsx',
+    'src/components/MicroSurveyModal/MicroSurveyModal.jsx',
+    'src/features/promo/PromoLanding.jsx',
+    'src/features/auth/Login.jsx',
+    'src/features/dashboard/Dashboard.jsx',
+    'src/features/profile/Profile.jsx',
+    'src/features/tasks/TaskPage.jsx',
+    'src/features/interview/InterviewLobby.jsx',
+    'src/features/interview/InterviewRoom.jsx',
+    'src/features/lgd/LGDLobby.jsx',
+    'src/features/lgd/LGDRoom.jsx',
+    'src/features/coding/CodingLobby.jsx',
+    'src/features/coding/CodingRoom.jsx',
+    'src/features/case/CaseLobby.jsx',
+    'src/features/case/CaseRoom.jsx',
+    'src/features/questions/QuestionBank.jsx',
+    'src/features/resume/Resume.jsx',
+    'src/features/schedule/Schedule.jsx',
+    'src/features/analytics/Analytics.jsx',
+    'src/api/stt.js',
+  ]
+
+  for (const fp of featurePaths) {
+    const exists = existsCaseSensitive(fp)
+    checks.push({ category: 'Feature Layout', target: fp, ok: exists })
+    if (!exists) {
+      issues.push(`Feature module missing or case mismatch on disk: ${fp}`)
+    }
+  }
+
+  // 4. Verify Token Bridge CSS Contract
+  const tokensPath = path.join(ROOT, 'src/styles/tokens.css')
   const indexCssPath = path.join(ROOT, 'src/index.css')
-  if (fs.existsSync(tokensCssPath) && fs.existsSync(indexCssPath)) {
-    const tokensContent = fs.readFileSync(tokensCssPath, 'utf8') + fs.readFileSync(indexCssPath, 'utf8')
+  if (fs.existsSync(tokensPath) && fs.existsSync(indexCssPath)) {
+    const cssContent = fs.readFileSync(tokensPath, 'utf8') + '\n' + fs.readFileSync(indexCssPath, 'utf8')
     const requiredTokens = [
-      '--canvas', '--surface', '--surface-elevated',
-      '--ink', '--muted', '--faint',
-      '--line', '--sh-xs', '--sh-sm', '--sh-md', '--sh-lg',
-      '--space-1', '--space-4', '--space-8', '--space-12',
-      '--bg:', '--chalk:', '--border:'
+      '--canvas',
+      '--surface',
+      '--ink',
+      '--muted',
+      '--hair',
+      '--sh-xs',
+      '--sh-sm',
+      '--sh-md',
+      '--sh-lg',
+      '--space-1',
+      '--space-4',
+      '--ease-spring',
+      '--bg',
+      '--chalk',
     ]
-    for (const tok of requiredTokens) {
-      if (!tokensContent.includes(tok)) {
-        issues.push(`CSS Token Bridge missing required token: ${tok}`)
+    for (const token of requiredTokens) {
+      const present = cssContent.includes(token)
+      checks.push({ category: 'Token Bridge', target: token, ok: present })
+      if (!present) {
+        issues.push(`Token Bridge contract missing CSS variable: ${token}`)
       }
     }
-    checks.push('CSS Token Bridge variables and legacy aliases verified')
   }
 
-  // Check 5: Route Contract in App.jsx
-  const appJsxPath = path.join(ROOT, 'src/App.jsx')
-  if (fs.existsSync(appJsxPath)) {
-    const appJsx = fs.readFileSync(appJsxPath, 'utf8')
-    const requiredRoutes = [
-      'path="/"', 'path="/promo"', 'path="/login"',
-      'path="/interview', 'path="/lgd', 'path="/coding',
-      'path="/case', 'path="/questions', 'path="/resume',
-      'path="/schedule', 'path="/analytics'
-    ]
-    for (const route of requiredRoutes) {
-      if (!appJsx.includes(route)) {
-        issues.push(`App.jsx is missing expected route registration: ${route}`)
+  // 5. Verify Route Integrity in App.jsx
+  const appPath = path.join(ROOT, 'src/App.jsx')
+  if (fs.existsSync(appPath)) {
+    const appContent = fs.readFileSync(appPath, 'utf8')
+    const coreRoutes = ['/promo', '/login', '/tasks', '/interview/lobby', '/lgd/lobby', '/coding/lobby', '/questions', '/resume', '/analytics', '/profile']
+    for (const route of coreRoutes) {
+      const present = appContent.includes(route)
+      checks.push({ category: 'Route Integrity', target: route, ok: present })
+      if (!present) {
+        issues.push(`Route missing from src/App.jsx: ${route}`)
       }
     }
-    checks.push('App.jsx route registrations validated against Contract 3')
   }
 
-  // Check 6: Autoloop Rule Specification Alignment
-  const rulesJsonPath = path.join(ROOT, '.autoloop/rules.json')
-  if (fs.existsSync(rulesJsonPath)) {
-    try {
-      const rules = JSON.parse(fs.readFileSync(rulesJsonPath, 'utf8'))
-      if (!Array.isArray(rules.rules) || rules.rules.length < 3) {
-        issues.push('.autoloop/rules.json must define at least 3 active automation rules')
-      } else {
-        checks.push(`.autoloop/rules.json configured with ${rules.rules.length} valid rules`)
-      }
-    } catch (e) {
-      issues.push(`.autoloop/rules.json JSON parse error: ${e.message}`)
+  // 6. Verify SEO Tasks Manifest Sync (content/tasks/*.md <-> public/tasks/manifest.json)
+  const tasksDir = path.join(ROOT, 'content/tasks')
+  const manifestPath = path.join(ROOT, 'public/tasks/manifest.json')
+  if (fs.existsSync(tasksDir) && fs.existsSync(manifestPath)) {
+    const mdCount = fs.readdirSync(tasksDir).filter((f) => f.endsWith('.md')).length
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    const manifestCount = Array.isArray(manifest.tasks) ? manifest.tasks.length : 0
+    const synced = mdCount === manifestCount && mdCount > 0
+    checks.push({ category: 'SEO Task Manifest', target: `tasks (${manifestCount}/${mdCount})`, ok: synced })
+    if (!synced) {
+      issues.push(`Task manifest out of sync: content/tasks has ${mdCount} files, manifest has ${manifestCount}`)
     }
-  } else {
-    issues.push('Missing .autoloop/rules.json configuration')
   }
 
   return {
+    timestamp: new Date().toISOString(),
+    totalChecks: checks.length,
+    passedChecks: checks.filter((c) => c.ok).length,
+    failedChecks: issues.length,
     ok: issues.length === 0,
     issues,
     checks,
-    timestamp: new Date().toISOString()
   }
 }
 
-// CLI Execution
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
-  const result = runNeatFreakCheck()
-
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const report = runNeatFreakCheck()
   if (isJson) {
-    console.log(JSON.stringify(result, null, 2))
+    console.log(JSON.stringify(report, null, 2))
   } else {
-    const border = '═'.repeat(64)
-    console.log(`\n${border}`)
-    console.log(` 🧹 Edgewise Neat-Freak Architecture & Doc Anti-Rot Validator`)
-    console.log(`    Timestamp: ${result.timestamp}`)
-    console.log(`${border}`)
-    for (const chk of result.checks) {
-      console.log(`  ✔ ${chk}`)
-    }
-
-    if (!result.ok) {
-      console.log(`\n ❌ DETECTED ${result.issues.length} ARCHITECTURE / DOC DRIFT ISSUE(S):`)
-      for (const issue of result.issues) {
-        console.log(`    • ${issue}`)
+    console.log('\n=============================================================')
+    console.log('   EDGEWISE AUTOLOOP: NEAT-FREAK ARCHITECTURE & DOC SYNC     ')
+    console.log('=============================================================')
+    console.log(`Total Contract Checks: ${report.totalChecks}`)
+    console.log(`Passed:                ${report.passedChecks}`)
+    console.log(`Failed:                ${report.failedChecks}`)
+    if (report.issues.length > 0) {
+      console.error('\nIssues Detected:')
+      for (const issue of report.issues) {
+        console.error(`  ✖ ${issue}`)
       }
-      console.log(`${border}\n`)
-      process.exit(1)
     } else {
-      console.log(`\n ✨ 文档与代码契约 100% 严格一致，无任何架构漂移或文档脑腐。`)
-      console.log(`${border}\n`)
-      process.exit(0)
+      console.log('\n✔ All documentation, case-sensitive paths, routes, and token contracts are 100% synchronized.')
     }
+    console.log('=============================================================\n')
   }
+  process.exit(report.ok ? 0 : 1)
 }

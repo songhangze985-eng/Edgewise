@@ -204,6 +204,48 @@ FAST_TRAINING_SCRIPTS: list[dict[str, Any]] = [
             "timekeeper",
         ],
     },
+    {
+        "id": "anti_teleprompter_probe",
+        "name": "反提词器脱稿深挖脚本（连环追问细节）",
+        "badge": "ANTI-SCRIPT · 反背稿深挖",
+        "description": "针对市面AI提词外挂常见的空泛套话，3号逻辑王与5号抢话者对4号（你）的每次发言追问具体数字、取舍依据与边界条件。",
+        "auto_triggers": {
+            "personal_statement": "要求每位候选人陈述必须带量化指标与第一人称落地动作。",
+            "free_discussion": "一旦发言缺少数字或具体动作，3号与5号立即点名4号追问底层细节。",
+            "summary_report": "严查总结陈词是否真正吸收场上队友原话而非背诵通用模板。",
+        },
+        "turn_order": [
+            "logician",
+            "ice_breaker",
+            "interrupter",
+            "user",
+            "idea_king",
+            "mediator",
+            "digresser",
+            "timekeeper",
+        ],
+    },
+    {
+        "id": "leader_vacancy_brawl",
+        "name": "无主抢麦夺权脚本（隐形Leader争夺战）",
+        "badge": "BRAWL · 抢麦夺权战",
+        "description": "开局1号放弃破冰，2号、3号、5号同时抛出冲突框架争夺主导权，专练4号（你）在混乱前3分钟立框控场。",
+        "auto_triggers": {
+            "personal_statement": "前序号位各执一词、不设统一框架，留出破冰真空。",
+            "free_discussion": "多角色高频争抢隐形Leader话语权，测试4号能否用折中+分工一锤定音。",
+            "summary_report": "由控场贡献最高者代表全组汇报。",
+        },
+        "turn_order": [
+            "idea_king",
+            "interrupter",
+            "user",
+            "logician",
+            "ice_breaker",
+            "digresser",
+            "mediator",
+            "timekeeper",
+        ],
+    },
 ]
 
 

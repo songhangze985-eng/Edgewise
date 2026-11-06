@@ -1354,3 +1354,273 @@
   padding-top: var(--sp-xs);
 }
 
+/* ---- Live Progressive Consensus Whiteboard & Reporter Election ---- */
+.progressive-board {
+  width: 100%;
+  border: var(--border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--bg-card);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.progressive-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.progressive-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.progressive-sync-btn {
+  border: 1px solid var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--primary-light);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.64rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.progressive-sync-btn:hover {
+  border-color: var(--primary-light);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.progressive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.progressive-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.progressive-tag-agree,
+.progressive-tag-clash,
+.progressive-tag-user {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+}
+
+.progressive-tag-agree {
+  background: rgba(0, 196, 140, 0.14);
+  color: var(--success);
+  border: 1px solid rgba(0, 196, 140, 0.35);
+}
+
+.progressive-tag-clash {
+  background: rgba(255, 176, 32, 0.14);
+  color: var(--warning);
+  border: 1px solid rgba(255, 176, 32, 0.35);
+}
+
+.progressive-tag-user {
+  background: rgba(155, 111, 199, 0.16);
+  color: var(--purple);
+  border: 1px solid rgba(155, 111, 199, 0.4);
+}
+
+.progressive-text {
+  color: var(--chalk);
+  word-break: break-word;
+}
+
+.reporter-election-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--chalk-faint);
+}
+
+.election-label {
+  font-size: 0.64rem;
+  color: var(--chalk-dim);
+}
+
+.election-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.election-chip {
+  border: 1px solid var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--chalk-dim);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.62rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.election-chip:hover {
+  border-color: var(--primary-light);
+  color: var(--chalk);
+}
+
+.election-chip-active {
+  border-color: var(--purple);
+  background: rgba(155, 111, 199, 0.2);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---- 3-Tier De-Cheatified Tactical Scaffolding & Voice STT ---- */
+.scaffold-switcher {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.scaffold-label {
+  font-size: 0.66rem;
+  color: var(--chalk-dim);
+}
+
+.scaffold-lvl-btn {
+  border: 1px solid var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--chalk-dim);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.64rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.scaffold-lvl-active {
+  border-color: var(--primary-light);
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tactical-cues-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tactical-cue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--chalk);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.tactical-cue-chip:hover {
+  border-color: var(--primary-light);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.tactical-cue-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(155, 111, 199, 0.2);
+  color: var(--purple);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+.tactical-cue-text {
+  color: var(--chalk);
+}
+
+.voice-stt-btn {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-md, 10px);
+  border: var(--border);
+  background: var(--bg-elevated);
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.voice-stt-btn:hover:not(:disabled) {
+  border-color: var(--primary-light);
+}
+
+.voice-stt-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.voice-stt-active {
+  border-color: var(--danger);
+  background: rgba(212, 92, 92, 0.18);
+  color: #fff;
+  animation: timerPulse 1.1s ease infinite;
+}
+
+/* ---- lgd_v2 Summary Overlay Diagnostics & Dual Evaluators ---- */
+.v2-diagnostics-grid,
+.dual-eval-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-sm);
+}
+
+.v2-diag-card,
+.dual-eval-card {
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  border: var(--border);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.v2-diag-head,
+.dual-eval-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary-light);
+}
+
+.v2-diag-hint,
+.dual-eval-verdict {
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--chalk);
+}
+
+

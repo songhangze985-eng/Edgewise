@@ -10,13 +10,22 @@
     "build:tasks": "node scripts/build-tasks.mjs",
     "test": "node --test tests/*.test.mjs && node scripts/run-e2e-tests.mjs",
     "test:unit": "node --test tests/*.test.mjs",
+    "test:backend": "PYTHONPATH=backend backend/.venv/bin/python -m unittest discover -s backend/tests",
     "test:e2e": "node scripts/run-e2e-tests.mjs",
+    "test:all": "npm run test:unit && npm run test:backend && npm run test:e2e",
+    "seed:dataset": "python3 backend/scripts/etl_chinese_interview_dataset.py",
+    "seed:pdf": "python3 backend/scripts/generate_pdf_seed.py --check",
     "autoloop": "node scripts/autoloop/edgewise-autoloop-runner.mjs",
     "autoloop:check": "node scripts/autoloop/edgewise-autoloop-runner.mjs --check",
     "autoloop:qa": "node scripts/autoloop/qa-watchdog.mjs",
     "autoloop:sync": "node scripts/autoloop/neat-freak-sync.mjs",
     "autoloop:empirical": "PYTHONPATH=backend python3 scripts/autoloop/empirical-monitor.py",
-    "autoloop:ugc": "PYTHONPATH=backend python3 scripts/autoloop/ugc-reviewer.py"
+    "autoloop:ugc": "PYTHONPATH=backend python3 scripts/autoloop/ugc-reviewer.py",
+    "autoloop:derive": "PYTHONPATH=backend python3 scripts/autoloop/daily-derive-scheduler.py",
+    "autoloop:blind": "PYTHONPATH=backend python3 scripts/autoloop/blind-review-dispatcher.py",
+    "autoloop:paper": "PYTHONPATH=backend python3 scripts/autoloop/paper-sync-verifier.py",
+    "autoloop:dataset": "PYTHONPATH=backend python3 scripts/autoloop/dataset-etl-watcher.py",
+    "autoloop:scripted": "PYTHONPATH=backend python3 scripts/autoloop/scripted-answer-auditor.py"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",

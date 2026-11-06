@@ -9,6 +9,7 @@ from app.api.v1.questions import build_question_record
 from app.core.redis_client import get_json, set_json
 from app.core.security import hash_password
 from app.data.coding_seed import SEED_CODING_QUESTIONS
+from app.data.dataset_import_seed import SEED_DATASET_QUESTIONS
 from app.data.pdf_import_seed import SEED_PDF_IMPORT_QUESTIONS
 from app.data.structured_seed import SEED_STRUCTURED_QUESTIONS
 from app.services.referral_service import ensure_user_invite_code
@@ -238,6 +239,14 @@ async def seed_questions_if_needed(redis: Redis) -> None:
         existing_questions.append(record)
 
     for question in SEED_PDF_IMPORT_QUESTIONS:
+        if await redis.sismember("questions:all", question["id"]):
+            continue
+        record = build_question_record(question, existing_questions=existing_questions)
+        await set_json(redis, f"question:{record['id']}", record)
+        await redis.sadd("questions:all", record["id"])
+        existing_questions.append(record)
+
+    for question in SEED_DATASET_QUESTIONS:
         if await redis.sismember("questions:all", question["id"]):
             continue
         record = build_question_record(question, existing_questions=existing_questions)
