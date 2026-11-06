@@ -59,7 +59,7 @@ export function runNeatFreakCheck() {
     { feature: 'F12', path: 'src/features/dashboard/Dashboard.jsx' },
     { feature: 'F13', path: 'src/features/profile/Profile.jsx' },
     { feature: 'F15', path: 'src/features/interview/InterviewRoom.jsx' },
-    { feature: 'F16', path: 'src/features/lgd/LgdRoom.jsx' },
+    { feature: 'F16', path: 'src/features/lgd/LGDRoom.jsx' },
     { feature: 'F17 (Coding)', path: 'src/features/coding/CodingRoom.jsx' },
     { feature: 'F17 (Case)', path: 'src/features/case/CaseWhiteboard.jsx' },
     { feature: 'F18', path: 'src/features/questions/QuestionBank.jsx' },
