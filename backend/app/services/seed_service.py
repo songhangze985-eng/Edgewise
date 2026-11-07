@@ -6,6 +6,7 @@ from uuid import uuid4
 from redis.asyncio import Redis
 
 from app.api.v1.questions import build_question_record
+from app.config import settings
 from app.core.redis_client import get_json, set_json
 from app.core.security import hash_password
 from app.data.coding_seed import SEED_CODING_QUESTIONS
@@ -273,6 +274,9 @@ async def seed_demo_user_if_needed(redis: Redis) -> dict | None:
                 user = await get_json(redis, f"user:{existing_id}")
         return user
 
+    if not settings.is_development:
+        return None
+
     now = datetime.now(timezone.utc).isoformat()
     user_id = uuid4().hex
     user_record = {
@@ -284,7 +288,7 @@ async def seed_demo_user_if_needed(redis: Redis) -> dict | None:
         "tier_label": "黄金专业版",
         "credits": 1280,
         "join_date": now[:10],
-        "is_admin": True,
+        "is_admin": False,
         "created_at": now,
         "updated_at": now,
         "password_hash": hash_password(DEMO_PASSWORD),
