@@ -491,17 +491,6 @@ class QuestionRelatedItem(APIModel):
     title: str
 
 
-class QuestionCreate(APIModel):
-    id: str | None = Field(default=None, max_length=50)
-    title: str = Field(min_length=4, max_length=300)
-    category: str = Field(min_length=2, max_length=50)
-    difficulty: str = Field(min_length=1, max_length=50)
-    ideal: str | None = Field(default=None, max_length=5000)
-    star: QuestionStar | None = None
-    tags: list[str] = Field(default_factory=list)
-    related: list[QuestionRelatedItem] = Field(default_factory=list)
-
-
 class QuestionResponse(APIModel):
     id: str
     title: str
@@ -860,12 +849,3 @@ class OrgMentorAdd(APIModel):
 
 class OrgShareSession(APIModel):
     session_id: str = Field(min_length=8, max_length=64)
-
-
-class OrgUpdate(APIModel):
-    name: str | None = Field(default=None, max_length=200)
-    pilot_period: str | None = Field(default=None, max_length=120)
-    service_description: str | None = Field(default=None, max_length=2000)
-    fee_paid: bool | None = None
-    invite_method: str | None = Field(default=None, max_length=64)
-    human_coaching: bool | None = None

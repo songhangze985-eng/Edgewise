@@ -7,10 +7,6 @@ import numpy as np
 from app.research.admin_stats.privacy import SMALL_N, suppress_count
 
 
-def _cell_key(zc: int, zp: int) -> str:
-    return f"{zc}{zp}"
-
-
 def extract_outcome(row: dict[str, Any], field: str) -> float | None:
     if field.startswith("survey:"):
         item_id = field.split(":", 1)[1]

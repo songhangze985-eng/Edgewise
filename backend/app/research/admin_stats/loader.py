@@ -16,8 +16,6 @@ from app.research.keys import (
     auto_hash_key,
     auto_meta_key,
     survey_hash_key,
-    survey_queue_key,
-    survey_shown_key,
     survey_state_key,
 )
 from app.research.survey_engine import load_survey_items
@@ -135,19 +133,6 @@ async def load_cohort(redis: Redis, filters: StatsFilters) -> tuple[list[dict[st
     return rows, meta
 
 
-def cohort_to_dataframe(rows: list[dict[str, Any]]):
-    import pandas as pd
-
-    if not rows:
-        return pd.DataFrame()
-    flat = []
-    for row in rows:
-        base = {k: row[k] for k in ("user_hash", "arm", "zc", "zp", "consent_at", "entry_channel", "institution_id")}
-        base.update({f"auto.{k}": v for k, v in (row.get("auto") or {}).items()})
-        flat.append(base)
-    return pd.DataFrame(flat)
-
-
 async def load_user_timeline(redis: Redis, user_id: str) -> list[dict[str, Any]]:
     events = await read_event_stream(redis, user_id, count=500)
     timeline: list[dict[str, Any]] = []
@@ -177,49 +162,6 @@ async def load_user_timeline(redis: Redis, user_id: str) -> list[dict[str, Any]]
         )
     timeline.sort(key=lambda x: x.get("ts") or "")
     return timeline
-
-
-async def trigger_stats_for_user(
-    redis: Redis,
-    user_id: str,
-    trigger: str,
-    item_ids: list[str],
-    item_defs: dict[str, Any],
-    auto: dict[str, Any],
-    state: dict[str, Any],
-) -> dict[str, int]:
-    eligible = 1
-    for item_id in item_ids:
-        definition = item_defs.get(item_id)
-        if definition and not _condition_matches(definition.get("condition"), auto, state):
-            eligible = 0
-            break
-    queued = await redis.zscore(survey_queue_key(user_id), item_ids[0]) if item_ids else None
-    triggered = 1 if queued is not None else 0
-    shown = int(await redis.zcard(survey_shown_key(user_id))) > 0
-    answered = skipped = declined = 0
-    for item_id in item_ids:
-        rec = await redis.hget(survey_hash_key(user_id), item_id)
-        if not rec:
-            continue
-        parsed = _parse_json_val(rec)
-        if not isinstance(parsed, dict):
-            continue
-        status = parsed.get("status")
-        if status == "answered":
-            answered += 1
-        elif status == "declined":
-            declined += 1
-        elif status in ("skipped", "no_response"):
-            skipped += 1
-    return {
-        "eligible": eligible,
-        "triggered": triggered if eligible else 0,
-        "shown": 1 if shown and eligible else 0,
-        "answered": answered,
-        "skipped": skipped,
-        "declined": declined,
-    }
 
 
 def aggregate_trigger_rows(rows: list[dict[str, Any]], meta: dict[str, Any]) -> list[dict[str, Any]]:

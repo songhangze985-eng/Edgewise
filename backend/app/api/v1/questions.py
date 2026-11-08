@@ -6,10 +6,9 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from redis.asyncio import Redis
 
-from app.api.deps import get_current_admin, get_current_user, get_redis
+from app.api.deps import get_current_user, get_redis
 from app.core.redis_client import get_json, set_json
 from app.models.schemas import (
-    QuestionCreate,
     QuestionRelatedItem,
     QuestionResponse,
     QuestionStar,

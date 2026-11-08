@@ -44,13 +44,6 @@ DURATION_AUTO = {
 MONEY_AUTO = {"referral_net_contribution"}
 
 
-def _consent_denominator_rows(all_user_meta: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
-    registered = all_user_meta.get("registered_users", 0)
-    consented = all_user_meta.get("consented_total", 0)
-    withdrawn = max(0, consented - len([r for r in rows if not r.get("withdrawn")]))
-    return {"registered": registered, "consented": consented}
-
-
 def compute_overview(rows: list[dict[str, Any]], meta: dict[str, Any]) -> dict[str, Any]:
     registered = meta.get("registered_users", 0)
     consented_total = meta.get("consented_total", 0)

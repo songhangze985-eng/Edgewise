@@ -87,13 +87,6 @@ async def list_user_stories(redis: Redis, user_id: str) -> list[dict[str, Any]]:
     return rows
 
 
-async def get_user_story(redis: Redis, user_id: str, story_id: str) -> dict[str, Any] | None:
-    record = await get_json(redis, _story_key(story_id))
-    if not record or record.get("user_id") != user_id:
-        return None
-    return _serialize(record)
-
-
 async def create_story(
     redis: Redis,
     user_id: str,

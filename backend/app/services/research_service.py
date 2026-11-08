@@ -289,29 +289,6 @@ def merge_client_metadata_for_session(
     return {**passthrough, **research_fields}
 
 
-async def get_research_consent(redis: Redis, user: UserInDB) -> ResearchConsentView:
-    user_data = await get_json(redis, f"user:{user.id}")
-    if user_data is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    consent = user_data.get("research_consent")
-    if not consent:
-        return ResearchConsentView(
-            accepted=None,
-            accepted_at=None,
-            withdrawn_at=None,
-            version=RESEARCH_CONSENT_VERSION,
-        )
-    return ResearchConsentView.model_validate(
-        {
-            "accepted": consent.get("accepted"),
-            "accepted_at": consent.get("accepted_at"),
-            "withdrawn_at": consent.get("withdrawn_at"),
-            "had_declined": consent.get("had_declined"),
-            "version": consent.get("version", RESEARCH_CONSENT_VERSION),
-        }
-    )
-
-
 async def set_research_consent(
     redis: Redis,
     user: UserInDB,

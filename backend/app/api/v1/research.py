@@ -5,7 +5,7 @@ from fastapi.responses import PlainTextResponse
 from redis.asyncio import Redis
 
 from app.api.deps import get_current_admin, get_current_user, get_redis
-from app.core.redis_client import get_json, set_json
+from app.core.redis_client import get_json
 from app.models.schemas import (
     BlindReviewItem,
     BlindReviewScoreSubmit,
@@ -41,7 +41,6 @@ from app.services.research_service import (
     export_research_jsonl,
     get_experiment_context,
     get_posttest_status,
-    get_research_consent,
     get_research_invite,
     set_research_consent,
     submit_posttest_answer,
