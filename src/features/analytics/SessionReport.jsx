@@ -9,7 +9,7 @@ import { LOGIC_DIMENSION_LABELS } from '../../utils/interviewRounds'
 import { dimKeyFromAxisLabel, findWeakestDimension } from '../../utils/userStats'
 import useSessionStore from '../../stores/sessionStore'
 import PageBar from '../../components/ui/PageBar'
-import { RULE_SCORE_NOTE, SHOW_LLM_PLACEHOLDER } from '../../config/report'
+import { RULE_SCORE_NOTE } from '../../config/report'
 import { trackResearchEvent } from '../../research/track'
 import DeliveryMetrics from './DeliveryMetrics'
 import PresenceMetrics from './PresenceMetrics'
@@ -226,9 +226,7 @@ export default function SessionReport() {
     : Math.round(
         ((dims.logic ?? overallScore ?? 0) + (dims.leadership ?? overallScore ?? 0)) / 2
       )
-  const goldenImprovedCopy = SHOW_LLM_PLACEHOLDER
-    ? ''
-    : sampleEval && sampleEval.score <= 20
+  const goldenImprovedCopy = sampleEval && sampleEval.score <= 20
       ? `规则估算：${sampleEval.reason}。建议对照下方 STAR 参考，用具体情境与行动重写。`
       : `${ruleNote} · 可对照 STAR 参考思路，将经历改写为「情境-任务-行动-结果」四段式话术。`
 

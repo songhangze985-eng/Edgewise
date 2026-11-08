@@ -87,7 +87,3 @@ export function trackResearchEvent(event, payload = {}) {
     enqueueOfflineEvent(body)
   }
 }
-
-export function getOfflineResearchQueueSize() {
-  return readOfflineQueue().length
-}
