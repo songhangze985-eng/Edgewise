@@ -4,7 +4,6 @@ import hashlib
 import hmac
 import math
 import re
-from typing import Any
 
 from app.config import settings
 
@@ -57,16 +56,6 @@ def bucket_total(total: int) -> int | str:
         high = low + 4
         return f"{low}–{high}"
     return total
-
-
-def apply_small_n_dict(data: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    for key, val in data.items():
-        if isinstance(val, int) and key.endswith("_n") or key in ("n", "count", "total"):
-            out[key] = suppress_count(val)
-        else:
-            out[key] = val
-    return out
 
 
 MASK_PHONE = re.compile(r"1[3-9]\d{9}")

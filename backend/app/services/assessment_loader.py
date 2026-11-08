@@ -27,17 +27,3 @@ def load_personality_bank() -> dict[str, Any]:
     raw = yaml.safe_load(_PERSONALITY_PATH.read_text(encoding="utf-8")) or {}
     items = [i for i in (raw.get("items") or []) if isinstance(i, dict) and i.get("id")]
     return {"meta": raw.get("meta") or {}, "items": items}
-
-
-def aptitude_item_by_id(item_id: str) -> dict[str, Any] | None:
-    for item in load_aptitude_bank()["items"]:
-        if item.get("id") == item_id:
-            return item
-    return None
-
-
-def personality_item_by_id(item_id: str) -> dict[str, Any] | None:
-    for item in load_personality_bank()["items"]:
-        if item.get("id") == item_id:
-            return item
-    return None

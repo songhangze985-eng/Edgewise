@@ -120,37 +120,6 @@ async def list_orgs_admin(redis: Redis) -> list[dict[str, Any]]:
     return rows
 
 
-async def update_org_admin(
-    redis: Redis,
-    org_id: str,
-    *,
-    name: str | None = None,
-    pilot_period: str | None = None,
-    service_description: str | None = None,
-    fee_paid: bool | None = None,
-    invite_method: str | None = None,
-    human_coaching: bool | None = None,
-) -> dict[str, Any]:
-    org = await get_json(redis, f"org:{org_id}")
-    if not org:
-        raise HTTPException(status_code=404, detail="机构不存在")
-    if name is not None:
-        org["name"] = name.strip()
-    if pilot_period is not None:
-        org["pilot_period"] = pilot_period.strip()
-    if service_description is not None:
-        org["service_description"] = service_description.strip()
-    if fee_paid is not None:
-        org["fee_paid"] = bool(fee_paid)
-    if invite_method is not None:
-        org["invite_method"] = invite_method.strip()
-    if human_coaching is not None:
-        org["human_coaching"] = bool(human_coaching)
-    org["updated_at"] = _now_iso()
-    await set_json(redis, f"org:{org_id}", org)
-    return org
-
-
 async def add_workshop(
     redis: Redis,
     org_id: str,

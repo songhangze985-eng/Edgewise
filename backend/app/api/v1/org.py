@@ -13,7 +13,6 @@ from app.models.schemas import (
     OrgMembershipView,
     OrgMentorAdd,
     OrgShareSession,
-    OrgUpdate,
     OrgWorkshopCreate,
     OrgWorkshopView,
     UserInDB,

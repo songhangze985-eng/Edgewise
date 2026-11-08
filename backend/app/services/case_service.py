@@ -21,15 +21,6 @@ def _case_round_types() -> frozenset[str]:
     return frozenset({"case", "system_design"})
 
 
-def session_has_case_content(session: dict[str, Any]) -> bool:
-    if session.get("metadata", {}).get("mode") == "case":
-        return True
-    for rnd in session.get("rounds") or []:
-        if rnd.get("type") in _case_round_types():
-            return True
-    return False
-
-
 def _get_case_question(round_data: dict[str, Any]) -> dict[str, Any]:
     questions = round_data.get("questions") or []
     if not questions:

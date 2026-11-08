@@ -134,17 +134,6 @@ async def create_assessment_session(redis: Redis, user_id: str) -> dict[str, Any
     return assessment_to_public(record)
 
 
-async def get_assessment_for_user(
-    redis: Redis, user_id: str, assessment_id: str
-) -> dict[str, Any]:
-    record = await get_json(redis, _assessment_key(assessment_id))
-    if record is None:
-        raise KeyError("not_found")
-    if record.get("user_id") != user_id:
-        raise PermissionError("forbidden")
-    return assessment_to_public(record)
-
-
 def _score_aptitude(record: dict[str, Any]) -> dict[str, Any]:
     by_cat: dict[str, dict[str, Any]] = {}
     for cat in APTITUDE_CATEGORIES:

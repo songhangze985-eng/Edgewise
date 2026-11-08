@@ -38,11 +38,6 @@ def is_pdf(file_name: str, content_type: str) -> bool:
     return lowered.endswith(".pdf") or content_type == "application/pdf"
 
 
-def is_markdown(file_name: str, content_type: str) -> bool:
-    lowered = file_name.lower()
-    return lowered.endswith(".md") or content_type in ("text/markdown", "text/x-markdown")
-
-
 def extract_docx_text(
     file_bytes: bytes,
     max_chars: int | None = DEFAULT_TEXT_MAX_CHARS,
