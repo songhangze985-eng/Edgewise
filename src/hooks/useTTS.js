@@ -195,10 +195,6 @@ export default function useTTS() {
     mountedRef.current = true
     if (!supported) return undefined
 
-    const refresh = () => {}
-    window.speechSynthesis.addEventListener('voiceschanged', refresh)
-    refresh()
-
     const onHidden = () => {
       if (document.visibilityState === 'hidden') stop()
     }
@@ -206,7 +202,6 @@ export default function useTTS() {
 
     return () => {
       mountedRef.current = false
-      window.speechSynthesis.removeEventListener('voiceschanged', refresh)
       document.removeEventListener('visibilitychange', onHidden)
       stop()
     }

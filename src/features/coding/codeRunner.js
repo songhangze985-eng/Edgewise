@@ -77,11 +77,3 @@ export async function runCode({
     timeoutMs ?? 2000,
   )
 }
-
-/** Placeholder for future remote judge integration. */
-export const CodeRunner = {
-  run: runCode,
-  provider: 'local',
-}
-
-export default CodeRunner

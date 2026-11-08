@@ -12,10 +12,6 @@ const MODEL_URL =
 
 let landmarkerPromise = null
 
-export function resetLandmarkerCache() {
-  landmarkerPromise = null
-}
-
 async function loadMediaPipeLandmarker() {
   const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision')
   const wasmFileset = await FilesetResolver.forVisionTasks(WASM_CDN)
