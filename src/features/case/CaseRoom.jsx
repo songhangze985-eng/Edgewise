@@ -157,7 +157,7 @@ export default function CaseRoom() {
         },
       })
       await refresh()
-      navigate(`/analytics/session/${sessionId}`)
+      navigate(`/analytics/report/${sessionId}`)
     } catch (err) {
       showToast(getErrorMessage(err, '结束练习失败'), 'error')
     } finally {
