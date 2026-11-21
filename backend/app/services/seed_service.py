@@ -6,6 +6,17 @@ from uuid import uuid4
 from redis.asyncio import Redis
 
 from app.api.v1.questions import build_question_record
+from app.config import settings
+from app.core.index_store import (
+    get_all_lgd_room_ids,
+    get_all_question_ids,
+    get_user_session_ids,
+    index_add_lgd_room_id,
+    index_add_question_id,
+    index_add_user_session,
+    index_user_registration,
+    lookup_user_id_by_email,
+)
 from app.core.redis_client import get_json, set_json
 from app.core.security import hash_password
 from app.data.coding_seed import SEED_CODING_QUESTIONS
@@ -192,71 +203,41 @@ SEED_ROOMS = [
 
 
 async def seed_questions_if_needed(redis: Redis) -> None:
+    existing_ids = set(await get_all_question_ids(redis))
     existing_questions: list[dict] = []
-    if not await redis.scard("questions:all"):
+    if not existing_ids:
         for question in SEED_QUESTIONS:
             record = build_question_record(question, existing_questions=existing_questions)
             await set_json(redis, f"question:{record['id']}", record)
-            await redis.sadd("questions:all", record["id"])
+            await index_add_question_id(redis, record["id"])
+            existing_ids.add(record["id"])
             existing_questions.append(record)
     else:
-        question_ids = await redis.smembers("questions:all")
-        for qid in question_ids:
+        for qid in sorted(existing_ids):
             q = await get_json(redis, f"question:{qid}")
             if q:
                 existing_questions.append(q)
 
-    for question in SEED_GENERAL_QUESTIONS:
-        if await redis.sismember("questions:all", question["id"]):
-            continue
-        record = build_question_record(question, existing_questions=existing_questions)
-        await set_json(redis, f"question:{record['id']}", record)
-        await redis.sadd("questions:all", record["id"])
-        existing_questions.append(record)
-
-    for question in SEED_ENGLISH_GENERAL_QUESTIONS:
-        if await redis.sismember("questions:all", question["id"]):
-            continue
-        record = build_question_record(question, existing_questions=existing_questions)
-        await set_json(redis, f"question:{record['id']}", record)
-        await redis.sadd("questions:all", record["id"])
-        existing_questions.append(record)
-
-    for question in SEED_STRUCTURED_QUESTIONS:
-        if await redis.sismember("questions:all", question["id"]):
-            continue
-        record = build_question_record(question, existing_questions=existing_questions)
-        await set_json(redis, f"question:{record['id']}", record)
-        await redis.sadd("questions:all", record["id"])
-        existing_questions.append(record)
-
-    for question in SEED_CODING_QUESTIONS:
-        if await redis.sismember("questions:all", question["id"]):
-            continue
-        record = build_question_record(question, existing_questions=existing_questions)
-        await set_json(redis, f"question:{record['id']}", record)
-        await redis.sadd("questions:all", record["id"])
-        existing_questions.append(record)
-
-    for question in SEED_PDF_IMPORT_QUESTIONS:
-        if await redis.sismember("questions:all", question["id"]):
-            continue
-        record = build_question_record(question, existing_questions=existing_questions)
-        await set_json(redis, f"question:{record['id']}", record)
-        await redis.sadd("questions:all", record["id"])
-        existing_questions.append(record)
-
-    for question in SEED_DATASET_QUESTIONS:
-        if await redis.sismember("questions:all", question["id"]):
-            continue
-        record = build_question_record(question, existing_questions=existing_questions)
-        await set_json(redis, f"question:{record['id']}", record)
-        await redis.sadd("questions:all", record["id"])
-        existing_questions.append(record)
+    for pool in (
+        SEED_GENERAL_QUESTIONS,
+        SEED_ENGLISH_GENERAL_QUESTIONS,
+        SEED_STRUCTURED_QUESTIONS,
+        SEED_CODING_QUESTIONS,
+        SEED_PDF_IMPORT_QUESTIONS,
+        SEED_DATASET_QUESTIONS,
+    ):
+        for question in pool:
+            if question["id"] in existing_ids:
+                continue
+            record = build_question_record(question, existing_questions=existing_questions)
+            await set_json(redis, f"question:{record['id']}", record)
+            await index_add_question_id(redis, record["id"])
+            existing_ids.add(record["id"])
+            existing_questions.append(record)
 
 
 async def seed_demo_user_if_needed(redis: Redis) -> dict | None:
-    existing_id = await redis.get(f"user:email:{DEMO_EMAIL}")
+    existing_id = await lookup_user_id_by_email(redis, DEMO_EMAIL)
     if existing_id:
         user = await get_json(redis, f"user:{existing_id}")
         if user and not user.get("research_consent"):
@@ -295,15 +276,14 @@ async def seed_demo_user_if_needed(redis: Redis) -> dict | None:
         },
     }
     await set_json(redis, f"user:{user_id}", user_record)
-    await redis.set(f"user:email:{DEMO_EMAIL}", user_id)
-    await redis.sadd("users:all", user_id)
+    await index_user_registration(redis, user_id=user_id, email=DEMO_EMAIL)
     await ensure_user_invite_code(redis, user_record)
     await assign_experiment_arm(redis, user_record, source="seed")
     return await get_json(redis, f"user:{user_id}")
 
 
 async def seed_lgd_rooms_if_needed(redis: Redis, host_user: dict) -> None:
-    if await redis.scard("lgd_rooms:all"):
+    if await get_all_lgd_room_ids(redis):
         return
 
     now = datetime.now(timezone.utc).isoformat()
@@ -335,12 +315,11 @@ async def seed_lgd_rooms_if_needed(redis: Redis, host_user: dict) -> None:
             "updated_at": now,
         }
         await set_json(redis, f"lgd_room:{room_id}", record)
-        await redis.sadd("lgd_rooms:all", room_id)
+        await index_add_lgd_room_id(redis, room_id)
 
 
 async def seed_demo_sessions_if_needed(redis: Redis, user: dict) -> None:
-    session_key = f"user:{user['id']}:sessions"
-    if await redis.zcard(session_key):
+    if await get_user_session_ids(redis, user["id"], start=0, stop=0):
         return
 
     now = datetime.now(timezone.utc)
@@ -400,15 +379,22 @@ async def seed_demo_sessions_if_needed(redis: Redis, user: dict) -> None:
             "metadata": {"dimensions": sample["dimensions"]},
         }
         await set_json(redis, f"session:{session_id}", record)
-        await redis.zadd(session_key, {session_id: created.timestamp()})
+        await index_add_user_session(redis, user["id"], session_id, created.timestamp())
 
 
 async def seed_all(redis: Redis) -> None:
     from app.services.series_service import seed_creator_series_if_needed
 
+    if not settings.is_development:
+        demo_id = await lookup_user_id_by_email(redis, DEMO_EMAIL)
+        demo_user = await get_json(redis, f"user:{demo_id}") if demo_id else None
+        if demo_user and demo_user.get("is_admin"):
+            raise RuntimeError("An Edgewise demo administrator exists. Use separate deployment databases without demo data.")
+
     await seed_questions_if_needed(redis)
     await seed_creator_series_if_needed(redis)
-    demo_user = await seed_demo_user_if_needed(redis)
-    if demo_user:
-        await seed_lgd_rooms_if_needed(redis, demo_user)
-        await seed_demo_sessions_if_needed(redis, demo_user)
+    if settings.is_development:
+        demo_user = await seed_demo_user_if_needed(redis)
+        if demo_user:
+            await seed_lgd_rooms_if_needed(redis, demo_user)
+            await seed_demo_sessions_if_needed(redis, demo_user)

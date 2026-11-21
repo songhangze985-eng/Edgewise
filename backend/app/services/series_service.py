@@ -1,13 +1,31 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Any
 
 from redis.asyncio import Redis
 
 from app.core.redis_client import get_json, set_json
+from app.core.mongo_client import mongo_store
 
 SERIES_ALL = "series:all"
+
+
+async def _series_ids(redis: Redis) -> set[str]:
+    cached = set(await redis.smembers(SERIES_ALL))
+    doc = await mongo_store.find_by_cache_key(SERIES_ALL)
+    recovered = set((doc or {}).get("members", {}).keys())
+    missing = recovered - cached
+    if missing:
+        await redis.sadd(SERIES_ALL, *missing)
+    return cached | recovered
+
+
+async def _index_series(redis: Redis, series_id: str) -> None:
+    await mongo_store.update_nested_fields(SERIES_ALL, nested_attr="members", updates={series_id: True})
+    await redis.sadd(SERIES_ALL, series_id)
 
 
 def _series_key(series_id: str) -> str:
@@ -15,7 +33,7 @@ def _series_key(series_id: str) -> str:
 
 
 def _serialize_series(record: dict[str, Any]) -> dict[str, Any]:
-    return {
+    content = {
         "id": record["id"],
         "topic": record.get("topic") or "",
         "variant": record.get("variant") or "complementary",
@@ -23,6 +41,9 @@ def _serialize_series(record: dict[str, Any]) -> dict[str, Any]:
         "disclosure": record.get("disclosure") or "",
         "published": bool(record.get("published", True)),
     }
+
+    snapshot = json.dumps(content, sort_keys=True, ensure_ascii=False).encode()
+    return {**content, "content_version": hashlib.sha256(snapshot).hexdigest()}
 
 
 async def get_series(redis: Redis, series_id: str) -> dict[str, Any] | None:
@@ -37,7 +58,7 @@ async def list_series(
     *,
     variant: str | None = None,
 ) -> list[dict[str, Any]]:
-    ids = sorted(await redis.smembers(SERIES_ALL))
+    ids = sorted(await _series_ids(redis))
     rows: list[dict[str, Any]] = []
     variant_q = (variant or "").strip().lower()
     for series_id in ids:
@@ -64,12 +85,12 @@ async def upsert_series(redis: Redis, series_id: str, payload: dict[str, Any]) -
         "created_at": existing.get("created_at") or now,
     }
     await set_json(redis, _series_key(series_id), record)
-    await redis.sadd(SERIES_ALL, series_id)
+    await _index_series(redis, series_id)
     return _serialize_series(record)
 
 
 async def seed_creator_series_if_needed(redis: Redis) -> None:
-    if await redis.scard(SERIES_ALL):
+    if await _series_ids(redis):
         return
     disclosure = (
         "本专栏内容由创作者与谈锋合作策划，旨在提供互补的追问视角；"
@@ -143,4 +164,4 @@ async def seed_creator_series_if_needed(redis: Redis) -> None:
     }
     for record in (complementary, mirror):
         await set_json(redis, _series_key(record["id"]), record)
-        await redis.sadd(SERIES_ALL, record["id"])
+        await _index_series(redis, record["id"])

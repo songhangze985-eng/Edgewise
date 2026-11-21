@@ -12,6 +12,10 @@ from app.models.schemas import (
     UserInDB,
 )
 from app.services.copilot_triage import record_micro_task_done, run_copilot_triage
+from app.services.conversation_memory_service import (
+    clear_conversation_memory,
+    get_conversation_memory,
+)
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 
@@ -46,3 +50,20 @@ async def post_copilot_micro_done(
         answer_summary=payload.answer,
     )
     return MessageResponse(message="ok")
+
+
+@router.get("/memory")
+async def get_copilot_multi_turn_memory(
+    current_user: UserInDB = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> dict:
+    return await get_conversation_memory(redis, current_user.id, scope="copilot")
+
+
+@router.delete("/memory")
+async def clear_copilot_multi_turn_memory(
+    current_user: UserInDB = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> dict:
+    return await clear_conversation_memory(redis, current_user.id, scope="copilot")
+

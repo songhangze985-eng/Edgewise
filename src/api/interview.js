@@ -55,3 +55,32 @@ export function submitReverseQa(sessionId, payload, config = {}) {
     .post(`/interview/sessions/${sessionId}/reverse-qa`, payload, config)
     .then((r) => r.data)
 }
+
+export function postResumeScreener(sessionId, payload, config = {}) {
+  return api
+    .post(`/interview/sessions/${sessionId}/resume-screener`, payload, config)
+    .then((r) => r.data)
+}
+
+export function postLgdFootprint(sessionId, payload, config = {}) {
+  return api
+    .post(`/interview/sessions/${sessionId}/lgd-footprint`, payload, config)
+    .then((r) => r.data)
+}
+
+export function postHrPressureProbe(sessionId, payload, config = {}) {
+  return api
+    .post(`/interview/sessions/${sessionId}/hr-pressure-probe`, payload, config)
+    .then((r) => r.data)
+}
+
+export function fetchInterviewTaxonomy(config = {}) {
+  return api.get('/interview/taxonomy', config).then((r) => r.data)
+}
+
+export function postSessionDeepDiveProbes(sessionId, payload, config = {}) {
+  return api
+    .post(`/interview/sessions/${sessionId}/post-deep-dive-probes`, payload, config)
+    .then((r) => r.data)
+}
+

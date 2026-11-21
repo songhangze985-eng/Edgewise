@@ -8,6 +8,7 @@ export default function UserTimelineTab() {
   const [q, setQ] = useState('')
   const [profile, setProfile] = useState(null)
   const [timeline, setTimeline] = useState([])
+  const [eventQuality, setEventQuality] = useState(null)
   const [error, setError] = useState(null)
 
   const search = async () => {
@@ -17,9 +18,11 @@ export default function UserTimelineTab() {
       setProfile(p)
       const tl = await fetchResearchUserTimeline(q.trim())
       setTimeline(tl.timeline || [])
+      setEventQuality(tl.event_quality || null)
     } catch (err) {
       setProfile(null)
       setTimeline([])
+      setEventQuality(null)
       setError(getErrorMessage(err, '未找到用户'))
     }
   }
@@ -50,6 +53,13 @@ export default function UserTimelineTab() {
             </ul>
           </StatCard>
           <StatCard title="时间线">
+            {eventQuality && (
+              <p className={styles.cardSub}>
+                最近最多 {eventQuality.event_limit} 条事件：检查 {eventQuality.events_checked} 条，
+                重复标识 {eventQuality.repeated_id_groups} 组，内容不一致 {eventQuality.conflicting_id_groups} 组，
+                无客户端标识 {eventQuality.events_without_client_id} 条。结果不代表全量数据，也不自动合并记录。
+              </p>
+            )}
             <ul className={styles.trendList}>
               {timeline.map((ev, idx) => (
                 <li key={`${ev.id}-${idx}`}>

@@ -1,5 +1,5 @@
 /* ============================================
-   Permadeath Challenge - Minimalist & Unified Typography
+   Permadeath Challenge — End-to-End Recruiting Funnel & Blind Gatekeeper
    ============================================ */
 
 .page {
@@ -12,6 +12,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stat-pill {
@@ -29,59 +30,11 @@
   color: var(--chalk);
 }
 
-.hp-value-safe {
-  color: var(--success);
-}
-
-.hp-value-warn {
-  color: var(--warning);
-}
-
-.hp-value-danger {
-  color: var(--red);
-}
-
-/* ---- Slim HP Bar ---- */
-.hp-bar-container {
-  margin-bottom: var(--sp-md);
-}
-
-.hp-bar-track {
-  width: 100%;
-  height: 6px;
-  background: rgba(0, 0, 0, 0.24);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--chalk-faint);
-}
-
-:global([data-theme="light"]) .hp-bar-track {
-  background: rgba(15, 23, 42, 0.08);
-}
-
-.hp-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.45s ease, background 0.3s ease;
-}
-
-.hp-fill-safe {
-  background: linear-gradient(90deg, var(--success), #2dd4a0);
-}
-
-.hp-fill-warn {
-  background: linear-gradient(90deg, var(--warning), #f5a623);
-}
-
-.hp-fill-danger {
-  background: linear-gradient(90deg, var(--danger), var(--red));
-}
-
-/* ---- 4-Stage Pipeline (Minimal 2-Row Cards) ---- */
+/* ---- Dynamic Multi-Stage Recruiting Pipeline ---- */
 .pipeline {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   margin-bottom: var(--sp-md);
 }
 
@@ -96,7 +49,7 @@
   backdrop-filter: blur(10px);
   border: var(--border);
   border-radius: var(--radius-md, 10px);
-  padding: 12px 14px;
+  padding: 11px 12px;
   transition: all 0.2s ease;
   border-left: 3px solid var(--chalk-faint);
   display: flex;
@@ -106,6 +59,11 @@
 
 .stage-locked {
   opacity: 0.58;
+}
+
+.stage-paused {
+  opacity: 0.48;
+  border-left-color: var(--warning);
 }
 
 .stage-current {
@@ -125,11 +83,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .stage-name {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
@@ -144,14 +102,14 @@
 }
 
 .stage-time {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--chalk-dim);
   font-family: var(--font-mono);
 }
 
 .stage-status {
-  font-size: 12px;
-  padding: 2px 8px;
+  font-size: 11px;
+  padding: 2px 7px;
   border-radius: 6px;
   font-family: var(--font-mono);
   flex-shrink: 0;
@@ -162,14 +120,19 @@
   color: var(--chalk-dim);
 }
 
+.status-paused {
+  background: rgba(255, 176, 32, 0.14);
+  color: var(--warning);
+}
+
 .status-current {
   background: rgba(155, 111, 199, 0.16);
   color: var(--purple);
 }
 
 .status-passed {
-  background: rgba(0, 196, 140, 0.14);
-  color: var(--success);
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--primary-light);
 }
 
 .status-failed {
@@ -201,22 +164,24 @@
   background: var(--bg-card);
 }
 
-.feedback-heal {
-  border-color: rgba(0, 196, 140, 0.4);
-  background: rgba(0, 196, 140, 0.08);
-}
-
-.feedback-damage {
-  border-color: rgba(255, 71, 87, 0.4);
-  background: rgba(255, 71, 87, 0.08);
+.feedback-sealed {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.08);
 }
 
 .feedback-hp-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
+  color: var(--primary-light);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  white-space: nowrap;
 }
 
 /* ---- Pre-Run Loadout Panel ---- */
@@ -248,15 +213,21 @@
   color: var(--chalk-dim);
 }
 
-.loadout-select {
+.loadout-select,
+.loadout-input {
   width: 100%;
   height: 40px;
-  padding: 0 36px 0 12px;
+  padding: 0 12px;
   border-radius: var(--radius-md, 10px);
   border: 1px solid var(--chalk-faint);
   background-color: var(--bg-elevated, rgba(255, 255, 255, 0.04));
   color: var(--chalk);
   font-size: 13.5px;
+  box-sizing: border-box;
+}
+
+.loadout-select {
+  padding-right: 36px;
 }
 
 .loadout-footer {
@@ -275,6 +246,10 @@
 }
 
 .asset-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   font-size: 12.5px;
   padding: 4px 10px;
   border-radius: var(--radius-md, 10px);
@@ -299,6 +274,7 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .detail-title {
@@ -311,10 +287,15 @@
 .header-right-tools {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   height: 34px;
   padding: 0 12px;
   border-radius: var(--radius-md, 10px);
@@ -324,6 +305,10 @@
   font-size: 12.5px;
   cursor: pointer;
   transition: all 0.18s ease;
+}
+
+:global([data-theme="light"]) .tool-btn {
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .tool-btn:hover {
@@ -337,6 +322,106 @@
   background: rgba(255, 71, 87, 0.12);
 }
 
+.pressure-mode-on {
+  border-color: rgba(245, 158, 11, 0.65);
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.12);
+  font-weight: 600;
+}
+
+/* ---- Cross-Stage AI Resume Screener Dossier & LGD Inheritance ---- */
+.dossier-relay-strip {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dossier-relay-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dossier-relay-badge {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--primary-light);
+}
+
+.dossier-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dossier-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--chalk);
+  background: var(--bg-elevated);
+  border: 1px solid var(--chalk-faint);
+}
+
+.dossier-lgd-inherit {
+  font-size: 12.5px;
+  color: var(--warning);
+  padding-top: 4px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+:global([data-theme="light"]) .dossier-lgd-inherit {
+  border-top-color: rgba(15, 23, 42, 0.12);
+}
+
+.screener-arch-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.screener-arch-header .prompt-main {
+  flex: 1;
+  min-width: 240px;
+}
+
+.screener-prompt-preview {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--chalk-dim);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.hr-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
 .detail-timer {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -345,6 +430,10 @@
   background: rgba(0, 0, 0, 0.22);
   border-radius: var(--radius-md, 10px);
   border: 1px solid rgba(255, 176, 32, 0.28);
+}
+
+:global([data-theme="light"]) .detail-timer {
+  background: rgba(15, 23, 42, 0.05);
 }
 
 .timer-overtime {
@@ -395,6 +484,9 @@
 }
 
 .story-use-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 2px 8px;
   border-radius: 6px;
   border: 1px solid rgba(155, 111, 199, 0.4);
@@ -409,6 +501,77 @@
   font-size: 12px;
   color: var(--chalk-dim);
   line-height: 1.4;
+}
+
+/* ---- Resume Release, Written Simulation & HR 4-Dimension Controls ---- */
+.resume-release-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.resume-form-grid,
+.hr-four-dim-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.written-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.written-q-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--chalk-faint);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.written-q-stem {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--chalk);
+  margin-bottom: 8px;
+}
+
+.written-opt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.written-opt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--chalk-faint);
+  background: var(--bg-elevated);
+  color: var(--chalk);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.written-opt-btn:hover {
+  border-color: var(--primary-light);
+}
+
+.written-opt-active {
+  border-color: var(--purple);
+  background: rgba(155, 111, 199, 0.18);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* ---- Stage Arena & Chat Stream ---- */
@@ -475,7 +638,7 @@
   color: var(--chalk);
 }
 
-/* ---- Stage 3 Two-Hit Combo Indicator ---- */
+/* ---- Business Round 2 Two-Hit Combo Indicator ---- */
 .combo-indicator {
   display: flex;
   align-items: center;
@@ -542,6 +705,7 @@
   line-height: 1.55;
   resize: vertical;
   margin-bottom: 12px;
+  box-sizing: border-box;
 }
 
 :global([data-theme="light"]) .composer-textarea {
@@ -557,55 +721,48 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* ---- Buttons ---- */
-.btn-start,
-.btn-complete,
-.btn-retry,
-.btn-victory {
+/* ---- Unified Action Buttons (WF-08 Precision Aligned) ---- */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   font-size: 13.5px;
   font-weight: 600;
   height: 40px;
+  min-width: 148px;
   padding: 0 20px;
   border-radius: var(--radius-md, 10px);
   border: none;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   text-decoration: none;
   transition: all 0.16s ease;
 }
 
-.btn-start {
-  background: var(--primary);
-  color: #fff;
-}
-
-.btn-complete {
+.action-btn-primary {
   background: var(--purple);
   color: #fff;
 }
 
-.btn-retry {
-  background: var(--danger);
-  color: #fff;
-}
-
-.btn-victory {
+.action-btn-accent {
   background: linear-gradient(135deg, var(--purple), var(--primary));
   color: #fff;
 }
 
-.btn-start:disabled,
-.btn-complete:disabled,
-.btn-victory:disabled {
+.action-btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.action-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-/* ---- Combat Log Panel ---- */
+/* ---- Recruiting Process Log Panel ---- */
 .combat-log-panel {
   background: var(--bg-card);
   border: var(--border);
@@ -669,22 +826,7 @@
   color: var(--chalk);
 }
 
-.combat-log-delta {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.delta-heal {
-  color: var(--success);
-}
-
-.delta-damage {
-  color: var(--danger);
-}
-
-/* ---- Game Over & Victory Overlays ---- */
+/* ---- Cutoff Elimination & Offer Letter Overlays ---- */
 .overlay {
   position: fixed;
   inset: 0;
@@ -700,7 +842,7 @@
 
 .overlay-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 520px;
   padding: 24px;
   border-radius: var(--radius-lg, 14px);
   border: var(--border);
@@ -710,7 +852,7 @@
 
 .overlay-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 6px;
 }
 
@@ -723,38 +865,72 @@
 }
 
 .overlay-sub {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--chalk-dim);
-  margin-bottom: 16px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.offer-letter-box {
+  text-align: left;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid rgba(52, 199, 89, 0.36);
+  background: rgba(52, 199, 89, 0.08);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.paused-stages-note {
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: rgba(255, 176, 32, 0.1);
+  border: 1px solid rgba(255, 176, 32, 0.3);
+  color: var(--warning);
+  font-size: 12.5px;
 }
 
 .overlay-scores {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .overlay-score-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 9px 12px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-md, 10px);
   border: 1px solid var(--chalk-faint);
 }
 
 .overlay-score-stage {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--chalk-dim);
+  text-align: left;
 }
 
 .overlay-score-val {
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--success);
+  white-space: nowrap;
+}
+
+.overlay-score-fail {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger);
+  white-space: nowrap;
 }
 
 .overlay-actions {
@@ -764,19 +940,22 @@
   flex-wrap: wrap;
 }
 
-/* ---- Responsive ---- */
 @media (max-width: 960px) {
   .pipeline {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
-  .loadout-grid {
+  .loadout-grid,
+  .resume-form-grid,
+  .hr-four-dim-bar,
+  .written-opt-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
-  .pipeline {
-    grid-template-columns: 1fr;
+  .pipeline,
+  .overlay-scores {
+    grid-template-columns: 1fr !important;
   }
   .loadout-footer {
     flex-direction: column;

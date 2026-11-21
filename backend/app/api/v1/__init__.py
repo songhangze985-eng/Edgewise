@@ -18,6 +18,7 @@ from app.api.v1.resume import router as resume_router
 from app.api.v1.schedule import router as schedule_router
 from app.api.v1.series import router as series_router
 from app.api.v1.share import router as share_router
+from app.api.v1.storage import router as storage_router
 from app.api.v1.stories import router as stories_router
 from app.api.v1.tasks import router as tasks_router
 
@@ -42,3 +43,4 @@ api_router.include_router(series_router)
 api_router.include_router(share_router)
 api_router.include_router(stories_router)
 api_router.include_router(tasks_router)
+api_router.include_router(storage_router)

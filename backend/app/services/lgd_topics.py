@@ -26,15 +26,17 @@ def get_topic_by_id(topic_id: str) -> dict[str, Any] | None:
 
 
 def build_phases(duration_minutes: int) -> list[dict[str, int | str]]:
-    """Fixed LGD flow: reading → personal statements (8×1min) → free → reporter summary."""
-    total = max(300, int(duration_minutes) * 60)
+    """Standard 5-stage LGD flow: reading → personal statements → free → reporter summary → examiner follow-up."""
+    total = max(360, int(duration_minutes) * 60)
     reading = min(120, max(60, total // 12))
     personal = 8 * 60
-    summary = 180
-    free = max(180, total - reading - personal - summary)
+    summary = 150
+    followup = 120
+    free = max(180, total - reading - personal - summary - followup)
     return [
         {"name": "reading", "seconds": reading},
         {"name": "personal_statement", "seconds": personal},
         {"name": "free_discussion", "seconds": free},
         {"name": "summary_report", "seconds": summary},
+        {"name": "examiner_followup", "seconds": followup},
     ]

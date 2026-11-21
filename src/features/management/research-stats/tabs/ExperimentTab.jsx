@@ -6,7 +6,7 @@ import SmallN from '../components/SmallN'
 import styles from '../ResearchStats.module.css'
 
 const OUTCOMES = [
-  { id: 'qualified_activation', label: '14 天自愿激活 / 合格激活' },
+  { id: 'qualified_activation', label: '已观察到的合格激活' },
   { id: 'posttest_status', label: '7 日盲评后测完成' },
   { id: 'survey:J2', label: 'J2 自评满意' },
 ]
@@ -47,6 +47,18 @@ export default function ExperimentTab({ filters, refreshKey }) {
       </label>
       {loading && <div className={styles.skeletonGrid}>加载中…</div>}
       {error && <div className={styles.errorBox}>{error}</div>}
+      {data?.activation_counts && (
+        <>
+          <p className={styles.notice}>观察窗口待确认，当前仅显示已确认人数和未确认人数。</p>
+          <div className={styles.armGrid}>
+            {Object.entries(data.activation_counts).map(([arm, counts]) => (
+              <StatCard key={arm} title={`组 ${arm}`} value={counts.confirmed}>
+                尚未确认 <SmallN value={counts.unconfirmed} />
+              </StatCard>
+            ))}
+          </div>
+        </>
+      )}
       {data?.cells && (
         <div className={styles.armGrid}>
           {['00', '01', '10', '11'].map((arm) => (

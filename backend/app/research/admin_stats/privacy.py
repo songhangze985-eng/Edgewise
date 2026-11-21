@@ -24,6 +24,15 @@ def user_hash(user_id: str) -> str:
     return digest[:12]
 
 
+def export_user_pseudonym(user_id: str) -> str:
+    digest = hmac.new(
+        research_hash_secret().encode("utf-8"),
+        f"research-export:{user_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"anon_{digest[:32]}"
+
+
 def resolve_user_id_by_hash(redis_user_ids: list[str], query_hash: str) -> str | None:
     target = query_hash.strip().lower()
     for uid in redis_user_ids:

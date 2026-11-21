@@ -105,12 +105,20 @@ class ResearchClientEvent(APIModel):
 
 
 class ResearchEventsBatch(APIModel):
-    events: list[ResearchClientEvent] = Field(min_length=1, max_length=100)
+    # Each event is validated independently so one malformed item does not reject the batch.
+    events: list[Any] = Field(min_length=1, max_length=100)
+
+
+class ResearchEventOutcome(APIModel):
+    status: str
+    event_id: str | None = None
+    reason: str | None = None
 
 
 class ResearchEventsBatchResponse(APIModel):
     accepted: int
     event_ids: list[str] = Field(default_factory=list)
+    outcomes: list[ResearchEventOutcome] = Field(default_factory=list)
 
 
 class SurveyItemView(APIModel):
@@ -121,10 +129,17 @@ class SurveyItemView(APIModel):
     reverse: bool = False
 
 
+class ResearchSurveyContext(APIModel):
+    user_id: str
+    consent_accepted_at: str
+
+
 class ResearchSurveyPending(APIModel):
     items: list[SurveyItemView] = Field(default_factory=list)
     survey_version: str
     blocked_reason: str | None = None
+    answer_context: ResearchSurveyContext | None = None
+    offer_event_id: str | None = None
 
 
 class ResearchSurveyAnswerItem(APIModel):
@@ -135,6 +150,9 @@ class ResearchSurveyAnswerItem(APIModel):
 
 class ResearchSurveyAnswerBatch(APIModel):
     answers: list[ResearchSurveyAnswerItem] = Field(min_length=1, max_length=3)
+    submission_id: str | None = Field(default=None, min_length=1, max_length=80)
+    answer_context: ResearchSurveyContext | None = None
+    offer_event_id: str | None = Field(default=None, min_length=1, max_length=50)
 
 
 class BlindReviewScoreSubmit(APIModel):
@@ -145,6 +163,7 @@ class BlindReviewScoreSubmit(APIModel):
 class BlindReviewItem(APIModel):
     review_token: str
     answer: str | None = None
+    retry_scores: dict[str, int] | None = None
 
 
 class UserPublic(APIModel):
@@ -250,11 +269,12 @@ class LgdRoomCreate(APIModel):
     max_participants: int = Field(default=8, ge=2, le=8)
     duration_minutes: int = Field(default=20, ge=5, le=180)
     agents: list[str] = Field(default_factory=list)
-    user_role: str = Field(default="member", max_length=20)
-    role_mode: str = Field(default="pick", max_length=20)
+    user_role: str = Field(default="member", max_length=24)
+    role_mode: str = Field(default="pick", max_length=24)
     script_id: str = Field(default="standard_flow", max_length=60)
     memory_enabled: bool = True
     api_mode: str = Field(default="hybrid_sandbox", max_length=40)
+    advancement_quota: int = Field(default=3, ge=1, le=4)
 
 
 class LgdPhaseConfig(APIModel):
@@ -278,9 +298,11 @@ class LgdRoomResponse(APIModel):
     agents: list[str] = Field(default_factory=list)
     phases: list[LgdPhaseConfig] = Field(default_factory=list)
     user_role: str | None = None
+    role_mode: str | None = "pick"
     script_id: str | None = "standard_flow"
     memory_enabled: bool = True
     api_mode: str | None = "hybrid_sandbox"
+    advancement_quota: int = 3
     participants: list[LgdParticipant] = Field(default_factory=list)
     created_at: str
     updated_at: str
@@ -637,6 +659,7 @@ class CopilotTriageResponse(APIModel):
     limitation: str | None = None
     clarifying_question: str | None = None
     scope_id: str | None = None
+    memory_context: dict[str, Any] | None = None
 
 
 class CopilotMicroTaskDoneRequest(APIModel):
@@ -770,6 +793,7 @@ class CreatorEpisodeView(APIModel):
 
 class CreatorSeriesView(APIModel):
     id: str
+    content_version: str
     topic: str
     variant: str
     episodes: list[CreatorEpisodeView] = Field(default_factory=list)

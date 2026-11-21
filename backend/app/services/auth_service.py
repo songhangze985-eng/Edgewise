@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
 from app.config import settings
+from app.core.index_store import index_user_registration, lookup_user_id_by_email
 from app.core.redis_client import get_json, set_json
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.schemas import TokenResponse, UserInDB, UserLogin, UserPublic, UserRegister
@@ -57,7 +58,7 @@ async def get_user_by_id(redis: Redis, user_id: str) -> UserInDB | None:
 
 async def get_user_by_email(redis: Redis, email: str) -> UserInDB | None:
     normalized_email = _normalize_email(email)
-    user_id = await redis.get(f"user:email:{normalized_email}")
+    user_id = await lookup_user_id_by_email(redis, normalized_email)
     if not user_id:
         return None
     return await get_user_by_id(redis, user_id)
@@ -65,7 +66,7 @@ async def get_user_by_email(redis: Redis, email: str) -> UserInDB | None:
 
 async def register_user(redis: Redis, payload: UserRegister) -> UserPublic:
     normalized_email = _normalize_email(payload.email)
-    existing_user = await redis.get(f"user:email:{normalized_email}")
+    existing_user = await lookup_user_id_by_email(redis, normalized_email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -98,8 +99,7 @@ async def register_user(redis: Redis, payload: UserRegister) -> UserPublic:
     }
 
     await set_json(redis, f"user:{user_id}", user_record)
-    await redis.set(f"user:email:{normalized_email}", user_id)
-    await redis.sadd("users:all", user_id)
+    await index_user_registration(redis, user_id=user_id, email=normalized_email)
     await ensure_user_invite_code(redis, user_record)
     await emit_server_event(redis, user_id, "auth.register", {"email_domain": normalized_email.split("@")[-1]})
 

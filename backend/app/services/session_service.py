@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
+from app.core.index_store import index_add_user_session
 from app.core.redis_client import get_json, set_json
 from app.models.schemas import InterviewSessionComplete, InterviewSessionCreate, SessionResponse, UserInDB
 from app.research.pipeline import emit_server_event
 from app.services.answer_validity import assess_answer
+from app.services.copilot_triage import get_copilot_practice_attribution
 from app.services.interview_config import ROUND_WEIGHTS
 from app.services.interview_rounds import build_session_rounds, normalize_round_configs
 from app.services.job_service import get_job_for_user, match_job_to_resume
@@ -18,7 +20,9 @@ from app.services.logic_scorer import score_logic_answer
 from app.services.hr_scorer import apply_hr_consistency, score_hr_answer
 from app.services.negotiation_engine import load_negotiation_script, process_negotiation_turn
 from app.services.professional_scorer import score_professional_answer
-from app.services.research_service import merge_client_metadata_for_session, record_session_completion
+from app.services.research_service import (
+    merge_client_metadata_for_session, open_day14_followup, record_first_valid_answer, record_session_completion,
+)
 from app.services.reverse_question_scorer import score_reverse_batch
 from app.services.lgd_scorer import score_lgd_discussion
 from app.services.structured_scorer import score_structured_answer
@@ -136,6 +140,25 @@ async def create_interview_session(
     session_id = uuid4().hex
     user_data = await get_json(redis, f"user:{current_user.id}") or current_user.model_dump()
     metadata = merge_client_metadata_for_session(user_data, payload.metadata)
+    metadata.pop("day14_followup", None)
+    if metadata.get("source") == "day14_voluntary":
+        followup = open_day14_followup(user_data, datetime.fromisoformat(created_at))
+        if payload.type != "interview" or followup is None:
+            raise HTTPException(status_code=409, detail="当前同意周期的后续练习尚未开放")
+        metadata["day14_followup"] = followup
+    metadata.pop("copilot_attribution", None)
+    click_id = metadata.pop("task_entry_click_id", None)
+    if metadata.get("task_id") and isinstance(click_id, str):
+        try:
+            if str(UUID(click_id)) == click_id:
+                metadata["task_entry_click_id"] = click_id
+        except ValueError:
+            pass
+    triage_id = metadata.pop("copilot_triage_id", None)
+    if payload.type == "interview" and triage_id is not None:
+        attribution = await get_copilot_practice_attribution(user_data, triage_id, metadata.get("task_id"))
+        if attribution is not None:
+            metadata["copilot_attribution"] = attribution
     if payload.job_id:
         metadata["job_id"] = payload.job_id
     experiment_arm = metadata.get("experiment_arm") or (
@@ -182,6 +205,65 @@ async def create_interview_session(
         from app.services.experience_service import build_experience_practice_rounds
 
         session_rounds = build_experience_practice_rounds(exp_prompts)
+
+    if payload.type == "interview":
+        from app.services.single_interview_taxonomy import (
+            build_60_40_curated_question_plan,
+            build_lgd_report_json,
+            build_resume_handoff_json,
+            generate_post_deep_dive_handoff_probes,
+        )
+
+        resume_record = await get_json(redis, f"resume:{resume_id}") if resume_id else None
+        saved_lgd_report = (
+            metadata.get("lgd_report")
+            or (metadata.get("context_handoff") or {}).get("lgd_report_json")
+            or await get_json(redis, f"lgd_report:{current_user.id}")
+        )
+        resume_handoff = build_resume_handoff_json(
+            resume_record,
+            position=session_position or "AI 产品经理 / Agent 应用工程师",
+            dossier=metadata.get("candidate_dossier"),
+        )
+        lgd_handoff = saved_lgd_report if isinstance(saved_lgd_report, dict) else build_lgd_report_json([])
+        handoff_bundle = generate_post_deep_dive_handoff_probes(
+            resume_json=resume_handoff,
+            lgd_report_json=lgd_handoff,
+        )
+        metadata["context_handoff"] = handoff_bundle
+
+        if (
+            metadata.get("taxonomy_mode") == "60_40_blueprint"
+            and metadata.get("mode") != "structured"
+            and metadata.get("mode") != "one_way"
+            and metadata.get("source") != "experiment_assigned_practice"
+            and not session_rounds
+        ):
+            curated_qs = build_60_40_curated_question_plan(
+                position=session_position or "AI 产品经理 / Agent 应用工程师",
+                resume_json=resume_handoff,
+                lgd_report_json=lgd_handoff,
+            )
+            session_rounds = [
+                {
+                    "name": "一轮 · 60%标准结构化评估（破冰/深挖/工具/行为）",
+                    "type": "standard",
+                    "reverse_qa": False,
+                    "questions": [q for q in curated_qs if q.get("taxonomy_class") == "standard"],
+                    "completed_count": 0,
+                    "score": None,
+                    "reverse_qa_items": [],
+                },
+                {
+                    "name": "二轮 · 40%非标准高阶压测（LGD联动/压力反驳/MVP场景/费米/反问）",
+                    "type": "standard",
+                    "reverse_qa": True,
+                    "questions": [q for q in curated_qs if q.get("taxonomy_class") == "non_standard"],
+                    "completed_count": 0,
+                    "score": None,
+                    "reverse_qa_items": [],
+                },
+            ]
 
     if payload.type == "interview" and metadata.get("mode") == "structured":
         structured_cfg = metadata.get("structured") or {}
@@ -245,9 +327,11 @@ async def create_interview_session(
     }
 
     await set_json(redis, f"session:{session_id}", session_record)
-    await redis.zadd(
-        f"user:{current_user.id}:sessions",
-        {session_id: datetime.now(timezone.utc).timestamp()},
+    await index_add_user_session(
+        redis,
+        current_user.id,
+        session_id,
+        datetime.now(timezone.utc).timestamp(),
     )
     metadata = session_record.get("metadata") or {}
     await emit_server_event(
@@ -321,6 +405,7 @@ async def score_interview_answer(
     take_no: int | None = None,
     takes_used: int | None = None,
 ) -> dict:
+    received_at = datetime.now(timezone.utc)
     session = await get_json(redis, f"session:{session_id}")
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -489,10 +574,27 @@ async def score_interview_answer(
         question["logic_score"] = None
         question["logic_rule_version"] = None
 
+    from app.services.single_interview_taxonomy import evaluate_subtype_answer_signals
+
+    subtype_eval = evaluate_subtype_answer_signals(
+        answer_text,
+        subtype=question.get("taxonomy_subtype"),
+        question_title=question.get("title") or "",
+    )
+    question["taxonomy_evaluation"] = subtype_eval
+    if validity["answer_valid"] and isinstance(question.get("score"), (int, float)):
+        question["score"] = round(
+            min(100.0, float(question["score"]) + min(6.0, float(subtype_eval.get("rubric_bonus") or 0.0))),
+            1,
+        )
+
     _recompute_round_score(rounds[round_index])
     session["rounds"] = rounds
     session["updated_at"] = datetime.now(timezone.utc).isoformat()
     await set_json(redis, f"session:{session_id}", session)
+
+    if validity["answer_valid"] and current_user.id == session["user_id"]:
+        await record_first_valid_answer(redis, session, received_at, round_index, question_index)
 
     await emit_server_event(
         redis,
@@ -506,6 +608,7 @@ async def score_interview_answer(
         "type": qtype,
         "score": question["score"],
         "logic_score": question.get("logic_score"),
+        "taxonomy_evaluation": subtype_eval,
     }
     if qtype == "structured":
         payload["structured_score"] = question.get("structured_score")
@@ -682,7 +785,7 @@ async def complete_interview_session(
         session["score"] = final_from_rounds if final_from_rounds is not None else payload.score
     session["score_status"] = score_status
     session["duration_minutes"] = payload.duration_minutes
-    session["completed_at"] = now
+    session["completed_at"] = session.get("completed_at") or now
     session["updated_at"] = now
     dimensions = dict(payload.dimensions or {})
     if rounds:
@@ -716,6 +819,17 @@ async def complete_interview_session(
                 for r in rounds
                 if r.get("score") is not None
             ]
+    # Keep the entry references recorded at creation across completion updates.
+    entry_fields = ("copilot_attribution", "task_entry_click_id")
+    original_metadata = session.get("metadata") or {}
+    for field in (*entry_fields, "day14_followup"):
+        metadata.pop(field, None)
+        if value := original_metadata.get(field):
+            metadata[field] = value
+    if any(original_metadata.get(field) for field in entry_fields):
+        metadata.pop("task_id", None)
+        if original_metadata.get("task_id"):
+            metadata["task_id"] = original_metadata["task_id"]
     if transcript:
         metadata["transcript"] = transcript
         metadata["messages"] = payload.messages or transcript
@@ -730,6 +844,9 @@ async def complete_interview_session(
         )
         session["lgd_metrics"] = lgd_metrics
         metadata["lgd_metrics"] = lgd_metrics
+        if lgd_metrics.get("lgd_report"):
+            metadata["lgd_report"] = lgd_metrics["lgd_report"]
+            await set_json(redis, f"lgd_report:{session['user_id']}", lgd_metrics["lgd_report"])
         if lgd_metrics.get("timeline"):
             metadata["lgd_timeline"] = lgd_metrics["timeline"]
         if not lgd_metrics.get("spoke"):
@@ -807,7 +924,10 @@ async def patch_interview_session_metadata(
         )
 
     now = datetime.now(timezone.utc).isoformat()
-    session["metadata"] = {**session.get("metadata", {}), **metadata_patch}
+    session["metadata"] = {
+        **session.get("metadata", {}),
+        **{key: value for key, value in metadata_patch.items() if key != "day14_followup"},
+    }
     session["updated_at"] = now
 
     await set_json(redis, f"session:{session_id}", session)

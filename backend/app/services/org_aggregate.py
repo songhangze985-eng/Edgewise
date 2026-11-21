@@ -6,7 +6,9 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from app.core.index_store import get_user_session_ids
 from app.core.redis_client import get_json
+from app.research.derive import get_auto_value_raw
 
 # Fixed threshold — not configurable per org or via API.
 AGGREGATE_MIN_GROUP_SIZE = 5
@@ -14,7 +16,7 @@ SUPPRESSED_REASON = "人数不足，不展示"
 
 
 async def _member_qualified_activation(redis: Redis, user_id: str) -> bool:
-    qa = await redis.hget(f"research:auto:{user_id}", "qualified_activation")
+    qa = await get_auto_value_raw(redis, user_id, "qualified_activation")
     if qa is not None:
         try:
             return int(qa) == 1
@@ -22,7 +24,7 @@ async def _member_qualified_activation(redis: Redis, user_id: str) -> bool:
             pass
     from app.services.referral_service import session_counts_toward_activation
 
-    session_ids = await redis.zrevrange(f"user:{user_id}:sessions", 0, -1)
+    session_ids = await get_user_session_ids(redis, user_id)
     for session_id in session_ids:
         session = await get_json(redis, f"session:{session_id}")
         if not session or session.get("status") != "completed":

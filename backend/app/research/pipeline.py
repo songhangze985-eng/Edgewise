@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from redis.asyncio import Redis
@@ -18,6 +19,9 @@ async def on_research_event(
     props: dict[str, Any] | None = None,
     event_id: str | None = None,
     skip_append: bool = False,
+    skip_derivation: bool = False,
+    receipt_id: str | None = None,
+    before_survey: Callable[[], Awaitable[bool]] | None = None,
 ) -> str | None:
     props = props or {}
     if not skip_append:
@@ -47,7 +51,10 @@ async def on_research_event(
         "org.mentor_share",
         "workshop.completed",
     ):
-        await derive_on_event(redis, user_id, event, props, event_id=event_id)
+        if not skip_derivation:
+            await derive_on_event(redis, user_id, event, props, event_id=event_id, receipt_id=receipt_id)
+        if before_survey is not None and not await before_survey():
+            return None
         await handle_survey_trigger_event(redis, user_id, event, props)
 
     return event_id

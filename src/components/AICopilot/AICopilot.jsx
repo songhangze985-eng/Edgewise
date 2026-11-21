@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './AICopilot.module.css'
-import { postCopilotMicroDone, postCopilotTriage } from '../../api/copilot'
+import {
+  clearCopilotMemory,
+  getCopilotMemory,
+  postCopilotMicroDone,
+  postCopilotTriage,
+} from '../../api/copilot'
 
 const TRIAGE_SHORTCUTS = [
   { label: '说不清我做了什么', message: '项目经历里说不清自己做了什么，总说我们团队' },
@@ -126,6 +131,7 @@ export default function AICopilot() {
   const [gapNote, setGapNote] = useState('')
   const [carryConsent, setCarryConsent] = useState(false)
   const [errorHint, setErrorHint] = useState('')
+  const [memoryCtx, setMemoryCtx] = useState(null)
   const sessionNoRecommendRef = useRef(false)
   const messagesEndRef = useRef(null)
 
@@ -155,9 +161,42 @@ export default function AICopilot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [step, triage, gapNote, errorHint])
 
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    getCopilotMemory()
+      .then((mem) => {
+        if (!cancelled && mem) {
+          setMemoryCtx({
+            turn_count: mem.turn_count || 0,
+            last_need: mem.user_facts?.last_need || null,
+            target_position: mem.user_facts?.target_position || null,
+            target_company: mem.user_facts?.target_company || null,
+            episodic_summary: mem.episodic_summary || '',
+          })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
+
+  const handleClearMemory = useCallback(async () => {
+    try {
+      await clearCopilotMemory()
+      setMemoryCtx({ turn_count: 0 })
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const applyTriageResult = useCallback((data, message) => {
     setTriage(data)
     setBaseMessage(message)
+    if (data.memory_context) {
+      setMemoryCtx(data.memory_context)
+    }
     if (data.clarifying_question) {
       setStep('clarify')
       setInput('')
@@ -258,6 +297,17 @@ export default function AICopilot() {
     }, 280)
   }, [resetFlow])
 
+  const navigateToSuggestion = useCallback(() => {
+    const route = triage?.route
+    if (!route?.path) return
+    const href = new URL(route.path, window.location.origin)
+    if (href.origin !== window.location.origin) return
+    if (triage.triage_id && ['task_page', 'interview_lobby'].includes(route.kind)) {
+      href.searchParams.set('copilot_triage_id', triage.triage_id)
+    }
+    navigate(href.pathname + href.search + href.hash)
+  }, [navigate, triage])
+
   const handlePracticeStart = useCallback(() => {
     if (!triage?.route?.path) return
     if (carryConsent && microAnswer.trim()) {
@@ -267,9 +317,9 @@ export default function AICopilot() {
         /* ignore */
       }
     }
-    navigate(triage.route.path)
+    navigateToSuggestion()
     handleClose()
-  }, [triage, carryConsent, microAnswer, navigate, handleClose])
+  }, [triage, carryConsent, microAnswer, navigateToSuggestion, handleClose])
 
   const handleToggle = useCallback(() => {
     if (isOpen) handleClose()
@@ -334,6 +384,14 @@ export default function AICopilot() {
                 </div>
                 <div className={styles['panel-desc']}>
                   先判断你卡在哪一步，再给一个可在底部舱内直接完成的微练习；不代替内推、代写或薪资建议。
+                  {memoryCtx?.turn_count > 0 && (
+                    <span>
+                      {' '}
+                      · 多轮记忆已开启（第 {memoryCtx.turn_count} 轮
+                      {memoryCtx.target_position ? ` · ${memoryCtx.target_position}` : ''}
+                      {memoryCtx.target_company ? ` · ${memoryCtx.target_company}` : ''}）
+                    </span>
+                  )}
                 </div>
               </div>
               <button
@@ -363,6 +421,16 @@ export default function AICopilot() {
                           {s.label}
                         </button>
                       ))}
+                      {memoryCtx?.turn_count > 0 && (
+                        <button
+                          type="button"
+                          className={styles['suggestion-chip']}
+                          onClick={handleClearMemory}
+                          disabled={status === 'running'}
+                        >
+                          清空记忆
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -395,13 +463,16 @@ export default function AICopilot() {
                         <button
                           type="button"
                           className={styles['ghost-btn']}
-                          onClick={() => navigate(triage.route.path)}
+                          onClick={navigateToSuggestion}
                         >
                           {triage.route.label}
                         </button>
                       )}
                       <button type="button" className={styles['ghost-btn']} onClick={handleRejectTriage}>
                         不是这个
+                      </button>
+                      <button type="button" className={styles['ghost-btn']} onClick={resetFlow}>
+                        继续追问
                       </button>
                       <button type="button" className={styles['ghost-btn']} onClick={handleDecline}>
                         不需要
@@ -421,7 +492,7 @@ export default function AICopilot() {
                         <button
                           type="button"
                           className={styles['ghost-btn']}
-                          onClick={() => navigate(triage.route.path)}
+                          onClick={navigateToSuggestion}
                         >
                           {triage.route.label}
                         </button>

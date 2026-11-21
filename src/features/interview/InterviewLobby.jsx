@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { createSession } from '../../api/interview'
+import { createSession, fetchInterviewTaxonomy } from '../../api/interview'
+import { getLgdHandoffReport } from '../../api/lgd'
 import { createJob, listJobs } from '../../api/jobs'
+import {
+  NON_STANDARD_QUESTION_TYPES,
+  STANDARD_QUESTION_TYPES,
+  buildResumeHandoffJson,
+  loadLgdReportHandoff,
+} from '../../utils/singleInterviewTaxonomy'
 import { fetchExperimentContext } from '../../api/research'
 import { fetchTasksManifest } from '../../api/tasks'
 import useAuthStore from '../../stores/authStore'
@@ -96,6 +103,8 @@ export default function InterviewLobby() {
   const prefillJob = searchParams.get('job') || ''
   const prefillFollowup = searchParams.get('followup')
   const taskIdFromUrl = searchParams.get('task_id') || ''
+  const copilotTriageId = searchParams.get('copilot_triage_id')
+  const taskEntryClickId = searchParams.get('task_entry_click_id')
 
   const experimentAssignment = useAuthStore((s) => s.user?.experimentAssignment)
   const captureFromUrl = useResearchStore((s) => s.captureFromUrl)
@@ -133,6 +142,10 @@ export default function InterviewLobby() {
   const [negotiationFloorK, setNegotiationFloorK] = useState('15')
   const [negotiationCeilingK, setNegotiationCeilingK] = useState('22')
   const [interviewLang, setInterviewLang] = useState(INTERVIEW_LANG_ZH)
+  const fromLgdHandoff = searchParams.get('from_lgd') === '1'
+  const [taxonomyMode, setTaxonomyMode] = useState(fromLgdHandoff ? '60_40_blueprint' : 'custom_pool')
+  const [contextHandoffEnabled, setContextHandoffEnabled] = useState(true)
+  const [lgdReportHandoff, setLgdReportHandoff] = useState(() => loadLgdReportHandoff())
 
   const resolvedFollowupIntensity = useMemo(() => {
     if (followupIntensity != null) return followupIntensity
@@ -155,6 +168,24 @@ export default function InterviewLobby() {
   useEffect(() => {
     captureFromUrl()
   }, [captureFromUrl])
+
+  useEffect(() => {
+    fetchInterviewTaxonomy({ skipErrorToast: true })
+      .then((res) => {
+        const rep = res?.context_handoff?.lgd_report_json
+        if (rep && Array.isArray(rep.behavior_slices) && rep.behavior_slices.length > 0) {
+          setLgdReportHandoff(rep)
+        }
+      })
+      .catch(() => {})
+    getLgdHandoffReport()
+      .then((rep) => {
+        if (rep && Array.isArray(rep.behavior_slices) && rep.behavior_slices.length > 0) {
+          setLgdReportHandoff(rep)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const armCode =
@@ -375,11 +406,22 @@ export default function InterviewLobby() {
       }
       const resolvedLang = normalizeInterviewLang(interviewLang)
       trackResearchEvent('interview.lang', { lang: resolvedLang })
+      const resumeHandoffJson = buildResumeHandoffJson(useResumeStore.getState(), finalPosition)
       const sessionMetadata = {
         interview_type: selectedType,
         position: finalPosition,
         lang: resolvedLang,
+        taxonomy_mode: taxonomyMode,
+        context_handoff_enabled: contextHandoffEnabled,
+        lgd_report: lgdReportHandoff,
+        context_handoff: {
+          resume_json: resumeHandoffJson,
+          lgd_report_json: lgdReportHandoff,
+        },
         ...researchMeta,
+        ...(taskIdFromUrl ? { task_id: taskIdFromUrl } : {}),
+        ...(copilotTriageId ? { copilot_triage_id: copilotTriageId } : {}),
+        ...(taskIdFromUrl && taskEntryClickId ? { task_entry_click_id: taskEntryClickId } : {}),
       }
       if (effectiveResumeId) {
         sessionMetadata.resume_id = effectiveResumeId
@@ -482,11 +524,13 @@ export default function InterviewLobby() {
         taskIdFromUrl || sessionMetadata.task_id || researchMeta.task_id || null
       if (taskSlug) {
         trackResearchEvent('task.started', { slug: taskSlug, task_id: taskSlug, session_id: session.id })
-        const stepsMetrics = consumeTaskStepsMetrics(taskSlug)
+        const stepsMetrics = consumeTaskStepsMetrics(taskSlug, taskEntryClickId)
         if (stepsMetrics) {
           trackResearchEvent('task.steps_to_start', {
             slug: taskSlug,
             task_id: taskSlug,
+            session_id: session.id,
+            task_entry_click_id: taskEntryClickId || undefined,
             ...stepsMetrics,
           })
         }
@@ -586,6 +630,108 @@ export default function InterviewLobby() {
               研究安排的首轮练习不可使用「AI 初面模拟（单向）」。
             </p>
           )}
+
+          {/* 60% Standard vs 40% Non-Standard Question Taxonomy & Context Handoff Card */}
+          <div className={styles['section']} style={{ marginTop: '14px' }}>
+            <div className={styles['section-label']}>
+              题库结构配比（60% 标准题 vs 40% 非标准题）& 跨环节状态流转（Context Handoff）
+            </div>
+            <div className={styles['diff-row']} style={{ marginBottom: '10px' }}>
+              <button
+                type="button"
+                className={`${styles['diff-btn']} ${taxonomyMode === '60_40_blueprint' ? styles.selected : ''}`}
+                onClick={() => setTaxonomyMode('60_40_blueprint')}
+              >
+                <span className={styles['diff-label']}>60/40 黄金配比题单</span>
+                <span className={styles['diff-desc']}>
+                  60%必考标准题（STAR/5W2H）+ 40%非标准SP压测（含LGD回溯/压力反驳/费米/反问）
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`${styles['diff-btn']} ${taxonomyMode === 'custom_pool' ? styles.selected : ''}`}
+                onClick={() => setTaxonomyMode('custom_pool')}
+              >
+                <span className={styles['diff-label']}>自由题库抽题</span>
+                <span className={styles['diff-desc']}>
+                  按轮次自定义通用/简历/专业比例抽题，并在项目深挖后衔接跨环节追问
+                </span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '10px',
+                marginBottom: '10px',
+              }}
+            >
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: 'var(--border)',
+                  background: 'var(--bg-elevated)',
+                  fontSize: '12px',
+                  lineHeight: 1.55,
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: '4px', color: 'var(--primary-light)' }}>
+                  1. 标准问题类型（60% 篇幅 · 所有候选人必考）
+                </div>
+                {STANDARD_QUESTION_TYPES.map((st) => (
+                  <div key={st.subtype} style={{ marginBottom: '3px' }}>
+                    <strong>{st.short_label}</strong>：
+                    <span style={{ color: 'var(--chalk-dim)' }}>{st.assessment_points}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: 'var(--border)',
+                  background: 'var(--bg-elevated)',
+                  fontSize: '12px',
+                  lineHeight: 1.55,
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: '4px', color: 'var(--purple)' }}>
+                  2. 非标准问题类型（40% 篇幅 · 决定高评级/SP Offer）
+                </div>
+                {NON_STANDARD_QUESTION_TYPES.map((nst) => (
+                  <div key={nst.subtype} style={{ marginBottom: '3px' }}>
+                    <strong>{nst.short_label}</strong>：
+                    <span style={{ color: 'var(--chalk-dim)' }}>{nst.assessment_points}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <label className={styles['resume-toggle']} style={{ marginTop: '4px' }}>
+              <input
+                type="checkbox"
+                checked={contextHandoffEnabled}
+                onChange={(e) => setContextHandoffEnabled(e.target.checked)}
+              />
+              启用 Agent 状态流转（Context Handoff）：读取 resume.json + lgd_report.json，在「② 简历项目深挖」结束后自动触发 1 条「③ 跨环节联动追问」+ 1 条「② 压力否定追问」
+            </label>
+            {contextHandoffEnabled && lgdReportHandoff?.behavior_slices?.[0] && (
+              <p className={styles['inline-note']} style={{ marginTop: '4px' }}>
+                🔗 已挂载最新 LGD 行为切片：
+                <code>
+                  {JSON.stringify({
+                    timestamp: lgdReportHandoff.behavior_slices[0].timestamp,
+                    event: lgdReportHandoff.behavior_slices[0].event,
+                    weakness: lgdReportHandoff.behavior_slices[0].weakness,
+                  })}
+                </code>
+              </p>
+            )}
+          </div>
+
           <div className={styles['step-actions']}>
             <button type="button" className={styles['step-next']} onClick={() => setStep(2)}>下一步</button>
           </div>

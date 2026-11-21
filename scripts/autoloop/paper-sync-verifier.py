@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Autoloop Pipeline #7: Chapter 4 Paper Empirical Table Synchronizer & Verifier.
+"""Check structural markers in a simulation-only analysis example.
 
-Verifies that `docs/paper_empirical_analysis.md` exists, contains all 9 empirical tables
-(表 4-1 through 表 4-9) and all 6 proposition tests (P1-P6), and matches the deterministic
-statistical engine in `scripts/run_empirical_analysis.py`.
+This does not verify source data, statistical calculations, or real research results.
 """
 
 from __future__ import annotations
@@ -72,16 +70,18 @@ def verify_paper_sync() -> dict[str, Any]:
         "card_type": "autoloop_paper_sync_report",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "ok": ok,
-        "status": "SYNCED" if ok else "DRIFT_DETECTED",
+        "status": "SIMULATION_STRUCTURE_ONLY" if ok else "DRIFT_DETECTED",
         "doc_path": str(DOC_PATH.relative_to(ROOT)),
         "tables_verified": len(REQUIRED_TABLES) - len(missing_tables),
         "propositions_verified": len(REQUIRED_PROPOSITIONS) - len(missing_props),
-        "sample_size_verified": sample_total,
+        "sample_size_verified": None,
+        "sample_size_mentioned": sample_total,
+        "verification_scope": "Only checks text markers; simulation data and calculations are not verified.",
         "issues": issues,
         "hitl_card": {
             "header": {
                 "title": (
-                    "📑 [Edgewise 论文同步守卫] 第四章表 4-1~4-9 与 P1~P6 实证数据 100% 对齐"
+                    "📑 [Edgewise 模拟文档检查] 已找到表格与命题标记；未验证数据或计算"
                     if ok
                     else "⚠️ [Edgewise 论文同步告警] 检测到实证文档与统计脚本不一致"
                 ),
@@ -106,7 +106,7 @@ def main() -> int:
         print(f"Document:        {report['doc_path']}")
         print(f"Tables Verified: {report['tables_verified']}/9")
         print(f"Propositions:    {report['propositions_verified']}/6")
-        print(f"Sample Size:     N={report['sample_size_verified']}")
+        print(f"Sample Mentioned: N={report['sample_size_mentioned']} (not verified)")
         print(f"Status:          {report['status']}")
         print("====================================================")
     return 0 if report["ok"] else 1

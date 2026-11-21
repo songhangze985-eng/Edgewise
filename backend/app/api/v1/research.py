@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from redis.asyncio import Redis
 
 from app.api.deps import get_current_admin, get_current_user, get_redis
@@ -24,9 +24,11 @@ from app.models.schemas import (
     ResearchSurveyPending,
     UserInDB,
 )
+from app.research.admin_stats.audit import write_audit
 from app.services.research_survey_service import (
     blind_review_pending,
     blind_review_submit,
+    export_research_event_rows,
     export_research_panel,
     export_research_panel_csv,
     ingest_events,
@@ -73,6 +75,8 @@ async def read_posttest_status(
     current_user: UserInDB = Depends(get_current_user),
     redis: Redis = Depends(get_redis),
 ) -> ResearchPosttestStatus:
+    if research_accelerate and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Administrator access required to accelerate posttest")
     return await get_posttest_status(
         redis,
         current_user,
@@ -139,9 +143,8 @@ async def post_research_events(
     current_user: UserInDB = Depends(get_current_user),
     redis: Redis = Depends(get_redis),
 ) -> ResearchEventsBatchResponse:
-    events = [item.model_dump() for item in payload.events]
-    accepted, event_ids = await ingest_events(redis, current_user, events)
-    return ResearchEventsBatchResponse(accepted=accepted, event_ids=event_ids)
+    accepted, event_ids, outcomes = await ingest_events(redis, current_user, payload.events)
+    return ResearchEventsBatchResponse(accepted=accepted, event_ids=event_ids, outcomes=outcomes)
 
 
 @router.get("/survey/pending", response_model=ResearchSurveyPending)
@@ -161,7 +164,10 @@ async def write_survey_answers(
     redis: Redis = Depends(get_redis),
 ) -> dict:
     answers = [item.model_dump() for item in payload.answers]
-    records = await submit_survey_answers(redis, current_user, answers)
+    records = await submit_survey_answers(
+        redis, current_user, answers, submission_id=payload.submission_id, answer_context=payload.answer_context,
+        offer_event_id=payload.offer_event_id,
+    )
     return {"saved": len(records), "records": records}
 
 
@@ -178,10 +184,10 @@ async def trigger_daily_derive(
 @router.get("/blind-review/pending", response_model=list[BlindReviewItem])
 async def read_blind_review_pending(
     limit: int = Query(default=10, ge=1, le=50),
-    _admin: UserInDB = Depends(get_current_admin),
+    admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> list[BlindReviewItem]:
-    rows = await blind_review_pending(redis, limit=limit)
+    rows = await blind_review_pending(redis, limit=limit, reviewer_id=admin.id)
     return [BlindReviewItem.model_validate(row) for row in rows]
 
 
@@ -191,17 +197,37 @@ async def write_blind_review_score(
     admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> MessageResponse:
-    await blind_review_submit(redis, admin.id, payload.model_dump())
+    try:
+        await blind_review_submit(redis, admin.id, payload.model_dump())
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return MessageResponse(message="Blind review scores saved")
+
+
+@router.get("/export/events")
+async def export_event_data(
+    admin: UserInDB = Depends(get_current_admin),
+    redis: Redis = Depends(get_redis),
+) -> StreamingResponse:
+    await write_audit(redis, admin.id, "export_events", {"format": "jsonl", "anonymize": True})
+    return StreamingResponse(
+        export_research_event_rows(redis),
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": 'attachment; filename="edgewise-research-events.jsonl"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get("/export/panel")
 async def export_research_panel_data(
     format: str = Query(default="jsonl", pattern="^(jsonl|csv)$"),
     anonymize: bool = Query(default=True),
-    _admin: UserInDB = Depends(get_current_admin),
+    admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> PlainTextResponse:
+    await write_audit(redis, admin.id, "export_panel", {"format": format, "anonymize": anonymize})
     if format == "csv":
         body = await export_research_panel_csv(redis, anonymize=anonymize)
         media_type = "text/csv; charset=utf-8"
@@ -214,17 +240,18 @@ async def export_research_panel_data(
     return PlainTextResponse(
         content=body,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
     )
 
 
 @router.get("/export")
 async def export_research_data(
     format: str = Query(default="jsonl", pattern="^(jsonl|csv)$"),
-    anonymize: bool = Query(default=False),
-    _admin: UserInDB = Depends(get_current_admin),
+    anonymize: bool = Query(default=True),
+    admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> PlainTextResponse:
+    await write_audit(redis, admin.id, "export_sessions", {"format": format, "anonymize": anonymize})
     if format == "csv":
         body = await export_research_csv(redis, anonymize=anonymize)
         media_type = "text/csv; charset=utf-8"
@@ -237,5 +264,5 @@ async def export_research_data(
     return PlainTextResponse(
         content=body,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
     )

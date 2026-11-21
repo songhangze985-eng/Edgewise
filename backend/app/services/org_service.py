@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
+from app.core.index_store import get_user_session_ids
 from app.core.redis_client import get_json, set_json
 from app.models.schemas import UserInDB
 from app.research.pipeline import emit_server_event
@@ -401,7 +402,7 @@ async def _sessions_visible_to_mentor(
         return []
     scope = consent.get("share_scope") or "session"
     if scope == "all":
-        ids = await redis.zrevrange(f"user:{member_id}:sessions", 0, 49)
+        ids = await get_user_session_ids(redis, member_id, start=0, stop=49)
         out: list[str] = []
         for sid in ids:
             session = await get_json(redis, f"session:{sid}")

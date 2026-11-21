@@ -65,7 +65,12 @@ function MicroSurveyGate() {
   const user = useAuthStore((s) => s.user)
   const location = useLocation()
   const checkPending = useSurveyStore((s) => s.checkPending)
-  const checkedRef = useRef(false)
+  const busy = useSurveyStore((s) => s.loading || s.submitting)
+  const checkedScope = useRef(null)
+  const consent = user?.researchConsent
+  const scope = user?.id && consent?.accepted && !consent.withdrawnAt && consent.acceptedAt
+    ? `${user.id}:${consent.acceptedAt}`
+    : null
 
   const isBlocked =
     location.pathname.startsWith('/interview/room')
@@ -73,14 +78,14 @@ function MicroSurveyGate() {
     || location.pathname.startsWith('/lgd/room')
 
   useEffect(() => {
-    const accepted = user?.researchConsent?.accepted
-    if (accepted && !isBlocked && !checkedRef.current) {
-      checkedRef.current = true
+    if (!scope) checkedScope.current = null
+    if (scope && !isBlocked && !busy && checkedScope.current !== scope) {
+      checkedScope.current = scope
       checkPending('app_ready')
     }
-  }, [user, isBlocked, checkPending])
+  }, [scope, isBlocked, busy, checkPending])
 
-  if (!user?.researchConsent?.accepted || isBlocked) return null
+  if (!scope || isBlocked) return null
 
   return <MicroSurveyModal />
 }

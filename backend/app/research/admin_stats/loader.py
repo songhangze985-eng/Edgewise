@@ -6,10 +6,13 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from app.core.index_store import get_all_user_ids
+from app.core.mongo_client import mongo_store
 from app.core.redis_client import get_json
 from app.research.admin_stats.filters import StatsFilters, row_matches_filters
 from app.research.admin_stats.privacy import user_hash
-from app.research.events import read_event_stream
+from app.research.events import current_cycle_posttest_dates, event_times_in_consent_cycle, read_event_stream, user_has_research_consent
+from app.research.derive import get_report_auto_fields
 from app.research.keys import (
     RULE_VERSION,
     SURVEY_ITEMS_VERSION,
@@ -18,9 +21,8 @@ from app.research.keys import (
     survey_hash_key,
     survey_queue_key,
     survey_shown_key,
-    survey_state_key,
 )
-from app.research.survey_engine import load_survey_items
+from app.research.survey_engine import _get_state, get_current_survey_answers, load_survey_items
 
 
 def _condition_matches(condition: str | None, auto: dict[str, Any], state: dict[str, Any]) -> bool:
@@ -65,7 +67,7 @@ def _parse_json_val(raw: Any) -> Any:
 
 
 async def load_cohort(redis: Redis, filters: StatsFilters) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    user_ids = list(await redis.smembers("users:all"))
+    user_ids = await get_all_user_ids(redis)
     items_by_trigger: dict[str, list[str]] = {}
     for item in load_survey_items():
         items_by_trigger.setdefault(item.get("trigger", ""), []).append(item["id"])
@@ -83,33 +85,30 @@ async def load_cohort(redis: Redis, filters: StatsFilters) -> tuple[list[dict[st
         consented_total += 1
 
         assignment = user_data.get("experiment_assignment") or {}
-        arm = assignment.get("arm") or "00"
-        auto_raw = await redis.hgetall(auto_hash_key(user_id))
-        auto: dict[str, Any] = {k: _parse_json_val(v) for k, v in auto_raw.items()}
-        meta_raw = await redis.hgetall(auto_meta_key(user_id))
+        arm = assignment.get("arm")
+        if arm not in ("00", "01", "10", "11"):
+            arm = None
+        auto, meta_raw, _ = await get_report_auto_fields(redis, user_id, user_data)
         rule_version = RULE_VERSION
         if meta_raw:
             first = next(iter(meta_raw.values()), None)
             try:
-                parsed_meta = json.loads(first) if first else {}
+                parsed_meta = first or {}
                 rule_version = parsed_meta.get("rule_version") or rule_version
-            except json.JSONDecodeError:
+            except (AttributeError, TypeError):
                 pass
 
-        survey_raw = await redis.hgetall(survey_hash_key(user_id))
-        survey: dict[str, Any] = {}
-        for key, val in survey_raw.items():
-            survey[key] = _parse_json_val(val)
+        survey = await get_current_survey_answers(redis, user_id, consent)
 
-        state_raw = await redis.hgetall(survey_state_key(user_id))
-        state: dict[str, Any] = {k: _parse_json_val(v) for k, v in state_raw.items()}
+        state = await _get_state(redis, user_id)
 
         row: dict[str, Any] = {
             "user_id": user_id,
             "user_hash": user_hash(user_id),
             "arm": arm,
-            "zc": int(arm[0]) if len(arm) >= 2 else 0,
-            "zp": int(arm[1]) if len(arm) >= 2 else 0,
+            "assignment_source": assignment.get("source"),
+            "zc": int(arm[0]) if arm else None,
+            "zp": int(arm[1]) if arm else None,
             "consent_at": consent.get("accepted_at"),
             "entry_channel": auto.get("entry_channel") or auto.get("B1"),
             "institution_id": auto.get("institution_id"),
@@ -118,8 +117,7 @@ async def load_cohort(redis: Redis, filters: StatsFilters) -> tuple[list[dict[st
             "auto": auto,
             "survey": survey,
             "state": state,
-            "posttest_due_at": user_data.get("posttest_due_at"),
-            "posttest_completed_at": user_data.get("posttest_completed_at"),
+            **current_cycle_posttest_dates(user_data),
             "created_at": user_data.get("created_at"),
         }
         if row_matches_filters(row, filters):
@@ -149,9 +147,23 @@ def cohort_to_dataframe(rows: list[dict[str, Any]]):
 
 
 async def load_user_timeline(redis: Redis, user_id: str) -> list[dict[str, Any]]:
+    user = await get_json(redis, f"user:{user_id}") or {}
+    consent = user.get("research_consent") or {}
+    if not user_has_research_consent(user) or not consent.get("accepted_at"):
+        return []
+    cycle = consent["accepted_at"]
+    try:
+        cutoff = datetime.fromisoformat(cycle)
+        if cutoff.utcoffset() is None:
+            return []
+    except (TypeError, ValueError):
+        return []
+
     events = await read_event_stream(redis, user_id, count=500)
     timeline: list[dict[str, Any]] = []
     for entry in events:
+        if event_times_in_consent_cycle(entry, cycle) is None:
+            continue
         timeline.append(
             {
                 "ts": entry.get("ts"),
@@ -161,14 +173,16 @@ async def load_user_timeline(redis: Redis, user_id: str) -> list[dict[str, Any]]
                 "id": entry.get("id"),
             }
         )
-    survey_raw = await redis.hgetall(survey_hash_key(user_id))
-    for item_id, raw in survey_raw.items():
-        rec = _parse_json_val(raw)
-        if not isinstance(rec, dict):
+    for item_id, rec in (await get_current_survey_answers(redis, user_id, consent)).items():
+        timestamp = rec.get("answered_at") or rec.get("skipped_at")
+        try:
+            if datetime.fromisoformat(timestamp) < cutoff:
+                continue
+        except (TypeError, ValueError):
             continue
         timeline.append(
             {
-                "ts": rec.get("answered_at") or rec.get("skipped_at"),
+                "ts": timestamp,
                 "source": "survey",
                 "name": "survey.answer" if rec.get("status") == "answered" else f"survey.{rec.get('status')}",
                 "props": {"item_id": item_id, "value": rec.get("value")},
@@ -177,6 +191,31 @@ async def load_user_timeline(redis: Redis, user_id: str) -> list[dict[str, Any]]
         )
     timeline.sort(key=lambda x: x.get("ts") or "")
     return timeline
+
+
+def summarize_event_identifiers(timeline: list[dict[str, Any]]) -> dict[str, int]:
+    groups: dict[str, list[str]] = {}
+    without_id = 0
+    event_count = 0
+    for entry in timeline:
+        if entry.get("source") != "event":
+            continue
+        event_count += 1
+        props = entry.get("props") or {}
+        client_id = props.get("_client_event_id") if isinstance(props, dict) else None
+        if not isinstance(client_id, str) or not client_id:
+            without_id += 1
+            continue
+        contents = {"name": entry.get("name"), "ts": entry.get("ts"), "props": props}
+        groups.setdefault(client_id, []).append(json.dumps(contents, sort_keys=True, ensure_ascii=False))
+    repeated = [items for items in groups.values() if len(items) > 1]
+    return {
+        "events_checked": event_count,
+        "events_without_client_id": without_id,
+        "repeated_id_groups": len(repeated),
+        "conflicting_id_groups": sum(len(set(items)) > 1 for items in repeated),
+        "event_limit": 500,
+    }
 
 
 async def trigger_stats_for_user(
@@ -224,23 +263,24 @@ async def trigger_stats_for_user(
 
 def aggregate_trigger_rows(rows: list[dict[str, Any]], meta: dict[str, Any]) -> list[dict[str, Any]]:
     items_by_trigger = meta.get("trigger_item_map") or {}
-    item_defs = meta.get("item_defs") or {}
     out: list[dict[str, Any]] = []
+    has_lifecycle_records = any(
+        any(key.startswith("survey_enqueued:") for key in (row.get("state") or {}))
+        for row in rows
+    )
+    has_verified_displays = any(
+        any(key.startswith("survey_shown_verified:") for key in (row.get("state") or {}))
+        for row in rows
+    )
     for trigger, label in TRIGGER_ROWS:
         item_ids = items_by_trigger.get(trigger, [])
         totals = {"eligible": 0, "triggered": 0, "shown": 0, "answered": 0, "skipped": 0, "declined": 0}
         for row in rows:
-            auto = row.get("auto") or {}
             state = row.get("state") or {}
-            eligible = 1
-            for item_id in item_ids:
-                definition = item_defs.get(item_id)
-                if definition and not _condition_matches(definition.get("condition"), auto, state):
-                    eligible = 0
-                    break
-            if not eligible:
-                continue
-            totals["eligible"] += 1
+            if state.get(f"survey_enqueued:{trigger}") is True:
+                totals["triggered"] += 1
+            if any(state.get(f"survey_shown_verified:{item_id}") is True for item_id in item_ids):
+                totals["shown"] += 1
             survey = row.get("survey") or {}
             any_answered = any(
                 survey.get(i, {}).get("status") == "answered" for i in item_ids if isinstance(survey.get(i), dict)
@@ -259,20 +299,18 @@ def aggregate_trigger_rows(rows: list[dict[str, Any]], meta: dict[str, Any]) -> 
                 totals["declined"] += 1
             if any_skipped:
                 totals["skipped"] += 1
-            if any_answered or any_skipped or any_declined:
-                totals["shown"] += 1
-                totals["triggered"] += 1
-            elif item_ids:
-                totals["triggered"] += 1
-        trigger_rate = totals["shown"] / totals["triggered"] if totals["triggered"] else None
-        response_rate = totals["answered"] / totals["shown"] if totals["shown"] else None
+        # Historical data does not consistently record eligibility, enqueue and
+        # actual display. A response proves only that a response was recorded.
         out.append(
             {
                 "trigger": trigger,
                 "label": label,
                 **totals,
-                "trigger_reach_rate": trigger_rate,
-                "display_response_rate": response_rate,
+                "eligible": None,
+                "triggered": totals["triggered"] if has_lifecycle_records else None,
+                "shown": totals["shown"] if has_verified_displays else None,
+                "trigger_reach_rate": None,
+                "display_response_rate": None,
             }
         )
     return out
@@ -282,7 +320,9 @@ def posttest_grid(rows: list[dict[str, Any]]) -> dict[str, Any]:
     cells: dict[str, dict[str, Any]] = {}
     now = datetime.now(timezone.utc)
     for row in rows:
-        arm = row.get("arm") or "00"
+        arm = row.get("arm")
+        if arm not in ("00", "01", "10", "11"):
+            continue
         due = row.get("posttest_due_at")
         if not due:
             continue
@@ -294,10 +334,7 @@ def posttest_grid(rows: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         cell = cells.setdefault(arm, {"due": 0, "done": 0, "no_response": 0, "tech_fail": 0, "refused": 0})
         cell["due"] += 1
-        auto = row.get("auto") or {}
-        status = auto.get("posttest_status") or auto.get("J1")
-        completed = row.get("posttest_completed_at") or status == "done"
-        if completed:
+        if row.get("posttest_completed_at"):
             cell["done"] += 1
         else:
             cell["no_response"] += 1

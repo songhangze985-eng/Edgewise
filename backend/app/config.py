@@ -4,14 +4,22 @@ from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Insecure placeholder — production boot refuses this value.
 INSECURE_JWT_SECRET = "edgewise-secret-key-change-in-production"
+# Older copies of .env.example used a second publicly documented placeholder.
+JWT_SECRET_PLACEHOLDERS = {INSECURE_JWT_SECRET, "change-me-to-a-long-random-string"}
 
 
 class Settings(BaseSettings):
     APP_NAME: str = "Edgewise API"
     APP_ENV: str = "development"
     REDIS_URL: str = "redis://localhost:6379/0"
+    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "edgewise"
+    MONGODB_STRICT_LIVE: bool = False
+    REDIS_DEFAULT_CACHE_TTL: int = 1800
+    REDIS_QUESTION_BANK_TTL: int = 3600
+    RATE_LIMIT_ENABLED: bool = True
+    CONV_MEMORY_WINDOW_SIZE: int = 8
     JWT_SECRET: str = INSECURE_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
@@ -53,15 +61,18 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         return self.APP_ENV.strip().lower() in {"development", "dev", "local", "test"}
 
-    def require_secure_jwt(self) -> None:
+    @property
+    def uses_jwt_placeholder(self) -> bool:
         secret = (self.JWT_SECRET or "").strip()
-        if not secret or secret == INSECURE_JWT_SECRET:
-            if not self.is_development:
-                raise RuntimeError(
-                    f"JWT_SECRET cannot use the insecure default placeholder when APP_ENV='{self.APP_ENV}'. "
-                    "Only local development/test environments may use the default placeholder. "
-                    "Set a strong random JWT_SECRET in backend/.env or your deployment environment."
-                )
+        return not secret or secret in JWT_SECRET_PLACEHOLDERS
+
+    def require_secure_jwt(self) -> None:
+        if self.uses_jwt_placeholder and not self.is_development:
+            raise RuntimeError(
+                f"JWT_SECRET cannot use the insecure default placeholder when APP_ENV='{self.APP_ENV}'. "
+                "Only local development/test environments may use the default placeholder. "
+                "Set a strong random JWT_SECRET in backend/.env or your deployment environment."
+            )
 
 
 settings = Settings()

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import useAuthStore from '../../stores/authStore'
 import { getCreatorSeries, listCreatorSeries } from '../../api/series'
@@ -14,9 +14,20 @@ export default function CreatorSeries() {
   const navigate = useNavigate()
   const experimentAssignment = useAuthStore((s) => s.user?.experimentAssignment)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const userId = useAuthStore((s) => s.user?.id)
+  const consentStart = useAuthStore((s) => {
+    const consent = s.user?.researchConsent
+    return consent?.accepted && !consent.withdrawnAt ? consent.acceptedAt : null
+  })
+  const episodeList = useRef(null)
+  const viewed = useRef(new Set())
   const [series, setSeries] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const pageViewId = useMemo(
+    () => globalThis.crypto?.randomUUID?.(),
+    [id, series?.content_version, userId, consentStart],
+  )
 
   const variant = useMemo(
     () => creatorSeriesVariant(experimentAssignment),
@@ -26,6 +37,7 @@ export default function CreatorSeries() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setError('')
     const load = async () => {
       try {
         let data = await getCreatorSeries(id)
@@ -54,25 +66,57 @@ export default function CreatorSeries() {
   }, [id, variant, navigate])
 
   useEffect(() => {
-    if (!series?.episodes?.length) return
-    series.episodes.forEach((ep) => {
-      trackResearchEvent('series.episode_viewed', {
-        series_id: series.id,
-        episode_id: ep.id,
-        variant: series.variant,
-      })
-    })
-  }, [series?.id])
+    const list = episodeList.current
+    if (loading || error || !consentStart || !list || series?.id !== id || !series.content_version ||
+        typeof IntersectionObserver !== 'function') return
+
+    const cards = list.querySelectorAll('[data-episode-id]')
+    const observer = new IntersectionObserver((entries) => {
+      if (document.visibilityState !== 'visible') return
+      for (const entry of entries) {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) continue
+        const episodeId = entry.target.dataset.episodeId
+        const key = JSON.stringify([pageViewId, userId, consentStart, series.content_version, episodeId])
+        if (viewed.current.has(key)) continue
+        viewed.current.add(key)
+        trackResearchEvent('series.episode_viewed', {
+          series_id: series.id,
+          episode_id: episodeId,
+          variant: series.variant,
+          planned_variant: variant,
+          content_version: series.content_version,
+          exposure_basis: 'viewport_half_visible',
+          series_page_view_id: pageViewId,
+        })
+      }
+    }, { threshold: 0.5 })
+    function observeVisiblePage() {
+      observer.disconnect()
+      if (document.visibilityState === 'visible') cards.forEach(card => observer.observe(card))
+    }
+    observeVisiblePage()
+    document.addEventListener('visibilitychange', observeVisiblePage)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', observeVisiblePage)
+    }
+  }, [consentStart, error, id, loading, pageViewId, series, userId, variant])
 
   const startTask = (episode) => {
+    const clickId = consentStart && episode.task_slug ? globalThis.crypto?.randomUUID?.() : undefined
     trackResearchEvent('series.task_started', {
       series_id: series.id,
       episode_id: episode.id,
       task_slug: episode.task_slug,
       variant: series.variant,
+      planned_variant: variant,
+      content_version: series.content_version,
+      action: 'task_link_click',
+      series_page_view_id: pageViewId,
+      series_task_click_id: clickId,
     })
     const href = episode.task_slug
-      ? `/tasks/${episode.task_slug}`
+      ? `/tasks/${episode.task_slug}${clickId ? `?series_task_click_id=${encodeURIComponent(clickId)}` : ''}`
       : buildLobbyHref({ slug: 'ownership-contribution', lobby: { interview_type: 'structured' } }, { prefill: false })
     if (!isAuthenticated) {
       navigate(`/login?redirect=${encodeURIComponent(href)}`)
@@ -104,9 +148,9 @@ export default function CreatorSeries() {
       <p className={styles.hint}>
         每集只推进一个判断角度；标注了产品目前无法替代的真实决策环节，仅供练习框架。
       </p>
-      <div className={styles['episode-list']}>
+      <div className={styles['episode-list']} ref={episodeList}>
         {series.episodes.map((ep) => (
-          <article key={ep.id} className={styles.episode}>
+          <article key={ep.id} className={styles.episode} data-episode-id={ep.id}>
             <p className={styles.meta}>{ep.creator}</p>
             <h4>{ep.angle}</h4>
             {ep.summary && <p className={styles.hint}>{ep.summary}</p>}

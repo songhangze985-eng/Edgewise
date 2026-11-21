@@ -11,12 +11,46 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
 
 from app.config import settings
+
+_MD_HEADING_RE = re.compile(r"(?m)^\s*#{1,6}\s*")
+_MD_LIST_RE = re.compile(r"(?m)^\s*(?:[-*•]|\d+[.、)）])\s*")
+_MD_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*|__([^_]+)__")
+_LEADING_SPEAKER_RE = re.compile(r"^\s*(?:\[?\d号[·.\s]*[^\]：:]{1,8}\]?|[小林陈思李理韩抢孙偏王和刘时]{2,3})\s*[：:]\s*")
+
+
+def clean_spoken_lgd_text(raw: str, *, max_chars: int = 135, strip_trailing: bool = True) -> str:
+    """Strip Markdown lists/headings and enforce natural spoken LGD brevity."""
+    if not raw:
+        return ""
+    text = str(raw).strip()
+    text = re.sub(r"<thought>[\s\S]*?</thought>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[思考[：:][^\]]*\]", "", text)
+    text = _MD_HEADING_RE.sub("", text)
+    text = _MD_LIST_RE.sub("", text)
+    text = _MD_BOLD_RE.sub(lambda m: m.group(1) or m.group(2) or "", text)
+    text = text.replace("`", "")
+    text = _LEADING_SPEAKER_RE.sub("", text)
+    text = re.sub(r"\s*\n+\s*", "，", text)
+    text = re.sub(r"[，,]{2,}", "，", text)
+    text = text.strip(" ，") if strip_trailing else text.lstrip(" ，")
+    if len(text) > max_chars:
+        cut = text[:max_chars]
+        last_punc = max(cut.rfind("。"), cut.rfind("！"), cut.rfind("？"), cut.rfind("；"), cut.rfind("，"))
+        if last_punc >= int(max_chars * 0.62):
+            cut = cut[: last_punc + 1]
+            if cut.endswith("，"):
+                cut = cut[:-1] + "。"
+        else:
+            cut = cut.rstrip("，、 ") + "。"
+        text = cut
+    return text
 
 # 8-seat roundtable order (Werewolf-style sequential seat numbers, 4号 is the User)
 SEAT_ORDER: list[dict[str, Any]] = [
@@ -249,6 +283,72 @@ FAST_TRAINING_SCRIPTS: list[dict[str, Any]] = [
 ]
 
 
+CLAIMABLE_IDENTITY_LABELS: dict[str, str] = {
+    "undetermined": "待定",
+    "leader": "控场者",
+    "framework": "立框者",
+    "analyst": "逻辑控",
+    "timekeeper": "计时员",
+    "coordinator": "协调纪要",
+    "challenger": "质询者",
+    "reporter": "汇报人",
+    "member": "建言者",
+}
+
+DEFAULT_AGENT_CLAIM_PREFERENCE: dict[str, list[str]] = {
+    "ice_breaker": ["framework", "leader", "member"],
+    "idea_king": ["member", "framework", "coordinator"],
+    "logician": ["analyst", "reporter", "leader"],
+    "interrupter": ["challenger", "leader", "analyst"],
+    "digresser": ["member", "challenger"],
+    "mediator": ["coordinator", "reporter", "member"],
+    "timekeeper": ["timekeeper", "coordinator", "reporter"],
+}
+
+
+def resolve_seat_number(agent_id: str, seat_map: dict[str, int] | None = None) -> int:
+    if seat_map and agent_id in seat_map:
+        try:
+            val = int(seat_map[agent_id])
+            if 1 <= val <= 8:
+                return val
+        except (TypeError, ValueError):
+            pass
+    if agent_id == "user":
+        return 4
+    profile = AGENT_SANDBOX_PROFILES.get(agent_id)
+    return int(profile["seat"]) if profile else 1
+
+
+def infer_agent_claimed_role(
+    agent_id: str,
+    *,
+    participant_roles: dict[str, str] | None = None,
+    phase: str = "free_discussion",
+) -> tuple[str, str]:
+    """Select an authentic functional identity when an `undetermined` AI speaks."""
+    roles = participant_roles or {}
+    existing = (roles.get(agent_id) or "").strip().lower()
+    if existing and existing != "undetermined":
+        return existing, CLAIMABLE_IDENTITY_LABELS.get(existing, existing)
+
+    if phase == "summary_report":
+        return "reporter", CLAIMABLE_IDENTITY_LABELS["reporter"]
+
+    claimed_set = {
+        str(v).strip().lower()
+        for k, v in roles.items()
+        if k != agent_id and v and str(v).strip().lower() != "undetermined"
+    }
+    prefs = DEFAULT_AGENT_CLAIM_PREFERENCE.get(agent_id) or ["member"]
+    for candidate in prefs:
+        # Allow multiple `member` roles, otherwise prefer unclaimed functional roles first
+        if candidate == "member" or candidate not in claimed_set:
+            return candidate, CLAIMABLE_IDENTITY_LABELS.get(candidate, candidate)
+    fallback = prefs[0]
+    return fallback, CLAIMABLE_IDENTITY_LABELS.get(fallback, fallback)
+
+
 def get_fast_training_script(script_id: str | None) -> dict[str, Any]:
     for script in FAST_TRAINING_SCRIPTS:
         if script["id"] == script_id:
@@ -266,18 +366,39 @@ def build_isolated_sandbox_context(
     script_id: str = "standard_flow",
     memory_state: dict[str, Any] | None = None,
     context_limit_override: int | None = None,
+    seat_map: dict[str, int] | None = None,
+    identity_mode: str = "random",
+    participant_roles: dict[str, str] | None = None,
+    visual_board_summary: str | None = None,
 ) -> dict[str, Any]:
     """Build an isolated sandbox view for a single agent.
 
     Guarantees:
     - The agent ONLY sees its own persona prompt & hidden agenda (never other agents' prompts).
     - The public transcript is truncated to `context_limit` recent non-system utterances.
-    - Fast-training script auto-triggers and memory-mode hints are injected cleanly.
+    - Fast-training script auto-triggers, dynamic seat numbers, and identity mode are injected cleanly.
     """
     profile = AGENT_SANDBOX_PROFILES.get(agent_id) or AGENT_SANDBOX_PROFILES["ice_breaker"]
     script = get_fast_training_script(script_id)
     window_size = context_limit_override or profile.get("context_limit") or settings.LGD_CONTEXT_WINDOW_LIMIT
     window_size = max(2, min(10, int(window_size)))
+
+    agent_seat = resolve_seat_number(agent_id, seat_map)
+    user_seat = resolve_seat_number("user", seat_map)
+    raw_role_key = ((participant_roles or {}).get(agent_id) or "").strip().lower()
+    if identity_mode == "undetermined" and (not raw_role_key or raw_role_key == "undetermined"):
+        claimed_key, claimed_label = infer_agent_claimed_role(
+            agent_id,
+            participant_roles=participant_roles,
+            phase=phase,
+        )
+        effective_role_label = claimed_label
+    elif raw_role_key and raw_role_key in CLAIMABLE_IDENTITY_LABELS:
+        claimed_key = raw_role_key
+        effective_role_label = CLAIMABLE_IDENTITY_LABELS[raw_role_key]
+    else:
+        claimed_key = None
+        effective_role_label = profile["role"]
 
     public_utterances = [
         item
@@ -299,29 +420,71 @@ def build_isolated_sandbox_context(
             weakness_focus = weak_dims[0]
 
     script_trigger = (script.get("auto_triggers") or {}).get(phase) or "保持角色特征推进讨论"
+    dynamic_persona = re.sub(r"你是\d+号候选人", f"你是{agent_seat}号候选人", profile["persona_prompt"])
+    dynamic_agenda = profile["hidden_agenda"].replace("4号", f"{user_seat}号")
 
-    system_prompt = (
-        f"{profile['persona_prompt']}\n"
-        f"【沙箱隔离指令】你只能根据下方提供的最近 {len(visible_window)} 条公开讨论记录发言，"
-        f"严禁跳出候选人身份或提及你是AI模型。\n"
-        f"【狼人杀式隐藏任务卡】{profile['hidden_agenda']}\n"
-        f"【当前快训练脚本触发器（{script['name']}）】{script_trigger}\n"
-        f"【当前议题】{topic}\n"
-    )
-    if material:
-        system_prompt += f"【议题背景摘要】{material[:260]}\n"
-    if weakness_focus:
-        system_prompt += (
-            f"【记忆模式辅助训练目标】4号候选人上次训练薄弱项为「{weakness_focus}」，"
-            f"请在发言末尾自然地抛给4号一个可接话或推进的钩子。\n"
+    identity_instruction = ""
+    if identity_mode == "undetermined" and (not raw_role_key or raw_role_key == "undetermined"):
+        identity_instruction = (
+            f"【身份待定认领机制】本场入座为『身份待定』模式，你在本轮发言正式认领「{effective_role_label}」职能，"
+            f"请在发言中自然体现该职能动作。\n"
         )
 
+    # KV-Cache friendly static prefix: topic + persona + hidden agenda stay invariant at top
+    static_prefix = (
+        f"【群面议题】{topic}\n"
+        + (f"【议题背景摘要】{material[:260]}\n" if material else "")
+        + f"{dynamic_persona}\n"
+        f"【狼人杀式隐藏任务卡】{dynamic_agenda}\n"
+        f"{identity_instruction}"
+        f"【当前快训练脚本触发器（{script['name']}）】{script_trigger}\n"
+        f"【口语化与防串台红线】严禁使用Markdown标题或项目符号列表，必须输出自然口语段落（60-95字），"
+        f"严禁跳出候选人身份或提及你是AI模型。\n"
+    )
+    if weakness_focus:
+        static_prefix += (
+            f"【记忆模式辅助训练目标】{user_seat}号候选人上次训练薄弱项为「{weakness_focus}」，"
+            f"请在发言末尾自然地抛给{user_seat}号一个可接话或推进的钩子。\n"
+        )
+
+    system_prompt = (
+        static_prefix
+        + f"【沙箱隔离指令】你只能根据最近 {len(visible_window)} 条公开讨论记录发言。\n"
+    )
+
+    # Append-only perspective-flipped messages for KV-cache prefix reuse
+    perspective_messages: list[dict[str, str]] = [
+        {"role": "system", "content": static_prefix},
+    ]
+    for item in visible_window:
+        item_text = str(item.get("text") or item.get("content") or "").strip()
+        if not item_text:
+            continue
+        sender_id = item.get("senderId") or ""
+        speaker = item.get("speaker") or item.get("senderName") or (f"{user_seat}号·你" if item.get("isUser") else "队友")
+        if sender_id == agent_id or speaker == profile["name"]:
+            perspective_messages.append({"role": "assistant", "content": item_text})
+        else:
+            perspective_messages.append({"role": "user", "content": f"[{speaker}]: {item_text}"})
+
+    clean_board_summary = (visual_board_summary or "").strip()[:180]
+    if clean_board_summary:
+        # Append in tail ONLY so `static_prefix` remains 100% byte-identical for KV-Cache reuse
+        tail_note = f"[当前桌面共享看板锚点]: {clean_board_summary}"
+        if perspective_messages and perspective_messages[-1]["role"] == "user":
+            perspective_messages[-1]["content"] = f"{perspective_messages[-1]['content']}\n{tail_note}"
+        else:
+            perspective_messages.append({"role": "user", "content": tail_note})
+
     return {
-        "sandbox_id": f"sbx-{profile['seat']}号-{agent_id}",
-        "seat_number": profile["seat"],
+        "sandbox_id": f"sbx-{agent_seat}号-{agent_id}",
+        "seat_number": agent_seat,
+        "user_seat": user_seat,
         "agent_id": agent_id,
         "agent_name": profile["name"],
-        "agent_role": profile["role"],
+        "agent_role": effective_role_label,
+        "claimed_role": claimed_key,
+        "claimed_role_label": effective_role_label if claimed_key else None,
         "context_limit": window_size,
         "visible_context_count": len(visible_window),
         "visible_window": visible_window,
@@ -330,6 +493,9 @@ def build_isolated_sandbox_context(
         "script_badge": script["badge"],
         "script_trigger_fired": script_trigger,
         "weakness_focus": weakness_focus,
+        "visual_board_summary": clean_board_summary or None,
+        "static_prefix_prompt": static_prefix,
+        "perspective_messages": perspective_messages,
         "isolated_system_prompt": system_prompt,
     }
 
@@ -343,6 +509,8 @@ def _synthesize_sandbox_script_line(
 ) -> str:
     """Context-aware fast-training script generator when external LLM key is not set."""
     agent_id = sandbox["agent_id"]
+    seat_num = sandbox.get("seat_number") or 1
+    user_seat = sandbox.get("user_seat") or 4
     last_user = sandbox.get("last_user_message")
     script_id = sandbox.get("script_id") or "standard_flow"
     weakness = sandbox.get("weakness_focus")
@@ -351,57 +519,67 @@ def _synthesize_sandbox_script_line(
     user_ref = ""
     if last_user:
         snippet = last_user[:22].replace("\n", " ")
-        user_ref = f"刚才4号提到「{snippet}{'…' if len(last_user) > 22 else ''}」，"
+        user_ref = f"刚才{user_seat}号提到「{snippet}{'…' if len(last_user) > 22 else ''}」，"
 
     memory_tail = ""
     if weakness == "talk_share":
-        memory_tail = "4号同学，这一块你怎么看？想听听你的补充。"
+        memory_tail = f"{user_seat}号同学，这一块你怎么看？想听听你的补充。"
     elif weakness == "built_on_others":
-        memory_tail = "看看4号能不能把我们刚说的两点串联一下？"
+        memory_tail = f"看看{user_seat}号能不能把我们刚说的两点串联一下？"
     elif weakness == "progress":
-        memory_tail = "4号要不要帮大家定个优先级推进到下一步？"
+        memory_tail = f"{user_seat}号要不要帮大家定个优先级推进到下一步？"
 
     if phase == "personal_statement":
         lines_by_agent = {
             "ice_breaker": (
-                f"【1号·破冰定框】围绕「{short_topic}」，我建议先用「现状痛点、核心举措、落地指标」三层框架来拆，"
-                f"每位按序发言时锚定一层，避免后面自由讨论发散。"
+                f"【{seat_num}号·破冰定框】围绕「{short_topic}」，我建议先用「现状痛点、核心举措、落地指标」三层框架来拆，"
+                f"每位发言时锚定一层，避免后面自由讨论发散。"
             ),
             "idea_king": (
-                f"【2号·创新切入】我赞同先立框架。针对「{short_topic}」，我们可以引入「异步优先+数字化看板」机制，"
+                f"【{seat_num}号·创新切入】我赞同先立框架。针对「{short_topic}」，我们可以引入「异步优先+数字化看板」机制，"
                 f"用最小试验成本先跑通核心闭环。"
             ),
             "logician": (
-                f"【3号·量化逻辑】从因果链来看，「{short_topic}」的核心瓶颈在信息时延与权责不清。"
-                f"我建议任何方案都必须绑定可量化指标，接下来请4号说说你的破题思路。"
+                f"【{seat_num}号·量化逻辑】从因果链来看，「{short_topic}」的核心瓶颈在信息时延与权责不清。"
+                f"我建议任何方案都必须绑定可量化指标，也想听听{user_seat}号同学的破题思路。"
             ),
             "interrupter": (
-                f"【5号·高压交锋】{user_ref}但我认为光靠温和流程改造不够！如果不设硬性交付基线与淘汰红线，"
+                f"【{seat_num}号·高压交锋】{user_ref}但我认为光靠温和流程改造不够！如果不设硬性交付基线与淘汰红线，"
                 f"所谓协同方案最后都会流于形式。"
             ),
             "digresser": (
-                f"【6号·发散类比】聊到「{short_topic}」，我想到极地科考站用『每日三行极简日志』维持高压协作——"
+                f"【{seat_num}号·发散类比】聊到「{short_topic}」，我想到极地科考站用『每日三行极简日志』维持高压协作——"
                 f"虽然场景不同，但极简同步模板或许能嫁接进来。"
             ),
             "mediator": (
-                f"【7号·折中桥接】{user_ref}前面3号强调量化指标、5号强调刚性约束，其实并不冲突。"
+                f"【{seat_num}号·折中桥接】{user_ref}前面李理强调量化指标、韩抢强调刚性约束，其实并不冲突。"
                 f"我们可以按「短期低成本止血 + 中期机制固化」分两步走。{memory_tail}"
             ),
             "timekeeper": (
-                f"【8号·控时预警】个人陈述已接近尾声。进入自由讨论后建议前5分钟收敛出3个核心方案，"
+                f"【{seat_num}号·控时预警】个人陈述已接近尾声。进入自由讨论后建议前5分钟收敛出3个核心方案，"
                 f"后5分钟敲定优先级与汇报人。"
             ),
         }
         return lines_by_agent.get(agent_id, lines_by_agent["ice_breaker"])
 
     if phase == "summary_report":
+        board_ref = "对照咱们桌面共享看板锁定的评判标准与主线，" if sandbox.get("visual_board_summary") else ""
         return (
-            f"【{sandbox['seat_number']}号·总结陈词】代表本组汇报「{short_topic}」结论："
+            f"【{seat_num}号·总结陈词】{board_ref}代表本组汇报「{short_topic}」结论："
             f"第一，确立分阶段落地框架；第二，优先上线低成本同步机制与量化看板；"
-            f"第三，针对刚性考核边界保留弹性试点。{user_ref}以上汇报完毕。"
+            f"第三，针对刚性考核边界保留弹性试点与长期展望。{user_ref}以上汇报完毕。"
+        )
+
+    if phase == "examiner_followup":
+        return (
+            f"我补充救援一点：即便外部预算或资源减半，只要死守本组确立的首要评判标准与P0最小可行闭环，"
+            f"将次要项放入暂存池分期推进，核心指标依然可控。"
         )
 
     # free_discussion phase — rich variations driven by script_id & turn_index
+    board_anchor = ""
+    if sandbox.get("visual_board_summary") and agent_id in ("mediator", "logician", "ice_breaker", "timekeeper"):
+        board_anchor = f"对照{user_seat}号共享的桌面看板框架，"
     clash_prefix = "【狼人杀高压追问】" if script_id == "werewolf_clash" else ""
     sprint_prefix = "【极限收敛预警】" if script_id == "convergence_sprint" else ""
     prefix = clash_prefix or sprint_prefix
@@ -420,7 +598,7 @@ def _synthesize_sandbox_script_line(
             f"{prefix}注意逻辑闭环：刚才提的方案还需要补上『验收指标（如响应时长下降30%）』，否则考官追问会失分。",
         ],
         "interrupter": [
-            f"{prefix}打断一下！{user_ref or '刚才的方案太理想化了，'}如果没有明确的责任人（Owner）和延期惩罚，根本推不动！4号你怎么接这个硬骨头？",
+            f"{prefix}打断一下！{user_ref or '刚才的方案太理想化了，'}如果没有明确的责任人（Owner）和延期惩罚，根本推不动！{user_seat}号你怎么接这个硬骨头？",
             f"{prefix}先听我说完：减少会议不等于放任自流，核心决策节点必须强制同步对齐，不能一刀切！",
         ],
         "digresser": [
@@ -428,16 +606,19 @@ def _synthesize_sandbox_script_line(
             f"{prefix}之前看到某跨国团队用VR虚拟工位破冰，虽然成本高了点，但说明情感连接也很重要——当然我们先定主方案。",
         ],
         "mediator": [
-            f"{prefix}{user_ref}5号担心的执行力问题和2号的创新点可以融合：先小范围试点2周，用数据说话。{memory_tail or '4号觉得这个折中方案可行吗？'}",
+            f"{prefix}{user_ref}韩抢担心的执行力问题和陈思的创新点可以融合：先小范围试点2周，用数据说话。{memory_tail or f'{user_seat}号觉得这个折中方案可行吗？'}",
             f"{prefix}大家核心目标一致，我们把『刚性指标』作为底线，把『柔性工具』作为赋能手段，这样汇报更有层次。",
         ],
         "timekeeper": [
             f"{prefix}【报时提醒】自由讨论时间已过半！请大家停止发散，接下来2分钟内必须敲定最终的1-2-3条结论与汇报人。{memory_tail}",
-            f"{prefix}【倒计时预警】距离总结汇报仅剩最后窗口，请4号或3号快速确认汇报提纲！",
+            f"{prefix}【倒计时预警】距离总结汇报仅剩最后窗口，请{user_seat}号或李理快速确认汇报提纲！",
         ],
     }
     pool = free_templates.get(agent_id) or free_templates["ice_breaker"]
-    return pool[turn_index % len(pool)]
+    chosen_line = pool[turn_index % len(pool)]
+    if board_anchor and not chosen_line.startswith("【"):
+        return f"{board_anchor}{chosen_line}"
+    return chosen_line
 
 
 def _normalize_openai_completions_url(base_url: str) -> str:
@@ -501,7 +682,7 @@ def _call_openai_compatible_sync(
         first_choice = choices[0] if isinstance(choices, list) and choices else {}
         message = (first_choice.get("message") if isinstance(first_choice, dict) else None) or {}
         raw_content = message.get("content") if isinstance(message, dict) else ""
-        content = str(raw_content or "").strip()
+        content = clean_spoken_lgd_text(str(raw_content or ""))
         if not content:
             raise ValueError("Empty LLM response")
         return content
@@ -520,6 +701,10 @@ async def generate_lgd_agent_turn(
     api_key_override: str | None = None,
     base_url_override: str | None = None,
     model_override: str | None = None,
+    seat_map: dict[str, int] | None = None,
+    identity_mode: str = "random",
+    participant_roles: dict[str, str] | None = None,
+    visual_board_summary: str | None = None,
 ) -> dict[str, Any]:
     """Execute one isolated multi-agent turn in LGD.
 
@@ -534,6 +719,10 @@ async def generate_lgd_agent_turn(
         transcript=transcript or [],
         script_id=script_id,
         memory_state=memory_state,
+        seat_map=seat_map,
+        identity_mode=identity_mode,
+        participant_roles=participant_roles,
+        visual_board_summary=visual_board_summary,
     )
 
     api_key = (api_key_override or settings.LGD_LLM_API_KEY or "").strip()
@@ -570,6 +759,8 @@ async def generate_lgd_agent_turn(
         "agent_id": sandbox["agent_id"],
         "agent_name": sandbox["agent_name"],
         "agent_role": sandbox["agent_role"],
+        "claimed_role": sandbox.get("claimed_role"),
+        "claimed_role_label": sandbox.get("claimed_role_label"),
         "seat_number": sandbox["seat_number"],
         "sandbox_id": sandbox["sandbox_id"],
         "context_limit": sandbox["context_limit"],
@@ -580,4 +771,5 @@ async def generate_lgd_agent_turn(
         "weakness_focus": sandbox["weakness_focus"],
         "engine_source": engine_source,
         "content": content,
+        "reply": content,
     }

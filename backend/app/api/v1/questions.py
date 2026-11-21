@@ -7,7 +7,15 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from redis.asyncio import Redis
 
 from app.api.deps import get_current_admin, get_current_user, get_redis
-from app.core.redis_client import get_json, set_json
+from app.core.index_store import get_all_question_ids, index_add_question_id
+from app.core.mongo_client import mongo_store
+from app.core.redis_client import (
+    QUESTIONS_LIST_CACHE_KEY,
+    _CACHE_TELEMETRY,
+    _safe_redis_set,
+    get_json,
+    set_json,
+)
 from app.models.schemas import (
     QuestionCreate,
     QuestionRelatedItem,
@@ -125,13 +133,32 @@ def build_question_record(payload: dict, existing_questions: list[dict] | None =
 
 
 async def _load_all_questions(redis: Redis) -> list[dict]:
-    question_ids = sorted(await redis.smembers("questions:all"))
+    cached_raw = await redis.get(QUESTIONS_LIST_CACHE_KEY)
+    if cached_raw:
+        try:
+            parsed = json.loads(cached_raw)
+            if isinstance(parsed, list) and parsed:
+                _CACHE_TELEMETRY["hits"] += 1
+                return parsed
+        except Exception:
+            pass
+
+    _CACHE_TELEMETRY["misses"] += 1
+    question_ids = await get_all_question_ids(redis)
     questions: list[dict] = []
     for question_id in question_ids:
         question = await get_json(redis, f"question:{question_id}")
         if question:
             questions.append(question)
+
     questions.sort(key=lambda item: item["id"])
+    if questions:
+        await _safe_redis_set(
+            redis,
+            QUESTIONS_LIST_CACHE_KEY,
+            json.dumps(questions, ensure_ascii=False),
+            ex=3600,
+        )
     return questions
 
 
@@ -211,7 +238,7 @@ async def upload_questions_file(
             existing_questions=existing_questions,
         )
         await set_json(redis, f"question:{question_id}", question_record)
-        await redis.sadd("questions:all", question_id)
+        await index_add_question_id(redis, question_id)
         existing_questions.append(question_record)
         imported.append(QuestionUploadItem(id=question_id, title=question_record["title"]))
 

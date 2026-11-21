@@ -43,7 +43,7 @@ def four_cell_means(rows: list[dict[str, Any]], field: str) -> dict[str, Any]:
     cells: dict[str, list[float]] = {"00": [], "01": [], "10": [], "11": []}
     missing = {"00": 0, "01": 0, "10": 0, "11": 0}
     for row in rows:
-        arm = row.get("arm") or "00"
+        arm = row.get("arm")
         if arm not in cells:
             continue
         val = extract_outcome(row, field)
@@ -60,6 +60,18 @@ def four_cell_means(rows: list[dict[str, Any]], field: str) -> dict[str, Any]:
         }
         result["missing"][arm] = suppress_count(missing[arm])
     return result
+
+
+def qualified_activation_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    counts = {}
+    for arm in ("00", "01", "10", "11"):
+        assigned = [row for row in rows if row.get("arm") == arm]
+        confirmed = sum((row.get("auto") or {}).get("qualified_activation") == 1 for row in assigned)
+        counts[arm] = {
+            "confirmed": suppress_count(confirmed),
+            "unconfirmed": suppress_count(len(assigned) - confirmed),
+        }
+    return counts
 
 
 def effect_estimates(means: dict[str, float | None]) -> dict[str, float | None]:
@@ -90,7 +102,7 @@ def bootstrap_effects(
     rng = np.random.default_rng(seed)
     buckets: dict[str, list[float]] = {"00": [], "01": [], "10": [], "11": []}
     for row in rows:
-        arm = row.get("arm") or "00"
+        arm = row.get("arm")
         val = extract_outcome(row, field)
         if val is not None and arm in buckets:
             buckets[arm].append(val)
@@ -129,7 +141,9 @@ def manipulation_checks(rows: list[dict[str, Any]]) -> dict[str, Any]:
     zc_pass = {"continuous": 0, "continuous_n": 0, "standard": 0, "standard_n": 0}
     zp_pass = {"active": 0, "active_n": 0, "demo": 0, "demo_n": 0, "other": 0}
     for row in rows:
-        arm = row.get("arm") or "00"
+        arm = row.get("arm")
+        if arm not in ("00", "01", "10", "11"):
+            continue
         zc = int(arm[0])
         zp = int(arm[1])
         c1 = (row.get("survey") or {}).get("C1")
@@ -160,14 +174,14 @@ def manipulation_checks(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     zp_pass["demo"] += 1
             if "两者" in val or "不记得" in val:
                 zp_pass["other"] += 1
-    auto_zc = sum(1 for r in rows if (r.get("auto") or {}).get("zc_realized") == 1)
+    auto_zc = sum(1 for r in rows if r.get("arm") in ("00", "01", "10", "11") and (r.get("auto") or {}).get("zc_realized") == 1)
     return {"zc_c1": zc_pass, "zp_f1": zp_pass, "zc_realized_n": auto_zc}
 
 
 def balance_distributions(rows: list[dict[str, Any]]) -> dict[str, Any]:
     arms = {"00": [], "01": [], "10": [], "11": []}
     for row in rows:
-        arm = row.get("arm") or "00"
+        arm = row.get("arm")
         if arm in arms:
             arms[arm].append(row)
     out: dict[str, Any] = {}

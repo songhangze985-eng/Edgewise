@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,60 +30,39 @@ ARM_LABELS = {
 }
 
 
-def fetch_arm_counts_from_redis() -> tuple[dict[str, int], str, dict[str, Any]]:
-    """Attempt to read live arm counts and extended diagnostics from Redis, fallback to baseline."""
-    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+def fetch_arm_counts_from_redis() -> tuple[dict[str, int] | None, str, dict[str, Any]]:
+    """Read live arm counts; unavailable data must never be replaced by fixtures."""
     try:
         import redis as sync_redis
+        from app.config import Settings
 
+        redis_url = Settings(_env_file=ROOT / "backend" / ".env").REDIS_URL
         client = sync_redis.from_url(redis_url, decode_responses=True, socket_connect_timeout=1.5)
         client.ping()
         counts: dict[str, int] = {}
         for arm in ARMS:
             val = client.get(f"research:arm_count:{arm}")
-            counts[arm] = int(val) if val and str(val).isdigit() else 0
-        blind_pool_size = int(client.llen("research:blind_review:pool") or 0)
+            if val is None or not str(val).isdigit():
+                return None, "counts_missing", {"blind_review_backlog": None, "total_registered_users": None}
+            counts[arm] = int(val)
+        blind_pool_size = int(client.scard("research:blind_review:pool") or 0)
         total_users = int(client.scard("users:all") or 0)
-        if sum(counts.values()) > 0:
-            return counts, "redis_live", {
-                "blind_review_backlog": blind_pool_size,
-                "total_registered_users": total_users,
-            }
+        return counts, "redis_live", {
+            "blind_review_backlog": blind_pool_size,
+            "total_registered_users": total_users,
+        }
     except Exception:
-        pass
-
-    return {"00": 38, "01": 38, "10": 38, "11": 38}, "empirical_baseline_fixture", {
-        "blind_review_backlog": 4,
-        "total_registered_users": 152,
-    }
+        return None, "unavailable", {"blind_review_backlog": None, "total_registered_users": None}
 
 
 def check_scale_reliability_guard() -> dict[str, Any]:
-    """Verify minimum Cronbach's alpha across the 8 constructs using empirical simulator."""
-    try:
-        import run_empirical_analysis as rea
-
-        subjects = rea.simulate_sample(rea.N_PER_CELL)
-        rel = rea.compute_reliability(subjects)
-        alphas = {k: round(float(v["alpha"]), 3) for k, v in rel.items()}
-        min_construct = min(alphas, key=alphas.get)
-        min_alpha = alphas[min_construct]
-        return {
-            "ok": min_alpha >= 0.70,
-            "min_construct": min_construct,
-            "min_alpha": min_alpha,
-            "construct_alphas": alphas,
-        }
-    except Exception:
-        return {
-            "ok": True,
-            "min_construct": "PSV",
-            "min_alpha": 0.785,
-            "construct_alphas": {},
-        }
+    """Reliability is unknown until calculated from eligible real responses."""
+    return {"ok": None, "min_construct": None, "min_alpha": None, "construct_alphas": {}, "status": "NOT_ASSESSED"}
 
 
-def evaluate_balance(counts: dict[str, int]) -> dict[str, Any]:
+def evaluate_balance(counts: dict[str, int] | None) -> dict[str, Any]:
+    if counts is None:
+        return {"total": None, "expected_per_arm": None, "chi_square": None, "imbalance_ratio": None, "is_balanced": None, "status": "UNAVAILABLE"}
     total = sum(counts.values())
     if total == 0:
         return {
@@ -92,7 +70,7 @@ def evaluate_balance(counts: dict[str, int]) -> dict[str, Any]:
             "expected_per_arm": 0.0,
             "chi_square": 0.0,
             "imbalance_ratio": 1.0,
-            "is_balanced": True,
+            "is_balanced": None,
             "status": "EMPTY",
         }
 
@@ -117,7 +95,7 @@ def build_report() -> dict[str, Any]:
     counts, source, ext = fetch_arm_counts_from_redis()
     metrics = evaluate_balance(counts)
     reliability = check_scale_reliability_guard()
-    healthy = metrics["is_balanced"] and reliability["ok"]
+    healthy = metrics["is_balanced"] is True and reliability["ok"] is True
 
     return {
         "card_type": "autoloop_empirical_report",
@@ -125,9 +103,9 @@ def build_report() -> dict[str, Any]:
         "data_source": source,
         "arms": {
             arm: {
-                "count": counts[arm],
+                "count": counts[arm] if counts is not None else None,
                 "label": ARM_LABELS[arm],
-                "share_pct": round((counts[arm] / max(metrics["total"], 1)) * 100, 1),
+                "share_pct": round((counts[arm] / metrics["total"]) * 100, 1) if counts is not None and metrics["total"] else None,
             }
             for arm in ARMS
         },
@@ -141,14 +119,14 @@ def build_report() -> dict[str, Any]:
                 "title": (
                     "📊 [Edgewise 学术实证巡检] 2×2 实验组样本均衡 & 信度达标"
                     if healthy
-                    else "⚠️ [Edgewise 学术实证告警] 实验样本倾斜或信度异常 — 需人工核查"
+                    else "⚠️ [Edgewise 研究数据巡检] 数据不足或信度尚未评估 — 需人工核查"
                 ),
                 "theme": "green" if healthy else "orange",
             },
             "recommendation": (
                 f"当前四组被试分布均衡，量表最低 Cronbach's α={reliability['min_alpha']} (≥0.70)，盲审池待评 {ext['blind_review_backlog']} 对。"
                 if healthy
-                else "检测到实验组样本分布偏离或量表信度低于 0.70，建议检查任务页分流权重与题目选项。"
+                else "请检查实际数据来源、分组计数和样本量；量表信度未在此脚本中评估。"
             ),
         },
     }
@@ -178,7 +156,7 @@ def main() -> int:
             print(f"  Arm [{arm}] {info['label']}: {info['count']} ({info['share_pct']}%)")
         print("====================================================")
 
-    return 0 if report["diagnostics"]["is_balanced"] else 1
+    return 0 if report["diagnostics"]["is_balanced"] is True and report["extended_diagnostics"]["scale_reliability"]["ok"] is True else 1
 
 
 if __name__ == "__main__":

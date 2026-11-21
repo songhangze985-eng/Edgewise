@@ -1,6 +1,6 @@
 # 谈锋 Edgewise
 
-谈锋 Edgewise 是一个 AI 模拟面试练习平台，同时是论文《AI 面试产品的创意营销研究——基于谈锋（Edgewise）的任务驱动机制分析》的数据采集载体。它用「承诺—体验—迁移」框架和 ZC×ZP 2×2 实验来记录用户的练习行为和问卷数据。评分全部基于规则，语音朗读和识别用的是浏览器自带的 Web Speech API，不需要接任何付费的大模型或语音接口。
+谈锋 Edgewise 是一个 AI 模拟面试练习平台，同时是论文《AI 面试产品的创意营销研究——基于谈锋（Edgewise）的任务驱动机制分析》的数据采集载体。它用「承诺—体验—迁移」框架和 ZC×ZP 2×2 实验来记录用户的练习行为和问卷数据。练习评分主要基于规则，语音朗读和识别使用浏览器自带的 Web Speech API；群面支持可选的大模型接口，也有本地脚本回退。
 
 ## 功能
 
@@ -40,7 +40,7 @@
 | 后端 | FastAPI 0.115, Uvicorn, Pydantic Settings, PyJWT, bcrypt, redis-py 5（asyncio） |
 | 文档解析 | pypdf, python-docx, PyYAML, jieba |
 | 统计 | pandas, numpy, scipy（管理员统计用） |
-| 存储 | Redis（唯一的数据存储） |
+| 存储 | MongoDB 文档存储与 Redis 缓存、索引、研究事件及实验计数；开发环境可降级至本地 JSON |
 
 ## 目录结构
 
@@ -88,6 +88,7 @@ flowchart LR
   B -. Web Speech API<br/>TTS / STT .- B
   B -. CDN 加载 .- C[MediaPipe wasm / Pyodide]
   A --> R[(Redis)]
+  A --> M[(MongoDB / 本地 JSON 降级)]
   A --> S[services<br/>规则评分 / 解析]
   A --> RS[research<br/>事件 · 推导 · 问卷 · 盲评 · 统计]
   RS --> R
@@ -95,7 +96,7 @@ flowchart LR
 
 ## 快速开始
 
-需要准备：Node.js（Vite 8 要求较新的版本，建议 20 及以上）、Python 3、一个本地 Redis（默认地址 `redis://localhost:6379/0`）。
+准备 Node.js 20.x（至少 20.19）或 22.12 及以上版本、Python 3、Redis 和 MongoDB。项目默认连接 Redis 6379 和 MongoDB 27017。开发环境中 MongoDB 不可用时默认使用 `backend/.data/mongodb_fallback`，生产和预发布环境要求 MongoDB 可连接。恢复连接时，缺失文档会复制到 MongoDB，冲突文档保留在本地供核对。
 
 ```bash
 # 1. Redis
@@ -121,7 +122,8 @@ npm run dev             # http://localhost:3000，会先运行 build-tasks
 | `npm run build` | 生成任务静态页，然后执行 `vite build` |
 | `npm run preview` | 预览构建产物 |
 | `npm run build:tasks` | 只生成 `public/tasks` 和 `sitemap.xml` |
-| `npm test` | 执行全量单元测试与 172 个 E2E 端到端测试 |
+| `npm test` | 执行前端单元测试及项目自定义的分层检查；后者包含源码与路由静态检查，不能替代真实浏览器端到端测试 |
+| `npm run test:backend` | 在临时目录运行后端测试，隔离开发数据库和本地 JSON 降级文件 |
 | `npm run test:e2e` | 运行分层端到端测试（Tiers 1–4） |
 | `npm run autoloop` | 运行 Agent-Autoloop 自动化管线（防腐 + QA + 实证 + UGC） |
 | `npm run autoloop:check` | 验证 `.autoloop/rules.json` 规则与环境依赖 |
@@ -138,11 +140,14 @@ npm run dev             # http://localhost:3000，会先运行 build-tasks
 | --- | --- | --- |
 | `APP_ENV` | `development` | 设为 `production` 时，若仍使用占位 `JWT_SECRET` 会拒绝启动 |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis 连接地址 |
+| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB 连接地址 |
+| `MONGODB_DB_NAME` | `edgewise` | MongoDB 数据库名称 |
+| `MONGODB_STRICT_LIVE` | `false` | 设置为 `true` 时 MongoDB 不可用会阻断启动 |
 | `JWT_SECRET` | 开发占位值 | **部署时必须改成强随机串**；生产环境不允许沿用占位值 |
 | `JWT_ALGORITHM` | `HS256` | |
 | `JWT_EXPIRE_MINUTES` | `1440` | |
 | `CORS_ORIGINS` | `["http://localhost:3000","http://localhost:5173"]` | JSON 数组 |
-| `RESEARCH_HASH_SECRET` | 空（为空时回退到 `JWT_SECRET`） | 研究导出里用户 ID 的 HMAC 密钥 |
+| `RESEARCH_HASH_SECRET` | 空（为空时回退到 `JWT_SECRET`） | 研究导出伪名和管理时间线的 HMAC 密钥。同一研究期间保持稳定 |
 
 前端和构建用的变量：
 
@@ -180,14 +185,16 @@ npm run dev             # http://localhost:3000，会先运行 build-tasks
 ## 研究模块说明
 
 代码在 `backend/app/research/`、`backend/app/services/research_service.py` 和 `src/research/`。
+数据流、恢复边界与上线前检查见 [`docs/research_data_pipeline.md`](./docs/research_data_pipeline.md)。
 
 - **知情同意**：用户通过 `ResearchConsentModal` 和 `POST /research/consent` 同意或拒绝，当前版本号是 `2026-11-03-full`。撤回同意后会清空该用户的问卷队列（`clear_survey_on_withdraw`）。
 - **实验分组**：只有同意了的用户才分组。组别是 `00 / 01 / 10 / 11` 四个之一，第一位代表 ZC（跨触点任务连续性），第二位代表 ZP（参与方式）。分配时选当前人数最少的组（`research:arm_count:*`），分好之后不再改变。各组强制开启哪些功能，见 `experiment_config.py` 和 `src/config/experiment.js` 里的 `FORCED_BY_ARM`。
-- **被动数据（问卷 A）**：前端用 `trackResearchEvent` 上报事件到 `POST /research/events`，写入 Redis Stream `research:event:{user_id}`。`derive.py` 再把事件推导成指标，存进 `research:auto:{user_id}`，推导的元信息存在 `:meta`。当前规则版本是 `RULE_VERSION`（见 `keys.py`）。
-- **主动数据（问卷 B）**：题目定义在 `survey_items.yaml`，按触发点（例如 `consent_granted`、`report_view_first`、`second_session_complete`、`channel_*`、`institution` 等）进入 `research:survey:{user_id}:queue`。每次最多弹 3 题，24 小时内最多弹 2 次，同一题连续跳过 2 次就不再出现。作答存在 `research:survey:{user_id}`。自评题一律不会自动填写。
+- **被动数据（问卷 A）**由前端向 `POST /research/events` 上报行为事件。Redis Stream 保存事件流，MongoDB 保存原始事件、提交回执、推导指标和来源信息。带稳定事件编号的重试会复用已确认的事件。
+- **主动数据（问卷 B）**由 `survey_items.yaml` 定义，通过 `GET /research/survey/pending` 下发，`POST /research/survey/answer` 收集。每次最多三题，每 24 小时最多下发两次，同题连续跳过两次后停止展示。新版客户端用下发编号关联展示与答卷，MongoDB 持久化答卷及逐题回执。
 - **后测与盲评**：分组 7 天后开放后测（`/research/posttest`），14 天后有追踪任务。后测的回答进入 `research:blind_review:pool`，由评分人盲评。
-- **隐私**：管理员统计和导出里，用户只以 HMAC-SHA256 哈希的前 12 位出现（`admin_stats/privacy.py`）。人数少于 5 的格子显示 `<5`，文本会做脱敏。管理员的操作会记录审计日志（`audit.py`）。
+- 管理统计的用户查询使用 HMAC 伪名。事件、会话和采集面板导出使用另一套共享伪名，会话和面板接口也支持显式导出原始用户 ID。日期、会话和作答内容仍可能识别个人，访问及保存规则见采集文档。
 - **管理员统计**：前端页面 `/management/research`（`src/features/management/research-stats/`）有概览、被动数据、问卷、实验对比、交叉分析、信度、单用户时间线和盲评进度这几个标签页。后端接口在 `/research/admin/*`，统计依赖 pandas、numpy、scipy。页面上的统计只作探索参考，论文里的正式分析请导出后另行完成。
+- 展示统计只纳入能匹配下发记录的浏览器回执。旧数据和缺少稳定编号的事件仍需核对。跨库写入中断时，能否自动恢复取决于最后一次已确认的步骤。[研究事件恢复说明](./docs/research_event_reliability_plan.md)
 
 ## 浏览器要求
 
@@ -199,7 +206,7 @@ npm run dev             # http://localhost:3000，会先运行 build-tasks
 ## 开发与自动化说明
 
 - **自动化中台**：项目集成了基于数字生命卡兹克 `agent-autoloop` 架构的后台自治与人机协同系统（见 [`docs/AGENT_AUTOLOOP_INTEGRATION.md`](./docs/AGENT_AUTOLOOP_INTEGRATION.md)），支持 E2E 测试守护、Neat-Freak 文档防腐、实证数据巡检及 UGC 审核。
-- **全量测试**：`npm test` 一键运行全量单元测试与 172 个 E2E 测试；后端测试使用 `PYTHONPATH=backend python3 -m unittest discover -s backend/tests`。
+- 用 `npm test` 运行前端单测和分层检查，用 `npm run test:backend` 运行隔离后端测试。真实 MongoDB、Redis 恢复及浏览器流程使用研究采集验收脚本。[研究数据采集与验证](./docs/research_data_pipeline.md)
 - **文档与代码防腐**：运行 `npm run autoloop:sync` 验证规范与契约一致性。
 - Redis 里已有的 key 和接口只能新增、不要修改，研究数据依赖它们保持稳定。研究相关的 key 统一写在 `backend/app/research/keys.py`。
 - 推导规则或题库改动后，要同步更新 `RULE_VERSION` / `SURVEY_ITEMS_VERSION`，这样统计时可以按版本筛选。

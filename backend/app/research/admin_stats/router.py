@@ -6,20 +6,22 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from redis.asyncio import Redis
 
 from app.api.deps import get_current_admin, get_redis
+from app.core.index_store import get_all_user_ids
 from app.core.redis_client import get_json
 from app.models.schemas import MessageResponse, UserInDB
 from app.research.admin_stats.audit import write_audit
-from app.research.admin_stats.cache import get_cached, set_cached
+from app.research.admin_stats.cache import get_cache_generation, get_cached, set_cached
 from app.research.admin_stats.filters import StatsFilters
-from app.research.admin_stats.loader import load_cohort, load_user_timeline
+from app.research.admin_stats.loader import load_cohort, load_user_timeline, summarize_event_identifiers
 from app.research.admin_stats.optional_deps import require_admin_stats_deps
 from app.research.admin_stats.privacy import mask_sensitive_text, resolve_user_id_by_hash, user_hash
-from app.research.keys import RULE_VERSION, SURVEY_ITEMS_VERSION, blind_pool_key
+from app.research.events import user_has_research_consent
+from app.research.keys import RULE_VERSION, SURVEY_ITEMS_VERSION
 from app.research.survey_engine import load_survey_items
 
 router = APIRouter(prefix="/research/admin", tags=["research-admin"])
@@ -54,15 +56,26 @@ async def _cached_response(
     builder,
 ) -> dict[str, Any]:
     params = filters.to_cache_params()
-    cached = await get_cached(redis, endpoint, params)
-    if cached:
-        return cached
-    rows, meta = await load_cohort(redis, filters)
-    body = builder(rows, meta)
-    body["filtered_n"] = meta.get("filtered_n")
-    body["consented_total"] = meta.get("consented_total")
-    await set_cached(redis, endpoint, params, body)
-    return body
+    for _ in range(2):
+        generation = await get_cache_generation(redis)
+        if generation is not None:
+            cached = await get_cached(redis, generation, endpoint, params)
+            if cached is not None:
+                if generation == await get_cache_generation(redis):
+                    return cached
+                continue
+        rows, meta = await load_cohort(redis, filters)
+        body = builder(rows, meta)
+        body["filtered_n"] = meta.get("filtered_n")
+        body["consented_total"] = meta.get("consented_total")
+        if generation != await get_cache_generation(redis):
+            continue
+        if generation is not None:
+            await set_cached(redis, generation, endpoint, params, body)
+            if generation != await get_cache_generation(redis):
+                continue
+        return body
+    raise HTTPException(status_code=503, detail="Research statistics changed during calculation. Please retry.")
 
 
 @router.get("/meta")
@@ -165,17 +178,22 @@ async def admin_experiment(
         effect_estimates,
         four_cell_means,
         manipulation_checks,
+        qualified_activation_counts,
     )
 
     rows, _ = await load_cohort(redis, filters)
-    cells = four_cell_means(rows, outcome)
-    means = {arm: (cells["cells"][arm]["mean"] if isinstance(cells["cells"][arm]["mean"], (int, float)) else None) for arm in ("00", "01", "10", "11")}
-    effects = effect_estimates(means)
-    boot_result = bootstrap_effects(rows, outcome, n_boot=boot, seed=seed)
+    activation = outcome == "qualified_activation"
+    cells = effects = boot_result = None
+    if not activation:
+        cells = four_cell_means(rows, outcome)
+        means = {arm: cell["mean"] for arm, cell in cells["cells"].items()}
+        effects = effect_estimates(means)
+        boot_result = bootstrap_effects(rows, outcome, n_boot=boot, seed=seed)
     return {
-        "exploratory_notice": "本页为探索性描述，按初始分配（ITT）计算。论文正式分析请导出数据，在预注册的模型中完成。",
+        "exploratory_notice": "本页为探索性描述，按初始分配（ITT）计算；其中可能包含指定组别的样本，不能直接视为随机分组。论文正式分析请导出分配来源并核查研究方案。",
         "outcome": outcome,
         "cells": cells,
+        "activation_counts": qualified_activation_counts(rows) if activation else None,
         "effects": effects,
         "bootstrap": boot_result,
         "manipulation": manipulation_checks(rows),
@@ -222,12 +240,14 @@ async def admin_user_lookup(
     admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> dict[str, Any]:
-    user_ids = list(await redis.smembers("users:all"))
+    user_ids = await get_all_user_ids(redis)
     uid = resolve_user_id_by_hash(user_ids, q)
     await write_audit(redis, admin.id, "user_lookup", {"user_hash": q})
     if not uid:
         raise HTTPException(status_code=404, detail="User not found")
     user_data = await get_json(redis, f"user:{uid}") or {}
+    if not user_has_research_consent(user_data):
+        raise HTTPException(status_code=404, detail="User not found")
     assignment = user_data.get("experiment_assignment") or {}
     rows, _ = await load_cohort(redis, StatsFilters())
     row = next((r for r in rows if r["user_id"] == uid), None)
@@ -240,19 +260,23 @@ async def admin_user_lookup(
     }
 
 
-@router.get("/users/{user_hash}/timeline")
+@router.get("/users/{user_hash_value}/timeline")
 async def admin_user_timeline(
     user_hash_value: str,
+    response: Response,
     admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> dict[str, Any]:
-    user_ids = list(await redis.smembers("users:all"))
+    user_ids = await get_all_user_ids(redis)
     uid = resolve_user_id_by_hash(user_ids, user_hash_value)
     await write_audit(redis, admin.id, "user_timeline", {"user_hash": user_hash_value})
     if not uid:
         raise HTTPException(status_code=404, detail="User not found")
+    if not user_has_research_consent(await get_json(redis, f"user:{uid}")):
+        raise HTTPException(status_code=404, detail="User not found")
     timeline = await load_user_timeline(redis, uid)
-    return {"user_hash": user_hash(uid), "timeline": timeline}
+    response.headers["Cache-Control"] = "no-store"
+    return {"user_hash": user_hash(uid), "timeline": timeline, "event_quality": summarize_event_identifiers(timeline)}
 
 
 @router.get("/blind-review/progress")
@@ -260,15 +284,24 @@ async def admin_blind_progress(
     _admin: UserInDB = Depends(get_current_admin),
     redis: Redis = Depends(get_redis),
 ) -> dict[str, Any]:
-    pending = await redis.scard(blind_pool_key())
+    from app.core.mongo_client import mongo_store
+    from app.research.blind_review import get_independent_review_progress
+
+    processing = await mongo_store.collection("surveys").count_documents({"doc_type": "blind_review_pool", "status": {"$in": ["processing", "retryable"]}})
+    progress = await get_independent_review_progress(redis)
     return {
-        "pending": int(pending),
-        "single_review": None,
-        "double_review": None,
+        "pending": progress["awaiting_first"] + progress["awaiting_second"] if progress is not None else None,
+        "processing": processing,
+        "single_review": progress["awaiting_second"] if progress is not None else None,
+        "double_review": progress["completed"] if progress is not None else None,
+        "awaiting_first_review": progress["awaiting_first"] if progress is not None else None,
         "reviewer_workload": [],
         "rubric_agreement": {},
         "disagreements": [],
-        "note": "详细一致性指标需积累双评数据后显示",
+        "note": (
+            "双评进度仅统计当前同意周期的双评后测。"
+            if progress is not None else "双评记录超过当前统计上限，暂无法显示完整进度。"
+        ),
     }
 
 
@@ -286,11 +319,12 @@ async def admin_export(
     filters = StatsFilters.from_query(**mapped)
     rows, _ = await load_cohort(redis, filters)
     await write_audit(redis, admin.id, "export", {"format": fmt, "filters": filter_raw})
+    headers = {"Cache-Control": "no-store"}
 
     if fmt == "codebook_json":
         items = load_survey_items()
         body = json.dumps({"version": SURVEY_ITEMS_VERSION, "items": items}, ensure_ascii=False)
-        return PlainTextResponse(body, media_type="application/json")
+        return PlainTextResponse(body, media_type="application/json", headers=headers)
 
     if fmt == "long_csv":
         buffer = io.StringIO()
@@ -300,7 +334,7 @@ async def admin_export(
             uid = row["user_id"]
             for ev in await load_user_timeline(redis, uid):
                 writer.writerow([row["user_hash"], ev.get("ts"), ev.get("source"), ev.get("name"), json.dumps(ev.get("props") or {})])
-        return StreamingResponse(iter([buffer.getvalue()]), media_type="text/csv")
+        return StreamingResponse(iter([buffer.getvalue()]), media_type="text/csv", headers=headers)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -326,4 +360,4 @@ async def admin_export(
                 *answers,
             ]
         )
-    return StreamingResponse(iter([buffer.getvalue()]), media_type="text/csv")
+    return StreamingResponse(iter([buffer.getvalue()]), media_type="text/csv", headers=headers)

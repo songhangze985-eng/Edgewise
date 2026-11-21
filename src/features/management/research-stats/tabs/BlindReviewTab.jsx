@@ -11,6 +11,7 @@ export default function BlindReviewTab({ refreshKey }) {
 
   useEffect(() => {
     let cancelled = false
+    setError(null)
     fetchBlindReviewProgress()
       .then((d) => !cancelled && setData(d))
       .catch((err) => !cancelled && setError(getErrorMessage(err, '加载失败')))
@@ -23,8 +24,11 @@ export default function BlindReviewTab({ refreshKey }) {
 
   return (
     <>
-      <StatCard title="盲评队列">
-        <p>待评: {data?.pending ?? '—'}</p>
+      <StatCard title="后测双评进度">
+        <p>待首评 {data?.awaiting_first_review ?? '—'}</p>
+        <p>待第二位评分者 {data?.single_review ?? '—'}</p>
+        <p>已完成两份评分 {data?.double_review ?? '—'}</p>
+        <p>旧版评分待处理或核查 {data?.processing ?? '—'}</p>
         <p className={styles.cardSub}>{data?.note}</p>
         <Link to="/management" className={styles.linkBtn}>
           前往管理后台评分 →

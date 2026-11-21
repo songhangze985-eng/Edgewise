@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import useAuthStore from '../../stores/authStore'
 import useResearchStore from '../../stores/researchStore'
 import { fetchTasksManifest, recordTaskVisit } from '../../api/tasks'
@@ -24,6 +24,9 @@ const SECTION_ORDER = [
 
 export default function TaskPage() {
   const { slug } = useParams()
+  const [searchParams] = useSearchParams()
+  const copilotTriageId = searchParams.get('copilot_triage_id')
+  const seriesTaskClickId = searchParams.get('series_task_click_id')
   const navigate = useNavigate()
   const captureFromUrl = useResearchStore((s) => s.captureFromUrl)
   const experimentAssignment = useAuthStore((s) => s.user?.experimentAssignment)
@@ -81,19 +84,24 @@ export default function TaskPage() {
 
   const lobbyHref = useMemo(() => {
     if (!task) return '/interview/lobby'
-    return buildLobbyHref(task, { prefill: prefillLobby })
-  }, [task, prefillLobby])
+    const href = buildLobbyHref(task, { prefill: prefillLobby })
+    if (!copilotTriageId) return href
+    return `${href}&copilot_triage_id=${encodeURIComponent(copilotTriageId)}`
+  }, [task, prefillLobby, copilotTriageId])
 
   const onCta = (event) => {
     event.preventDefault()
     if (!task) return
-    markTaskCtaClicked(slug)
+    const clickId = globalThis.crypto?.randomUUID?.()
+    markTaskCtaClicked(slug, clickId)
     trackResearchEvent('task_page.cta_clicked', {
       slug,
       task_id: slug,
       prefill: prefillLobby,
+      task_entry_click_id: clickId,
+      series_task_click_id: seriesTaskClickId || undefined,
     })
-    const dest = lobbyHref
+    const dest = clickId ? `${lobbyHref}&task_entry_click_id=${encodeURIComponent(clickId)}` : lobbyHref
     if (!isAuthenticated) {
       navigate(`/login?redirect=${encodeURIComponent(dest)}`)
       return

@@ -1,4 +1,9 @@
 import { listZhVoices, pickPreferredZhVoice } from '../hooks/useTTS'
+import {
+  AGENT_SPEECH_PROFILES,
+  computePsycholinguisticSpeechTempo,
+  getAgentSpeechProfile,
+} from './lgdSpeechPsychology'
 
 const AGENT_VOICE_HINTS = [
   ['yunxi', 'kangkang'],
@@ -9,9 +14,6 @@ const AGENT_VOICE_HINTS = [
   ['kangkang', 'yunxi'],
   ['xiaoyi', 'xiaoxiao'],
 ]
-
-const AGENT_PITCHES = [0.9, 1.0, 1.12, 1.2, 1.0, 0.9, 1.12]
-const AGENT_RATES = [1.02, 1.05, 1.08, 1.04, 1.06, 1.1, 0.98]
 
 function matchVoice(voices, hints) {
   const lower = (v) => `${v.name} ${v.voiceURI}`.toLowerCase()
@@ -36,10 +38,15 @@ export function buildAgentTtsProfiles(agentCount = 7) {
     }
     if (voice) used.add(voice.voiceURI)
 
+    const psychProfile = getAgentSpeechProfile(index)
     return {
+      agentId: psychProfile.agentId,
       voiceURI: voice?.voiceURI ?? null,
-      pitch: AGENT_PITCHES[index] ?? 1,
-      rate: AGENT_RATES[index] ?? 1.05,
+      pitch: psychProfile.basePitch,
+      rate: psychProfile.baseRate,
+      tempoPersona: psychProfile.tempoPersona,
     }
   })
 }
+
+export { AGENT_SPEECH_PROFILES, computePsycholinguisticSpeechTempo, getAgentSpeechProfile }

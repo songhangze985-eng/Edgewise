@@ -7,7 +7,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import api_router
-from app.config import INSECURE_JWT_SECRET, settings
+from app.config import settings
+from app.core.migration import migrate_redis_to_mongo
+from app.core.mongo_client import close_mongo, init_mongo
+from app.core.rate_limiter import RateLimitMiddleware
 from app.core.redis_client import close_redis, init_redis
 from app.services.seed_service import seed_all
 
@@ -17,15 +20,25 @@ logger = logging.getLogger("edgewise")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.require_secure_jwt()
-    if (settings.JWT_SECRET or "").strip() == INSECURE_JWT_SECRET:
+    if settings.uses_jwt_placeholder:
         logger.warning(
-            "JWT_SECRET is still the insecure default. Set a strong secret in backend/.env before deploying."
+            "JWT_SECRET is empty or uses a public placeholder. Set a strong secret in backend/.env before deploying."
+        )
+    mongo = await init_mongo()
+    if mongo.degraded:
+        logger.error(
+            "STARTUP ALERT: MongoDB running in DEGRADED local fallback mode (reason=%s). "
+            "Check MONGODB_URI and driver installation!",
+            mongo.fallback_reason,
         )
     redis = await init_redis()
+    app.state.mongo = mongo
     app.state.redis = redis
+    await migrate_redis_to_mongo(redis, mongo)
     await seed_all(redis)
     yield
     await close_redis()
+    await close_mongo()
 
 
 app = FastAPI(
@@ -34,6 +47,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

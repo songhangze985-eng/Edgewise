@@ -10,7 +10,14 @@ import {
   scoreInterviewAnswer,
   postNegotiationTurn,
   submitReverseQa,
+  postSessionDeepDiveProbes,
 } from '../../api/interview'
+import {
+  REVERSE_QA_STRATEGIC_PRESETS,
+  classifySingleInterviewQuestion,
+  generateLocalPostDeepDiveProbes,
+  loadLgdReportHandoff,
+} from '../../utils/singleInterviewTaxonomy'
 import { listQuestions } from '../../api/questions'
 import { getErrorMessage } from '../../api/client'
 import { showToast } from '../../stores/toastStore'
@@ -196,6 +203,9 @@ export default function InterviewRoom() {
   const [revisionGate, setRevisionGate] = useState(null)
   const [followupGate, setFollowupGate] = useState(null)
   const followupGateRef = useRef(null)
+  const [activeHandoffProbe, setActiveHandoffProbe] = useState(null)
+  const activeHandoffProbeRef = useRef(null)
+  const handoffDoneForQuestionRef = useRef(new Set())
   const pendingAdvanceRef = useRef(null)
   const lastSttFailedRef = useRef(false)
   const effectiveTtsEnabled = armForcedTts ?? ttsEnabledSetting
@@ -232,6 +242,10 @@ export default function InterviewRoom() {
   useEffect(() => {
     followupGateRef.current = followupGate
   }, [followupGate])
+
+  useEffect(() => {
+    activeHandoffProbeRef.current = activeHandoffProbe
+  }, [activeHandoffProbe])
 
   const multiRound = Boolean(sessionRounds?.length)
   const currentRound = multiRound ? sessionRounds[roundIndex] : null
@@ -727,7 +741,78 @@ export default function InterviewRoom() {
   )
 
   const proceedAfterAnswer = useCallback(
-    (baseMessages) => {
+    async (baseMessages) => {
+      const currentQMeta = multiRound ? sessionRoundsRef.current?.[roundIndex]?.questions?.[qIndex] : null
+      const currentTax = classifySingleInterviewQuestion(activeQuestions[qIndex], currentQMeta)
+      const roundHasExplicitLgdProbe = Boolean(
+        multiRound &&
+          (sessionRoundsRef.current?.[roundIndex]?.questions || []).some(
+            (q) => q.taxonomy_subtype === 'lgd_cross_stage' || q.subtype === 'lgd_cross_stage',
+          ),
+      )
+      const handoffKey = `${roundIndex}-${qIndex}`
+      const handoffAllowed =
+        !demoMode &&
+        !englishInterview &&
+        sessionMeta?.metadata?.context_handoff_enabled !== false &&
+        currentTax.taxonomy_subtype === 'project_deep_dive' &&
+        !roundHasExplicitLgdProbe &&
+        !handoffDoneForQuestionRef.current.has(handoffKey)
+
+      if (handoffAllowed) {
+        handoffDoneForQuestionRef.current.add(handoffKey)
+        const lastUserMsg = [...baseMessages].reverse().find((m) => m.role === 'user')?.text || ''
+        let handoffBundle = null
+        if (sessionId && sessionId !== 'new') {
+          try {
+            handoffBundle = await postSessionDeepDiveProbes(
+              sessionId,
+              {
+                candidate_answer: lastUserMsg,
+                position: sessionMeta?.position || 'AI 产品经理 / Agent 应用工程师',
+              },
+              { skipErrorToast: true },
+            )
+          } catch {
+            handoffBundle = null
+          }
+        }
+        if (!handoffBundle) {
+          handoffBundle = generateLocalPostDeepDiveProbes({
+            candidateAnswer: lastUserMsg,
+            resumeJson: sessionMeta?.metadata?.context_handoff?.resume_json,
+            lgdReportJson:
+              sessionMeta?.metadata?.context_handoff?.lgd_report_json || loadLgdReportHandoff(),
+          })
+        }
+        const probe1 = handoffBundle?.lgd_cross_stage_probe
+        const probe2 = handoffBundle?.stress_rebuttal_probe
+        if (probe1?.text) {
+          trackResearchEvent('interview.handoff_probe.shown', {
+            session_id: sessionId,
+            round_index: roundIndex,
+            question_index: qIndex,
+            subtype: probe1.taxonomy_subtype,
+          })
+          const withProbe1 = [...baseMessages, { role: 'interviewer', text: probe1.text }]
+          setMessages(withProbe1)
+          messagesRef.current = withProbe1
+          if (effectiveTtsEnabled && ttsSupported) {
+            speakWithCaption(probe1.text)
+          }
+          setActiveHandoffProbe({
+            step: 1,
+            total: probe2?.text ? 2 : 1,
+            currentProbe: probe1,
+            nextProbe: probe2 || null,
+            baseMessages: withProbe1,
+          })
+          setIsThinking(false)
+          advanceLockRef.current = false
+          return
+        }
+      }
+
       const nextQ = qIndex + 1
       if (nextQ < activeQuestions.length) {
         const withNext = [
@@ -744,7 +829,21 @@ export default function InterviewRoom() {
       }
       maybeShowReverseQa(baseMessages)
     },
-    [activeQuestions, maybeShowReverseQa, qIndex, setQIndex],
+    [
+      activeQuestions,
+      demoMode,
+      effectiveTtsEnabled,
+      englishInterview,
+      maybeShowReverseQa,
+      multiRound,
+      qIndex,
+      roundIndex,
+      sessionId,
+      sessionMeta,
+      setQIndex,
+      speakWithCaption,
+      ttsSupported,
+    ],
   )
 
   const beginFollowupChain = useCallback(
@@ -879,6 +978,62 @@ export default function InterviewRoom() {
 
     const trimmed = (answerText ?? '').trim()
     if (!timedOut && !trimmed) return
+
+    const activeHandoff = activeHandoffProbeRef.current
+    if (activeHandoff) {
+      advanceLockRef.current = true
+      setIsThinking(true)
+      const userMessages = [
+        ...activeHandoff.baseMessages,
+        { role: 'user', text: trimmed || '（超时跳过）' },
+      ]
+      setMessages(userMessages)
+      messagesRef.current = userMessages
+      setInput('')
+      trackResearchEvent('interview.handoff_probe.answered', {
+        session_id: sessionId,
+        round_index: roundIndex,
+        question_index: qIndex,
+        step: activeHandoff.step,
+        subtype: activeHandoff.currentProbe?.taxonomy_subtype,
+        text_length: trimmed.length,
+      })
+
+      if (activeHandoff.step === 1 && activeHandoff.nextProbe?.text) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 850)
+        })
+        const probe2 = activeHandoff.nextProbe
+        trackResearchEvent('interview.handoff_probe.shown', {
+          session_id: sessionId,
+          round_index: roundIndex,
+          question_index: qIndex,
+          subtype: probe2.taxonomy_subtype,
+        })
+        const withProbe2 = [...userMessages, { role: 'interviewer', text: probe2.text }]
+        setMessages(withProbe2)
+        messagesRef.current = withProbe2
+        if (effectiveTtsEnabled && ttsSupported) {
+          speakWithCaption(probe2.text)
+        }
+        setActiveHandoffProbe({
+          step: 2,
+          total: 2,
+          currentProbe: probe2,
+          nextProbe: null,
+          baseMessages: withProbe2,
+        })
+        setIsThinking(false)
+        advanceLockRef.current = false
+        return
+      }
+
+      setActiveHandoffProbe(null)
+      setTimeout(() => {
+        proceedAfterAnswer(userMessages)
+      }, 650)
+      return
+    }
 
     const activeFollowup = followupGateRef.current
     if (activeFollowup) {
@@ -1402,9 +1557,20 @@ export default function InterviewRoom() {
   }
 
   const roleLabel = sessionMeta?.topic || '资深HR · 结构化面试'
+  const currentQuestionMeta = multiRound ? currentRound?.questions?.[qIndex] : null
   const heroQuestion = isNegotiationRound
     ? '谈薪模拟：请基于下方假设报价回应 HR'
-    : activeQuestions[qIndex]
+    : activeHandoffProbe?.currentProbe?.text || activeQuestions[qIndex]
+  const currentTaxonomy = useMemo(
+    () =>
+      activeHandoffProbe?.currentProbe
+        ? classifySingleInterviewQuestion(
+            activeHandoffProbe.currentProbe.text,
+            activeHandoffProbe.currentProbe,
+          )
+        : classifySingleInterviewQuestion(heroQuestion, currentQuestionMeta),
+    [activeHandoffProbe, heroQuestion, currentQuestionMeta],
+  )
   const captionDisplayText = spokenCaptionText || heroQuestion || ''
 
   useEffect(() => {
@@ -1536,6 +1702,21 @@ export default function InterviewRoom() {
             </div>
             <div className={styles['hero-meta']}>
               {!isNegotiationRound && <span className={styles['hero-tag']}>Q{qIndex + 1}</span>}
+              {!isNegotiationRound && currentTaxonomy?.taxonomy_badge && (
+                <span className={styles['hero-tag']} title={currentTaxonomy.assessment_points}>
+                  {currentTaxonomy.taxonomy_badge}
+                </span>
+              )}
+              {!isNegotiationRound && currentTaxonomy?.assessment_points && (
+                <span className={styles['hero-tag']} style={{ opacity: 0.85 }}>
+                  考察点：{Array.isArray(currentTaxonomy.assessment_points) ? currentTaxonomy.assessment_points[0] : currentTaxonomy.assessment_points}
+                </span>
+              )}
+              {activeHandoffProbe && (
+                <span className={styles['hero-pressure-badge']}>
+                  🔗 Context Handoff 追问 ({activeHandoffProbe.step}/{activeHandoffProbe.total})
+                </span>
+              )}
               {isHrRound && <span className={styles['hero-tag']}>HR</span>}
               {isNegotiationRound && <span className={styles['hero-tag']}>谈薪</span>}
               {highPressure && <span className={styles['hero-pressure-badge']}>高压模式</span>}
@@ -1749,9 +1930,28 @@ export default function InterviewRoom() {
       {showReverseQa && !finished && (
         <div className={styles['modal-overlay']} role="dialog" aria-modal="true" aria-label="结尾反问">
           <div className={styles['modal-card']}>
-            <div className={styles['modal-title']}>结尾反问环节</div>
+            <div className={styles['modal-title']}>⑤ 反向提问环节（Reverse Q&A —— 隐藏加分项）</div>
             <div className={styles['modal-desc']}>
-              可选 0–3 个反问（不反问不会扣分，我们会给出示例参考）。
+              “我这边的问题问完了，你有什么想问我的吗？”（考察点：好奇心与思考深度；问“团队目前在 AI 落地中遇到的最大业务痛点是什么”属强加分，问“公司几点下班”属减分）。
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+              {REVERSE_QA_STRATEGIC_PRESETS.map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={styles['tts-btn']}
+                  style={{ fontSize: '11.5px', padding: '4px 8px' }}
+                  title={preset.hint}
+                  onClick={() => {
+                    const next = [...reverseQaDrafts]
+                    const targetIdx = next.findIndex((d) => !d.trim())
+                    next[targetIdx >= 0 ? targetIdx : 0] = preset.question
+                    setReverseQaDrafts(next)
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
             {reverseQaDrafts.map((draft, i) => (
               <input

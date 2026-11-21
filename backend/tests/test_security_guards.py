@@ -2,31 +2,27 @@ from __future__ import annotations
 
 import io
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
 from app.config import INSECURE_JWT_SECRET, Settings
 from app.api.v1.resume import _read_upload_file_bounded
+from app.main import app, lifespan
+from app.services.seed_service import seed_all
 
 
 class TestSecurityGuards(unittest.IsolatedAsyncioTestCase):
-    def test_require_secure_jwt_blocks_non_dev_with_insecure_default(self):
-        # Non-dev environment must refuse default insecure placeholder
-        prod_settings = Settings(
-            APP_ENV="production",
-            JWT_SECRET=INSECURE_JWT_SECRET,
-        )
-        with self.assertRaises(RuntimeError) as ctx:
-            prod_settings.require_secure_jwt()
-        self.assertIn("JWT_SECRET cannot use the insecure default placeholder", str(ctx.exception))
-
-        staging_settings = Settings(
-            APP_ENV="staging",
-            JWT_SECRET=INSECURE_JWT_SECRET,
-        )
-        with self.assertRaises(RuntimeError):
-            staging_settings.require_secure_jwt()
+    async def test_non_dev_startup_rejects_public_placeholders_before_connecting(self):
+        for environment in ("production", "staging", "uat"):
+            for placeholder in (INSECURE_JWT_SECRET, "change-me-to-a-long-random-string", " "):
+                with self.subTest(environment=environment, placeholder=placeholder):
+                    config = Settings(APP_ENV=environment, JWT_SECRET=placeholder)
+                    with patch("app.main.settings", config), patch("app.main.init_mongo", new_callable=AsyncMock) as init_mongo:
+                        with self.assertRaisesRegex(RuntimeError, "JWT_SECRET cannot use the insecure default placeholder"):
+                            async with lifespan(app):
+                                self.fail("Startup accepted a public signing secret")
+                        init_mongo.assert_not_awaited()
 
     def test_require_secure_jwt_allows_strong_secret_or_dev(self):
         # Strong secret in production is allowed
@@ -42,6 +38,28 @@ class TestSecurityGuards(unittest.IsolatedAsyncioTestCase):
             JWT_SECRET=INSECURE_JWT_SECRET,
         )
         dev_settings.require_secure_jwt()  # Should not raise
+
+    async def test_deployment_seeds_catalog_without_demo_data(self):
+        redis = AsyncMock()
+        config = Settings(APP_ENV="production")
+        with (
+            patch("app.services.seed_service.settings", config),
+            patch("app.services.seed_service.lookup_user_id_by_email", new_callable=AsyncMock, return_value=None) as lookup,
+            patch("app.services.seed_service.get_json", new_callable=AsyncMock, return_value={"is_admin": True}),
+            patch("app.services.seed_service.seed_questions_if_needed", new_callable=AsyncMock) as seed_questions,
+            patch("app.services.series_service.seed_creator_series_if_needed", new_callable=AsyncMock) as seed_series,
+            patch("app.services.seed_service.seed_demo_user_if_needed", new_callable=AsyncMock) as seed_demo,
+        ):
+            await seed_all(redis)
+            seed_questions.assert_awaited_once_with(redis)
+            seed_series.assert_awaited_once_with(redis)
+            seed_demo.assert_not_awaited()
+
+            lookup.return_value = "legacy-demo-admin"
+            with self.assertRaisesRegex(RuntimeError, "demo administrator exists"):
+                await seed_all(redis)
+            seed_questions.assert_awaited_once_with(redis)
+            seed_demo.assert_not_awaited()
 
     def test_cors_origins_parsing(self):
         s_csv = Settings(CORS_ORIGINS="https://foo.com, https://bar.com")

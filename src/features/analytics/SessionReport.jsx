@@ -186,6 +186,7 @@ export default function SessionReport() {
     personal_statement: '个人陈述',
     free_discussion: '自由讨论',
     summary_report: '总结汇报',
+    examiner_followup: '考官追问',
   }
   const userSample = firstUserAnswer(transcript)
   const ruleNote = RULE_SCORE_NOTE
@@ -299,7 +300,212 @@ export default function SessionReport() {
               <span>{lgdMetrics.reporter_quality?.display ?? '—'}</span>
               <p>{lgdMetrics.comments?.reporter}</p>
             </div>
+            {lgdMetrics.team_consensus && (
+              <div className={styles['logic-dim-row']}>
+                <span>团队共识闭环</span>
+                <span>{lgdMetrics.team_consensus.closure_score ?? '—'}分</span>
+                <p>{lgdMetrics.team_consensus.comment}</p>
+              </div>
+            )}
+            {lgdMetrics.criteria_first && (
+              <div className={styles['logic-dim-row']}>
+                <span>先立标准原则</span>
+                <span>
+                  {lgdMetrics.criteria_first.established
+                    ? '已确立'
+                    : lgdMetrics.criteria_first.option_jump_warning
+                      ? '直跳选项预警'
+                      : '待强化'}
+                </span>
+                <p>{lgdMetrics.criteria_first.comment}</p>
+              </div>
+            )}
+            {lgdMetrics.visual_board_eval?.submitted && (
+              <div className={styles['logic-dim-row']}>
+                <span>结构化看板草稿</span>
+                <span>{lgdMetrics.visual_board_eval.score ?? '—'}分</span>
+                <p>{lgdMetrics.visual_board_eval.comment}</p>
+              </div>
+            )}
+            {lgdMetrics.followup_eval && (
+              <div className={styles['logic-dim-row']}>
+                <span>考官追问应对</span>
+                <span>
+                  {lgdMetrics.followup_eval.answered
+                    ? `${lgdMetrics.followup_eval.score ?? '—'}分`
+                    : '未作答'}
+                </span>
+                <p>{lgdMetrics.followup_eval.comment}</p>
+              </div>
+            )}
+            {lgdMetrics.role_rubric_breakdown && (
+              <div className={styles['logic-dim-row']}>
+                <span>差异化角色权重</span>
+                <span>{lgdMetrics.role_rubric_breakdown.leverage_multiplier}x</span>
+                <p>{lgdMetrics.role_rubric_breakdown.rule_desc}</p>
+              </div>
+            )}
+            {lgdMetrics.final_report_summary?.delivered && (
+              <div className={styles['logic-dim-row']}>
+                <span>最终汇报闭环</span>
+                <span>{lgdMetrics.final_report_summary.score ?? '—'}分</span>
+                <p>{lgdMetrics.final_report_summary.comment}</p>
+              </div>
+            )}
+            {lgdMetrics.listening_notes_eval?.active && (
+              <div className={styles['logic-dim-row']}>
+                <span>边听边记速记</span>
+                <span>{lgdMetrics.listening_notes_eval.note_score ?? '—'}分</span>
+                <p>{lgdMetrics.listening_notes_eval.comment}</p>
+              </div>
+            )}
           </div>
+
+          {Array.isArray(lgdMetrics.redline_audit?.items) &&
+            lgdMetrics.redline_audit.items.length > 0 && (
+              <div className={styles['eval-section']}>
+                <div className={styles['eval-label']}>四大高频失分红线核验</div>
+                {lgdMetrics.redline_audit.items.map((rl) => (
+                  <div
+                    key={rl.key}
+                    className={`${styles['eval-item']} ${rl.triggered ? styles.negative : styles.positive}`}
+                  >
+                    <strong>
+                      {rl.triggered ? '⚠ 触发红线' : '✓ 通过'} · {rl.label}
+                    </strong>
+                    {rl.detail ? ` — ${rl.detail}` : ''}
+                  </div>
+                ))}
+              </div>
+            )}
+
+          {lgdMetrics.calibration && (
+            <div className={styles['eval-section']}>
+              <div className={styles['eval-label']}>
+                三面试官 Calibration 校准碰头会裁决（{lgdMetrics.calibration.ratio_label}）
+              </div>
+              <div
+                className={`${styles['eval-item']} ${
+                  lgdMetrics.calibration.user_promoted ? styles.positive : styles.negative
+                }`}
+              >
+                <strong>{lgdMetrics.calibration.summary_verdict}</strong>
+                {lgdMetrics.calibration.promoted_roster?.length
+                  ? ` — 晋级名单：${lgdMetrics.calibration.promoted_roster.join('、')}`
+                  : ''}
+                {lgdMetrics.calibration.veto_reason
+                  ? `（否决原因：${lgdMetrics.calibration.veto_reason}）`
+                  : ''}
+              </div>
+              {Array.isArray(lgdMetrics.calibration.dialogue) &&
+                lgdMetrics.calibration.dialogue.map((turn, idx) => (
+                  <div key={`cal-turn-${idx}`} className={styles['eval-item']}>
+                    <strong>{turn.speaker}：</strong>
+                    {turn.text}
+                  </div>
+                ))}
+              {Array.isArray(lgdMetrics.calibration.leaderboard) && (
+                <div className={styles['logic-dim-grid']}>
+                  {lgdMetrics.calibration.leaderboard.map((row) => (
+                    <div key={row.participant_id} className={styles['logic-dim-row']}>
+                      <span>
+                        #{row.rank} {row.name}
+                      </span>
+                      <span>
+                        {row.calibrated_score}分 ·{' '}
+                        {row.promoted ? '晋级✓' : row.vetoed ? '一票否决' : '未入围'}
+                      </span>
+                      <p>
+                        顾总监 {row.lead_score} / 苏经理 {row.observer_a_score} / 周PM{' '}
+                        {row.scribe_b_score} — {row.calib_note}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {Array.isArray(lgdMetrics.five_dim_rubric?.dimensions) &&
+            lgdMetrics.five_dim_rubric.dimensions.length > 0 && (
+              <div className={styles['eval-section']}>
+                <div className={styles['eval-label']}>
+                  真实五维百分制加权打分矩阵（合计 {lgdMetrics.five_dim_rubric.weighted_total} 分）
+                </div>
+                <div className={styles['logic-dim-grid']}>
+                  {lgdMetrics.five_dim_rubric.dimensions.map((dim) => (
+                    <div key={dim.key} className={styles['logic-dim-row']}>
+                      <span>
+                        {dim.label}（{Math.round((dim.weight || 0) * 100)}%）
+                      </span>
+                      <span>
+                        {dim.score}分 ➔ {dim.weighted_points}
+                      </span>
+                      <p>
+                        主审：{dim.owner_examiner}
+                        {dim.hit_anchors?.length ? ` ｜ 加分锚点：${dim.hit_anchors.join('；')}` : ''}
+                        {dim.triggered_minefields?.length
+                          ? ` ｜ 雷区预警：${dim.triggered_minefields.join('；')}`
+                          : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          {Array.isArray(lgdMetrics.milestone_ledger) && lgdMetrics.milestone_ledger.length > 0 && (
+            <div className={styles['eval-section']}>
+              <div className={styles['eval-label']}>副面试官B（周PM）· 时间戳贡献账本</div>
+              {lgdMetrics.milestone_ledger.map((m, idx) => (
+                <div
+                  key={`ms-${idx}`}
+                  className={`${styles['eval-item']} ${m.impact >= 0 ? styles.positive : styles.negative}`}
+                >
+                  <strong>
+                    [{m.ts_label}] {m.speaker} · {m.milestone}（{m.impact > 0 ? `+${m.impact}` : m.impact}）
+                  </strong>
+                  {m.detail ? ` — ${m.detail}` : ''}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {Array.isArray(lgdMetrics.competency_radar) && lgdMetrics.competency_radar.length > 0 && (
+            <div className={styles['eval-section']}>
+              <div className={styles['eval-label']}>ACP 五维胜任力剖面</div>
+              <div className={styles['logic-dim-grid']}>
+                {lgdMetrics.competency_radar.map((item) => (
+                  <div key={item.key || item.axis} className={styles['logic-dim-row']}>
+                    <span>{item.axis}</span>
+                    <span>{item.score ?? '--'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {Array.isArray(lgdMetrics.observer_annotations) && lgdMetrics.observer_annotations.length > 0 && (
+            <div className={styles['eval-section']}>
+              <div className={styles['eval-label']}>隐形双考官原句高光与扣分复盘</div>
+              {lgdMetrics.observer_annotations.map((ann, idx) => {
+                const isWarn = ann.polarity === 'warning' || (ann.delta ?? 0) < 0
+                return (
+                  <div
+                    key={ann.id || `${ann.tag}-${idx}`}
+                    className={`${styles['eval-item']} ${isWarn ? styles.negative : styles.positive}`}
+                  >
+                    <strong>
+                      [{ann.ts_label || '当场'}] {ann.examiner_name || (ann.examiner === 'business' ? '林总监' : '苏经理')} ·{' '}
+                      {(ann.delta ?? 0) > 0 ? `+${ann.delta}` : ann.delta} {ann.tag}
+                    </strong>
+                    {ann.quote ? ` — 「${ann.quote}」` : ''}
+                    {ann.reason ? `（${ann.reason}）` : ''}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
