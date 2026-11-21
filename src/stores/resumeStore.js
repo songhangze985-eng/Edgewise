@@ -186,10 +186,6 @@ const useResumeStore = create((set, get) => ({
     })
   },
 
-  getMockOptimizedText() {
-    return get().optimizedText || ''
-  },
-
   setActiveResumeFromHistory(item) {
     if (!item?.file) return
     set((state) => ({

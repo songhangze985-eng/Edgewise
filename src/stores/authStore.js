@@ -113,14 +113,6 @@ const useAuthStore = create(
         })
       },
 
-      updateCredits(delta) {
-        set((state) => ({
-          user: state.user
-            ? { ...state.user, credits: state.user.credits + delta }
-            : null,
-        }))
-      },
-
       setBootstrapped(value = true) {
         set({ bootstrapped: value })
       },

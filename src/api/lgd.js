@@ -50,13 +50,6 @@ export function sendLgdRoomSignal(roomId, payload) {
     .then((r) => r.data)
 }
 
-export function requestLgdBidding(roomId, payload) {
-  const safeRoom = encodeURIComponent(roomId || 'live')
-  return api
-    .post(`/lgd/rooms/${safeRoom}/bidding`, payload, { skipErrorToast: true })
-    .then((r) => r.data)
-}
-
 export function requestLgdObserverTag(payload) {
   return api
     .post('/lgd/observer-tag', payload, { skipErrorToast: true })
