@@ -268,4 +268,13 @@ describe('PermadeathChallenge End-to-End Recruiting Funnel, Blind Scoring & Cuto
     assert.equal(vetoedCal.vetoed, true)
     assert.ok(vetoedCal.effectiveScore < 70, 'Vetoed candidate must drop below passLine to trigger permadeath cutoff')
   })
+
+  it('opens the challenge micro-survey with checkPending after completion', () => {
+    const jsx = read('src/features/challenge/PermadeathChallenge.jsx')
+    const store = read('src/stores/surveyStore.js')
+    assert.match(jsx, /useSurveyStore\.getState\(\)\.checkPending\('challenge'\)/)
+    assert.doesNotMatch(jsx, /checkPendingSurvey/)
+    assert.match(store, /async checkPending\(context\)/)
+    assert.doesNotMatch(store, /checkPendingSurvey/)
+  })
 })

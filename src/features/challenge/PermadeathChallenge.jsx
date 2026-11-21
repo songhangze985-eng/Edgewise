@@ -366,7 +366,7 @@ export default function PermadeathChallenge() {
           score: avgScore,
           pass_line: passLine,
         })
-        useSurveyStore.getState().checkPendingSurvey('challenge')
+        useSurveyStore.getState().checkPending('challenge')
       } catch {
         /* ignore completion errors */
       }
