@@ -16,7 +16,7 @@ function isSilentBackgroundRequest(config) {
   return SILENT_BG_PATHS.some((p) => config.url.includes(p))
 }
 
-function readPersistedToken() {
+export function readPersistedToken() {
   try {
     const raw = localStorage.getItem(TOKEN_KEY)
     if (!raw) return null
@@ -34,7 +34,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = readPersistedToken()
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config

@@ -4,11 +4,13 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
 from redis.asyncio import Redis
 
 CACHE_PREFIX = "research:stats:cache:"
 CACHE_TTL = 600
+CACHE_GENERATION_KEY = "research:stats:generation"
 
 
 def _now_iso() -> str:
@@ -20,8 +22,12 @@ def normalize_params(params: dict[str, Any]) -> str:
     return hashlib.sha1(json.dumps(cleaned, sort_keys=True).encode("utf-8")).hexdigest()
 
 
-async def get_cached(redis: Redis, endpoint: str, params: dict[str, Any]) -> dict[str, Any] | None:
-    key = f"{CACHE_PREFIX}{endpoint}:{normalize_params(params)}"
+async def get_cache_generation(redis: Redis) -> str | None:
+    return await redis.get(CACHE_GENERATION_KEY)
+
+
+async def get_cached(redis: Redis, generation: str, endpoint: str, params: dict[str, Any]) -> dict[str, Any] | None:
+    key = f"{CACHE_PREFIX}{generation}:{endpoint}:{normalize_params(params)}"
     raw = await redis.get(key)
     if not raw:
         return None
@@ -33,17 +39,11 @@ async def get_cached(redis: Redis, endpoint: str, params: dict[str, Any]) -> dic
     return payload
 
 
-async def set_cached(redis: Redis, endpoint: str, params: dict[str, Any], body: dict[str, Any]) -> None:
-    key = f"{CACHE_PREFIX}{endpoint}:{normalize_params(params)}"
+async def set_cached(redis: Redis, generation: str, endpoint: str, params: dict[str, Any], body: dict[str, Any]) -> None:
+    key = f"{CACHE_PREFIX}{generation}:{endpoint}:{normalize_params(params)}"
     body = {**body, "computed_at": body.get("computed_at") or _now_iso(), "cache_hit": False}
     await redis.set(key, json.dumps(body, ensure_ascii=False), ex=CACHE_TTL)
 
 
 async def invalidate_stats_cache(redis: Redis) -> None:
-    cursor = 0
-    while True:
-        cursor, keys = await redis.scan(cursor=cursor, match=f"{CACHE_PREFIX}*", count=100)
-        if keys:
-            await redis.unlink(*keys)
-        if cursor == 0:
-            break
+    await redis.set(CACHE_GENERATION_KEY, uuid4().hex)

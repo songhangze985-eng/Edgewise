@@ -12,6 +12,8 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
+from app.core.index_store import get_all_user_ids, get_user_session_ids, index_add_user_session
+from app.core.mongo_client import mongo_store
 from app.core.redis_client import get_json, set_json
 from app.data.posttest_probes import POSTTEST_PROBES
 from app.models.schemas import (
@@ -24,8 +26,10 @@ from app.models.schemas import (
     ResearchPosttestStatus,
     UserInDB,
 )
-from app.research.blind_review import enqueue_posttest_for_blind_review
+from app.research.admin_stats.privacy import export_user_pseudonym
+from app.research.blind_review import enqueue_posttest_for_blind_review, get_posttest_review_export
 from app.research.derive import set_auto_field
+from app.research.events import current_cycle_posttest_dates
 from app.research.pipeline import emit_server_event
 from app.research.survey_engine import clear_survey_on_withdraw
 from app.services.referral_service import ensure_user_invite_code, session_counts_toward_activation
@@ -49,7 +53,7 @@ TOUCHPOINT_KEYS = (
 
 def user_research_eligible(user_data: dict[str, Any]) -> bool:
     consent = user_data.get("research_consent") or {}
-    return bool(consent.get("accepted"))
+    return bool(consent.get("accepted") and not consent.get("withdrawn_at"))
 
 
 def parse_experiment_arm(arm: str) -> dict[str, Any]:
@@ -68,15 +72,53 @@ def parse_experiment_arm(arm: str) -> dict[str, Any]:
     }
 
 
-async def _pick_balanced_arm(redis: Redis) -> str:
-    counts = {
-        arm: int(await redis.get(f"research:arm_count:{arm}") or 0) for arm in EXPERIMENT_ARMS
-    }
-    min_count = min(counts.values())
-    candidates = [arm for arm, count in counts.items() if count == min_count]
-    chosen = random.choice(candidates)
-    await redis.incr(f"research:arm_count:{chosen}")
-    return chosen
+_ASSIGN_ARM_LUA = """
+local prior = redis.call('GET', KEYS[5])
+if prior then return {string.sub(prior, 1, 2), string.sub(prior, 4)} end
+if redis.call('EXISTS', KEYS[6]) == 0 then
+    for i = 1, 4 do
+        local current = tonumber(redis.call('GET', KEYS[i]) or '0')
+        local restored = tonumber(ARGV[i + 6])
+        redis.call('SET', KEYS[i], math.max(current, restored))
+    end
+    redis.call('SET', KEYS[6], '1')
+else
+    for i = 1, 4 do
+        if redis.call('EXISTS', KEYS[i]) == 0 then return {'__COUNTS_MISSING__', ''} end
+    end
+end
+local selected = ARGV[1]
+local source = ARGV[2]
+if selected == '' then
+    local best = nil
+    for i = 3, 6 do
+        local arm = ARGV[i]
+        local count = tonumber(redis.call('GET', 'research:arm_count:' .. arm) or '0')
+        if best == nil or count < best then
+            selected, best = arm, count
+        end
+    end
+end
+redis.call('INCR', 'research:arm_count:' .. selected)
+redis.call('SET', KEYS[5], selected .. '|' .. source)
+return {selected, source}
+"""
+
+
+async def _pick_balanced_arm(redis: Redis, user_id: str, *, override_arm: str | None, source: str) -> tuple[str, str]:
+    arms = list(EXPERIMENT_ARMS)
+    random.shuffle(arms)
+    keys = [f"research:arm_count:{arm}" for arm in EXPERIMENT_ARMS]
+    keys.append(f"research:arm_assignment:{user_id}")
+    keys.append("research:arm_counts:initialized")
+    restored = [0, 0, 0, 0]
+    if not await redis.exists(keys[5]):
+        users = mongo_store.collection("users")
+        restored = [await users.count_documents({"experiment_assignment.arm": arm}) for arm in EXPERIMENT_ARMS]
+    arm, assigned_source = await redis.eval(_ASSIGN_ARM_LUA, len(keys), *keys, override_arm or "", source, *arms, *restored)
+    if arm == "__COUNTS_MISSING__":
+        raise HTTPException(status_code=503, detail="Experiment counts are incomplete; recovery is required")
+    return str(arm), str(assigned_source)
 
 
 def _assignment_record(arm: str, *, source: str, assigned_at: str) -> dict[str, Any]:
@@ -111,10 +153,11 @@ async def assign_experiment_arm(
         return existing
 
     now = datetime.now(timezone.utc).isoformat()
-    arm = override_arm.strip() if override_arm else await _pick_balanced_arm(redis)
-    parse_experiment_arm(arm)
     if override_arm:
+        override_arm = override_arm.strip()
+        parse_experiment_arm(override_arm)
         source = "query_override"
+    arm, source = await _pick_balanced_arm(redis, user_data["id"], override_arm=override_arm, source=source)
 
     assignment = _assignment_record(arm, source=source, assigned_at=now)
     user_data["experiment_assignment"] = assignment
@@ -167,24 +210,6 @@ def experiment_task_continuity(user_data: dict[str, Any]) -> str | None:
     if continuity == 0:
         return "free"
     return None
-
-
-async def backfill_research_eligible_sessions(redis: Redis, user_id: str) -> int:
-    session_ids = await redis.zrevrange(f"user:{user_id}:sessions", 0, -1)
-    updated = 0
-    for session_id in session_ids:
-        session = await get_json(redis, f"session:{session_id}")
-        if not session:
-            continue
-        metadata = session.get("metadata") or {}
-        if metadata.get("research_eligible") is True:
-            continue
-        metadata["research_eligible"] = True
-        session["metadata"] = metadata
-        session["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await set_json(redis, f"session:{session_id}", session)
-        updated += 1
-    return updated
 
 
 async def hydrate_public_user_fields(redis: Redis, user_data: dict[str, Any]) -> dict[str, Any]:
@@ -327,7 +352,7 @@ async def set_research_consent(
 
     consent_record: dict[str, Any] = {
         "accepted": payload.accepted,
-        "accepted_at": now,
+        "accepted_at": previous.get("accepted_at") if payload.accepted and user_research_eligible(user_data) and previous.get("accepted_at") else now,
         "version": RESEARCH_CONSENT_VERSION,
         "had_declined": had_declined or payload.accepted is False,
     }
@@ -342,8 +367,6 @@ async def set_research_consent(
                 source="query_override" if payload.experiment_arm else "consent_accept",
             )
             user_data = await get_json(redis, f"user:{user.id}") or user_data
-        if had_declined:
-            await backfill_research_eligible_sessions(redis, user.id)
     else:
         consent_record["withdrawn_at"] = now
 
@@ -351,15 +374,15 @@ async def set_research_consent(
     user_data["updated_at"] = now
     await set_json(redis, f"user:{user.id}", user_data)
 
+    from app.research.admin_stats.cache import invalidate_stats_cache
+
+    await invalidate_stats_cache(redis)
+
     if payload.accepted:
         await emit_server_event(redis, user.id, "research.consent.granted", {"version": RESEARCH_CONSENT_VERSION})
     else:
         await emit_server_event(redis, user.id, "research.consent.withdrawn", {})
         await clear_survey_on_withdraw(redis, user.id)
-
-    from app.research.admin_stats.cache import invalidate_stats_cache
-
-    await invalidate_stats_cache(redis)
 
     return ResearchConsentView.model_validate(consent_record)
 
@@ -405,6 +428,19 @@ def _parse_iso(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def open_day14_followup(user_data: dict[str, Any], at: datetime) -> dict[str, str] | None:
+    if not user_research_eligible(user_data):
+        return None
+    consent = user_data["research_consent"].get("accepted_at")
+    due = user_data.get("followup_task_due_at")
+    try:
+        if datetime.fromisoformat(consent) <= datetime.fromisoformat(due) <= at:
+            return {"consent_accepted_at": consent, "due_at": due}
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def _pick_posttest_probe(user_data: dict[str, Any]) -> dict[str, str]:
     user_hash = int(hashlib.sha256(user_data["id"].encode()).hexdigest(), 16)
     return POSTTEST_PROBES[user_hash % len(POSTTEST_PROBES)]
@@ -420,18 +456,20 @@ async def get_posttest_status(
     if user_data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    if not user_research_eligible(user_data):
+        return ResearchPosttestStatus()
+
     if accelerate:
         user_data = await accelerate_research_dates(redis, user_data)
 
     now = datetime.now(timezone.utc)
     due_at = _parse_iso(user_data.get("posttest_due_at"))
-    followup_due_at = _parse_iso(user_data.get("followup_task_due_at"))
     completed_at = user_data.get("posttest_completed_at")
 
     due = bool(due_at and now >= due_at and not completed_at)
     overdue = bool(due_at and now >= due_at and not completed_at)
     completed = bool(completed_at)
-    followup_open = bool(followup_due_at and now >= followup_due_at)
+    followup_open = open_day14_followup(user_data, now) is not None
 
     probe = _pick_posttest_probe(user_data) if due and not completed else None
 
@@ -447,6 +485,90 @@ async def get_posttest_status(
     )
 
 
+async def _finish_posttest_submission(
+    redis: Redis, session: dict[str, Any], answer: str, cycle: str | None,
+) -> dict[str, Any]:
+    user_id, session_id = session["user_id"], session["id"]
+    latest = await get_json(redis, f"user:{user_id}") or {}
+    if not user_research_eligible(latest) or latest["research_consent"].get("accepted_at") != cycle:
+        raise HTTPException(status_code=409, detail="后测所属同意周期已变更")
+    if latest.get("posttest_session_id") == session_id:
+        return session
+
+    completed_at = session["completed_at"]
+    await index_add_user_session(redis, user_id, session_id, datetime.fromisoformat(completed_at).timestamp())
+    await enqueue_posttest_for_blind_review(
+        redis, user_id, answer, posttest_session_id=session_id, consent_accepted_at=cycle,
+    )
+    await set_auto_field(redis, user_id, "J1", answer)
+    await set_auto_field(redis, user_id, "posttest_answer", answer)
+    await set_auto_field(redis, user_id, "posttest_status", "done")
+    latest = await get_json(redis, f"user:{user_id}") or {}
+    if not user_research_eligible(latest) or latest["research_consent"].get("accepted_at") != cycle:
+        raise HTTPException(status_code=409, detail="后测所属同意周期已变更")
+    latest["posttest_completed_at"] = completed_at
+    latest["posttest_session_id"] = session_id
+    latest["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await set_json(redis, f"user:{user_id}", latest)
+    await mongo_store.collection("system_indexes").update_one(
+        {"_id": f"research:posttest-submission:{user_id}", "session_id": session_id},
+        {"$set": {"status": "completed"}},
+        upsert=False,
+    )
+    return session
+
+
+async def _saved_posttest_session(user_id: str, receipt: dict[str, Any]) -> dict[str, Any] | None:
+    session_id = receipt["session_id"]
+    session = await mongo_store.find_by_cache_key(f"session:{session_id}")
+    if (
+        session and session.get("id") == session_id and session.get("user_id") == user_id
+        and session.get("type") == "research_posttest" and session.get("status") == "completed"
+        and session.get("completed_at") == receipt["started_at"]
+    ):
+        return session
+    return None
+
+
+async def get_stalled_posttest_receipt_counts() -> dict[str, int]:
+    counts = {"stalled_total": 0, "session_unconfirmed": 0, "resumable": 0, "consent_unavailable": 0}
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    receipts = mongo_store.collection("system_indexes")
+    async for receipt in receipts.iter_documents({
+        "doc_type": "posttest_submission_receipt",
+        "status": {"$ne": "completed"},
+        "started_at": {"$lte": cutoff},
+    }):
+        user_id = receipt["user_id"]
+        user = await mongo_store.find_by_cache_key(f"user:{user_id}") or {}
+        if user.get("posttest_session_id") == receipt["session_id"]:
+            continue
+        counts["stalled_total"] += 1
+        if not user_research_eligible(user) or user["research_consent"].get("accepted_at") != receipt["consent_accepted_at"]:
+            counts["consent_unavailable"] += 1
+        elif await _saved_posttest_session(user_id, receipt) is not None:
+            counts["resumable"] += 1
+        else:
+            counts["session_unconfirmed"] += 1
+    return counts
+
+
+async def _resume_posttest_submission(
+    redis: Redis, user_id: str, receipt: dict[str, Any] | None, fingerprint: str, answer: str,
+) -> dict[str, Any]:
+    user_data = await get_json(redis, f"user:{user_id}") or {}
+    if not user_research_eligible(user_data):
+        raise HTTPException(status_code=403, detail="Research consent required")
+    if receipt is not None:
+        cycle = (user_data.get("research_consent") or {}).get("accepted_at")
+        if receipt["consent_accepted_at"] != cycle or receipt["fingerprint"] != fingerprint:
+            raise HTTPException(status_code=409, detail="已有不同的后测提交")
+        session = await _saved_posttest_session(user_id, receipt)
+        if session is not None:
+            return await _finish_posttest_submission(redis, session, answer, cycle)
+    raise HTTPException(status_code=503, detail="暂无法确认后测是否已保存")
+
+
 async def submit_posttest_answer(
     redis: Redis,
     user: UserInDB,
@@ -455,6 +577,15 @@ async def submit_posttest_answer(
     user_data = await get_json(redis, f"user:{user.id}")
     if user_data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user_research_eligible(user_data):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Research consent required")
+    trimmed = answer.strip()
+    fingerprint = hashlib.sha256(trimmed.encode()).hexdigest()
+    receipts = mongo_store.collection("system_indexes")
+    receipt_id = f"research:posttest-submission:{user.id}"
+    receipt = await receipts.find_one({"_id": receipt_id})
+    if receipt is not None:
+        return await _resume_posttest_submission(redis, user.id, receipt, fingerprint, trimmed)
     if user_data.get("posttest_completed_at"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Posttest already completed")
 
@@ -462,18 +593,30 @@ async def submit_posttest_answer(
     if not status_view.due and not user.is_admin:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Posttest is not due yet")
 
-    await emit_server_event(redis, user.id, "posttest.open", {"due_at": user_data.get("posttest_due_at")})
-
     probe = status_view.probe or _pick_posttest_probe(user_data)
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     created_at, date_value, time_value = now_iso, now.date().isoformat(), now.strftime("%H:%M")
     session_id = uuid4().hex
+    cycle = (user_data.get("research_consent") or {}).get("accepted_at")
+    if not await receipts.insert_if_absent(receipt_id, {
+        "doc_type": "posttest_submission_receipt",
+        "status": "processing",
+        "user_id": user.id,
+        "consent_accepted_at": cycle,
+        "session_id": session_id,
+        "fingerprint": fingerprint,
+        "started_at": now_iso,
+    }):
+        receipt = await receipts.find_one({"_id": receipt_id})
+        return await _resume_posttest_submission(redis, user.id, receipt, fingerprint, trimmed)
+
+    await emit_server_event(redis, user.id, "posttest.open", {"due_at": user_data.get("posttest_due_at")})
     assignment = user_data.get("experiment_assignment") or {}
     transcript = [
         {"role": "system", "text": "研究追访：匹配难度独立追问（Day 7）"},
         {"role": "interviewer", "text": probe["title"]},
-        {"role": "user", "text": answer.strip()},
+        {"role": "user", "text": trimmed},
     ]
     metadata = build_session_research_metadata(
         user_data,
@@ -511,19 +654,7 @@ async def submit_posttest_answer(
         session_record["metadata"]["experiment_arm"] = assignment["arm"]
 
     await set_json(redis, f"session:{session_id}", session_record)
-    await redis.zadd(f"user:{user.id}:sessions", {session_id: now.timestamp()})
-
-    user_data["posttest_completed_at"] = now_iso
-    user_data["updated_at"] = now_iso
-    await set_json(redis, f"user:{user.id}", user_data)
-
-    trimmed = answer.strip()
-    await set_auto_field(redis, user.id, "J1", trimmed)
-    await set_auto_field(redis, user.id, "posttest_answer", trimmed)
-    await set_auto_field(redis, user.id, "posttest_status", "done")
-    await enqueue_posttest_for_blind_review(redis, user.id, trimmed)
-
-    return session_record
+    return await _finish_posttest_submission(redis, session_record, trimmed, cycle)
 
 
 async def get_research_invite(redis: Redis, user: UserInDB) -> ResearchInviteView:
@@ -629,11 +760,6 @@ async def apply_research_followup(
     return session
 
 
-def _anonymize_user_id(user_id: str) -> str:
-    digest = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
-    return f"anon_{digest[:16]}"
-
-
 def _transcript_length(metadata: dict[str, Any]) -> int:
     transcript = metadata.get("transcript") or metadata.get("messages") or []
     if not isinstance(transcript, list):
@@ -646,8 +772,92 @@ def _transcript_length(metadata: dict[str, Any]) -> int:
     return total
 
 
+async def record_first_valid_answer(
+    redis: Redis,
+    session: dict[str, Any],
+    received_at: datetime,
+    round_index: int,
+    question_index: int,
+) -> None:
+    if (session.get("metadata") or {}).get("research_eligible") is not True:
+        return
+    user_id = session["user_id"]
+    user = await get_json(redis, f"user:{user_id}") or {}
+    if not user_research_eligible(user):
+        return
+    try:
+        consent_at = _parse_iso(user["research_consent"].get("accepted_at"))
+        created_at = _parse_iso(session.get("created_at"))
+        if not consent_at or not created_at or consent_at.utcoffset() is None or created_at.utcoffset() is None:
+            return
+    except (AttributeError, TypeError, ValueError):
+        return
+    if not consent_at <= created_at <= received_at:
+        return
+
+    await mongo_store.collection("system_indexes").insert_if_absent(
+        f"research:first_valid_answer:{session['id']}",
+        {
+            "doc_type": "research_first_valid_answer",
+            "user_id": user_id,
+            "session_created_at": created_at.isoformat(),
+            "answer_received_at": received_at.isoformat(),
+            "round_index": round_index,
+            "question_index": question_index,
+            "source": "score_answer_validity_check",
+        },
+    )
+
+
+async def _first_valid_answer_for_export(session_id: str, user_id: str) -> dict[str, Any] | None:
+    doc = await mongo_store.collection("system_indexes").find_one({
+        "_id": f"research:first_valid_answer:{session_id}", "user_id": user_id,
+    })
+    if not doc:
+        return None
+    return {key: doc.get(key) for key in (
+        "session_created_at", "answer_received_at", "round_index", "question_index", "source",
+    )}
+
+
+async def _task_entry_for_export(
+    session: dict[str, Any], user_data: dict[str, Any],
+) -> dict[str, Any] | None:
+    metadata = session.get("metadata") or {}
+    click_id, task_id = metadata.get("task_entry_click_id"), metadata.get("task_id")
+    cycle = (user_data.get("research_consent") or {}).get("accepted_at")
+    if not click_id or not task_id or not cycle:
+        return None
+    criteria = {
+        "user_id": user_data["id"],
+        "props.task_entry_click_id": click_id,
+        "props.task_id": task_id,
+        "props._consent_accepted_at": cycle,
+    }
+    events = mongo_store.collection("research_events")
+    click = await events.find_one({**criteria, "event": "task_page.cta_clicked"})
+    if not click:
+        return None
+    try:
+        clicked_at = _parse_iso(click.get("ts"))
+        created_at = _parse_iso(session.get("created_at"))
+        consent_at = _parse_iso(cycle)
+        if not clicked_at or not created_at or not consent_at or not consent_at <= clicked_at <= created_at:
+            return None
+    except (AttributeError, TypeError, ValueError):
+        return None
+    steps = await events.find_one({**criteria, "event": "task.steps_to_start", "props.session_id": session["id"]})
+    steps_value = ((steps or {}).get("props") or {}).get("steps")
+    return {
+        "task_id": task_id,
+        "cta_client_timestamp": click["ts"],
+        "cta_event_id": click.get("stream_entry_id"),
+        "steps_to_session_start": steps_value if type(steps_value) is int and steps_value in (2, 3) else None,
+    }
+
+
 async def _iter_consented_sessions(redis: Redis) -> list[dict[str, Any]]:
-    user_ids = await redis.smembers("users:all")
+    user_ids = await get_all_user_ids(redis)
     rows: list[dict[str, Any]] = []
 
     for user_id in user_ids:
@@ -655,13 +865,28 @@ async def _iter_consented_sessions(redis: Redis) -> list[dict[str, Any]]:
         if not user_data:
             continue
         consent = user_data.get("research_consent") or {}
-        if not consent.get("accepted"):
+        if not consent.get("accepted") or consent.get("withdrawn_at"):
             continue
 
-        session_ids = await redis.zrevrange(f"user:{user_id}:sessions", 0, -1)
+        try:
+            accepted_at = _parse_iso(consent.get("accepted_at"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if not accepted_at or accepted_at.utcoffset() is None:
+            continue
+
+        session_ids = await get_user_session_ids(redis, user_id)
         for session_id in session_ids:
             session = await get_json(redis, f"session:{session_id}")
             if not session or session.get("status") != "completed":
+                continue
+            if (session.get("metadata") or {}).get("research_eligible") is not True:
+                continue
+            try:
+                created_at = _parse_iso(session.get("created_at"))
+            except (TypeError, ValueError, AttributeError):
+                continue
+            if not created_at or created_at.utcoffset() is None or created_at < accepted_at:
                 continue
             rows.append({"user": user_data, "session": session})
 
@@ -682,7 +907,7 @@ async def export_research_jsonl(redis: Redis, *, anonymize: bool) -> str:
         document = {
             "session": session,
             "research_export": {
-                "user_id": _anonymize_user_id(user_data["id"]) if anonymize else user_data["id"],
+                "user_id": export_user_pseudonym(user_data["id"]) if anonymize else user_data["id"],
                 "consent_version": consent.get("version"),
                 "consent_accepted_at": consent.get("accepted_at"),
                 "consent_withdrawn_at": consent.get("withdrawn_at"),
@@ -699,8 +924,7 @@ async def export_research_jsonl(redis: Redis, *, anonymize: bool) -> str:
                 "source": metadata.get("source"),
                 "posttest": metadata.get("posttest"),
                 "posttest_probe_id": metadata.get("posttest_probe_id"),
-                "posttest_due_at": user_data.get("posttest_due_at"),
-                "posttest_completed_at": user_data.get("posttest_completed_at"),
+                **current_cycle_posttest_dates(user_data),
                 "followup_task_due_at": user_data.get("followup_task_due_at"),
                 "referred_by": metadata.get("referred_by") or user_data.get("referred_by"),
                 "invite_code": metadata.get("invite_code") or user_data.get("invite_code"),
@@ -708,8 +932,28 @@ async def export_research_jsonl(redis: Redis, *, anonymize: bool) -> str:
                 or user_data.get("referral_incentive"),
                 "research_path": metadata.get("research_path"),
                 "transcript_length": _transcript_length(metadata),
+                "copilot_attribution": metadata.get("copilot_attribution"),
+                "task_entry": await _task_entry_for_export(session, user_data),
+                "first_valid_answer": await _first_valid_answer_for_export(session["id"], user_data["id"]),
+                "posttest_blind_reviews": await get_posttest_review_export(session["id"]) if metadata.get("posttest") else None,
             },
         }
+        if anonymize:
+            # The complete session and free-form metadata can contain direct identifiers.
+            document["session"] = {
+                key: session.get(key)
+                for key in ("id", "type", "score", "duration_minutes", "status", "created_at", "completed_at")
+            }
+            document["session"]["user_id"] = export_user_pseudonym(user_data["id"])
+            research_export = document["research_export"]
+            referred_by = research_export.get("referred_by")
+            research_export["referred_by"] = export_user_pseudonym(str(referred_by)) if referred_by else None
+            research_export["invite_code"] = None
+            research_export["touchpoint"] = None
+            research_export["research_path"] = None
+            research_export["experiment_assignment"] = {
+                key: assignment.get(key) for key in ("arm", "factors", "source", "assigned_at")
+            }
         lines.append(json.dumps(document, ensure_ascii=False))
     return "\n".join(lines) + ("\n" if lines else "")
 
@@ -754,6 +998,12 @@ async def export_research_csv(redis: Redis, *, anonymize: bool) -> str:
             "declined_revision_reason",
             "created_at",
             "completed_at",
+            "first_valid_answer_received_at",
+            "copilot_triage_id",
+            "copilot_recommendation_recorded_at",
+            "task_cta_client_timestamp",
+            "task_steps_to_session_start",
+            "posttest_blind_reviews_json",
         ]
     )
 
@@ -765,17 +1015,21 @@ async def export_research_csv(redis: Redis, *, anonymize: bool) -> str:
         consent = user_data.get("research_consent") or {}
         research_path = metadata.get("research_path") or {}
         dimensions = metadata.get("dimensions") or {}
-        user_col = _anonymize_user_id(user_data["id"]) if anonymize else user_data["id"]
+        if anonymize:
+            touchpoint = {}
+        user_col = export_user_pseudonym(user_data["id"]) if anonymize else user_data["id"]
 
+        first_answer = await _first_valid_answer_for_export(session["id"], user_data["id"])
+        task_entry = await _task_entry_for_export(session, user_data) or {}
         writer.writerow(
             [
                 session.get("id"),
                 user_col,
                 session.get("type"),
-                session.get("topic"),
+                None if anonymize else session.get("topic"),
                 session.get("score"),
                 session.get("duration_minutes"),
-                json.dumps(dimensions, ensure_ascii=False),
+                None if anonymize else json.dumps(dimensions, ensure_ascii=False),
                 _transcript_length(metadata),
                 touchpoint.get("utm_source"),
                 touchpoint.get("utm_medium"),
@@ -792,17 +1046,23 @@ async def export_research_csv(redis: Redis, *, anonymize: bool) -> str:
                 metadata.get("source"),
                 metadata.get("posttest"),
                 metadata.get("posttest_probe_id"),
-                metadata.get("referred_by") or user_data.get("referred_by"),
-                metadata.get("invite_code") or user_data.get("invite_code"),
+                (export_user_pseudonym(str(metadata.get("referred_by") or user_data.get("referred_by"))) if (metadata.get("referred_by") or user_data.get("referred_by")) else None) if anonymize else (metadata.get("referred_by") or user_data.get("referred_by")),
+                None if anonymize else (metadata.get("invite_code") or user_data.get("invite_code")),
                 metadata.get("referral_incentive") or user_data.get("referral_incentive"),
                 consent.get("version"),
                 research_path.get("started_at"),
                 research_path.get("answered_at"),
                 research_path.get("viewed_feedback_at"),
                 research_path.get("revised"),
-                research_path.get("declined_revision_reason"),
+                None if anonymize else research_path.get("declined_revision_reason"),
                 session.get("created_at"),
                 session.get("completed_at"),
+                (first_answer or {}).get("answer_received_at"),
+                (metadata.get("copilot_attribution") or {}).get("triage_id"),
+                (metadata.get("copilot_attribution") or {}).get("recommendation_recorded_at"),
+                task_entry.get("cta_client_timestamp"),
+                task_entry.get("steps_to_session_start"),
+                json.dumps(await get_posttest_review_export(session["id"]), ensure_ascii=False) if metadata.get("posttest") else None,
             ]
         )
 

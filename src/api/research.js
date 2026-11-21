@@ -47,18 +47,24 @@ export function accelerateResearchDatesAdmin() {
   return api.post('/research/posttest/accelerate').then((r) => r.data)
 }
 
-export function postResearchEvents(events) {
-  return api.post('/research/events', { events }).then((r) => r.data)
+export function postResearchEvents(events, token) {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+  return api.post('/research/events', { events }, config).then((r) => r.data)
 }
 
-export function fetchSurveyPending(context) {
+export function fetchSurveyPending(context, token) {
   return api
-    .get('/research/survey/pending', { params: context ? { context } : undefined })
+    .get('/research/survey/pending', {
+      params: context ? { context } : undefined,
+      headers: { Authorization: `Bearer ${token}` },
+    })
     .then((r) => r.data)
 }
 
-export function submitSurveyAnswers(answers) {
-  return api.post('/research/survey/answer', { answers }).then((r) => r.data)
+export function submitSurveyAnswers(answers, offerEventId, answerContext, token) {
+  return api.post('/research/survey/answer', {
+    answers, offer_event_id: offerEventId, answer_context: answerContext,
+  }, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.data)
 }
 
 async function downloadResearchBlob(path, params, filename) {
@@ -74,7 +80,7 @@ async function downloadResearchBlob(path, params, filename) {
   URL.revokeObjectURL(url)
 }
 
-export async function downloadResearchExport(format = 'jsonl', { anonymize = false } = {}) {
+export async function downloadResearchExport(format = 'jsonl', { anonymize = true } = {}) {
   const filename = format === 'csv' ? 'edgewise-research-export.csv' : 'edgewise-research-export.jsonl'
   await downloadResearchBlob('/research/export', { format, anonymize }, filename)
 }
@@ -82,6 +88,10 @@ export async function downloadResearchExport(format = 'jsonl', { anonymize = fal
 export async function downloadResearchPanelExport(format = 'jsonl', { anonymize = true } = {}) {
   const filename = format === 'csv' ? 'edgewise-research-panel.csv' : 'edgewise-research-panel.jsonl'
   await downloadResearchBlob('/research/export/panel', { format, anonymize }, filename)
+}
+
+export function downloadResearchEvents() {
+  return downloadResearchBlob('/research/export/events', {}, 'edgewise-research-events.jsonl')
 }
 
 export function triggerDailyDerive(userId) {

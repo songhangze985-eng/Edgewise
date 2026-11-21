@@ -254,6 +254,27 @@ async def handle_question_followup(
     session["updated_at"] = ts
     await set_json(redis, f"session:{session_id}", session)
 
+    from app.services.conversation_memory_service import append_conversation_turn
+
+    await append_conversation_turn(
+        redis,
+        session["user_id"],
+        scope="interview_1v1",
+        role="user",
+        content=main_answer,
+        intent=gap_type,
+        extra_meta={"session_id": session_id, "question_id": qid, "layer": layer},
+    )
+    await append_conversation_turn(
+        redis,
+        session["user_id"],
+        scope="interview_1v1",
+        role="assistant",
+        content=text,
+        intent=gap_type,
+        extra_meta={"session_id": session_id, "question_id": qid, "layer": layer},
+    )
+
     if not assigned:
         await emit_server_event(
             redis,

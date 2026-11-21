@@ -423,39 +423,13 @@ def generate_cohort(n_per_arm: int = 100, seed: int = 20261103) -> list[dict[str
     return cohort
 
 
-async def clear_simulated_participants(redis: Redis) -> int:
-    """Removes existing simulated participant records while preserving real admin users."""
-    user_ids = [u.decode("utf-8") if isinstance(u, bytes) else str(u) for u in await redis.smembers("users:all")]
-    cleared = 0
-    for uid in user_ids:
-        if uid.startswith("sim_user_") or uid.startswith("u-sim-") or uid.startswith("u-test-"):
-            await redis.delete(
-                f"user:{uid}",
-                auto_hash_key(uid),
-                auto_meta_key(uid),
-                survey_hash_key(uid),
-                f"research:survey:{uid}:queue",
-                f"research:survey:{uid}:shown",
-                survey_state_key(uid),
-                event_stream_key(uid),
-            )
-            await redis.srem("users:all", uid)
-            cleared += 1
-
-    # Invalidate cached admin stats
-    cache_keys = await redis.keys("research:admin_cache:*")
-    if cache_keys:
-        await redis.delete(*cache_keys)
-
-    return cleared
-
-
-async def persist_cohort_to_redis(cohort: list[dict[str, Any]], redis_url: str = "redis://localhost:6379/0") -> None:
+async def persist_cohort_to_redis(cohort: list[dict[str, Any]], *, redis_url: str) -> None:
     """Writes the simulated cohort into Redis data structures."""
     redis = Redis.from_url(redis_url, decode_responses=True)
 
-    cleared = await clear_simulated_participants(redis)
-    print(f"Cleared {cleared} prior simulated participant records from Redis.")
+    if await redis.dbsize() != 0:
+        await redis.aclose()
+        raise RuntimeError("Simulation requires an empty, dedicated Redis database; no data was changed.")
 
     meta_payload = json.dumps({"computed_at": datetime.now(timezone.utc).isoformat(), "rule_version": RULE_VERSION})
 
@@ -596,12 +570,26 @@ async def verify_simulation(redis_url: str = "redis://localhost:6379/0") -> dict
     }
 
 
+async def require_empty_simulation_database(redis_url: str) -> None:
+    redis = Redis.from_url(redis_url, decode_responses=True)
+    try:
+        if await redis.dbsize() != 0:
+            raise RuntimeError("Simulation requires an empty, dedicated Redis database; no data was changed.")
+    finally:
+        await redis.aclose()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Simulate empirical research data for Edgewise.")
-    parser.add_argument("--redis-url", default="redis://localhost:6379/0", help="Redis URL")
+    parser.add_argument("--redis-url", required=True, help="URL of an empty, dedicated test Redis database")
+    parser.add_argument("--allow-simulation-write", action="store_true", help="Acknowledge that generated data are simulated")
     parser.add_argument("--n-per-arm", type=int, default=100, help="Participants per arm (default: 100)")
     parser.add_argument("--seed", type=int, default=20261103, help="Random seed (default: 20261103)")
     args = parser.parse_args()
+
+    if not args.allow_simulation_write:
+        parser.error("--allow-simulation-write is required; use only an empty, dedicated test database")
+    asyncio.run(require_empty_simulation_database(args.redis_url))
 
     print(f"Generating empirical cohort with N = {args.n_per_arm * 4} (seed = {args.seed})...")
     cohort = generate_cohort(n_per_arm=args.n_per_arm, seed=args.seed)

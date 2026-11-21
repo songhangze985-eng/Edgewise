@@ -4,6 +4,7 @@ import useAuthStore from '../../stores/authStore'
 import useSessionStore from '../../stores/sessionStore'
 import {
   BLIND_REVIEW_RUBRIC,
+  downloadResearchEvents,
   downloadResearchExport,
   downloadResearchPanelExport,
   fetchBlindReviewPending,
@@ -228,6 +229,19 @@ export default function Management() {
     }
   }
 
+  const handleEventExport = async () => {
+    if (!user?.isAdmin || !confirmResearchDownload('研究事件 JSONL')) return
+    setExportingResearch(true)
+    try {
+      await downloadResearchEvents()
+      showToast('研究事件已导出', 'success')
+    } catch (err) {
+      showToast(getErrorMessage(err, '导出研究事件失败'), 'error')
+    } finally {
+      setExportingResearch(false)
+    }
+  }
+
   const handleDailyDerive = async () => {
     if (!user?.isAdmin) return
     if (!window.confirm('确认执行日派生？将为所有用户（或指定用户）重算自动字段。')) return
@@ -350,11 +364,11 @@ export default function Management() {
     }
   }
 
-  const handleBlindSubmit = async (token) => {
+  const handleBlindSubmit = async ({ review_token: token, retry_scores: retryScores }) => {
     if (!user?.isAdmin) return
     const scoresRaw = blindScores[token] || {}
-    const scores = {}
-    for (const { key } of BLIND_REVIEW_RUBRIC) {
+    const scores = retryScores || {}
+    for (const { key } of retryScores ? [] : BLIND_REVIEW_RUBRIC) {
       const n = Number(scoresRaw[key])
       if (!Number.isInteger(n) || n < 1 || n > 5) {
         showToast('请为四项指标均选择 1–5 分', 'error')
@@ -1168,7 +1182,7 @@ export default function Management() {
                     <div className={styles['setting-info']}>
                       <div className={styles['setting-name']}>练习会话导出</div>
                       <div className={styles['setting-desc']}>
-                        已知情同意用户的已完成练习会话（JSONL 含完整转写；CSV 摘要且匿名 user_id）
+                        当前同意周期内的已完成练习会话。JSONL 含完整转写和身份信息；CSV 使用用户伪名，但文本字段仍可能包含个人信息。
                       </div>
                     </div>
                     <div className={styles['export-actions']}>
@@ -1194,7 +1208,7 @@ export default function Management() {
                     <div className={styles['setting-info']}>
                       <div className={styles['setting-name']}>研究面板导出</div>
                       <div className={styles['setting-desc']}>
-                        自动字段、问卷作答与实验分组等面板宽表（auto + survey + arms）
+                        自动字段、问卷作答与实验分组等面板宽表；JSONL 含身份标识，CSV 使用用户伪名，作答内容仍可能包含个人信息。
                       </div>
                     </div>
                     <div className={styles['export-actions']}>
@@ -1213,6 +1227,17 @@ export default function Management() {
                         onClick={() => handlePanelExport('csv')}
                       >
                         {exportingPanel ? '导出中…' : '面板 CSV'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className={styles['setting-row']}>
+                    <div className={styles['setting-info']}>
+                      <div className={styles['setting-name']}>研究事件导出</div>
+                      <div className={styles['setting-desc']}>使用用户伪名的曝光、点击、问卷展示和诊断事件。</div>
+                    </div>
+                    <div className={styles['export-actions']}>
+                      <button type="button" className={styles['action-btn']} disabled={exportingResearch || exportingPanel} onClick={handleEventExport}>
+                        事件 JSONL
                       </button>
                     </div>
                   </div>
@@ -1329,7 +1354,8 @@ export default function Management() {
                               <span>{label}</span>
                               <select
                                 className={styles['blind-select']}
-                                value={blindScores[item.review_token]?.[key] ?? ''}
+                                value={(item.retry_scores || blindScores[item.review_token])?.[key] ?? ''}
+                                disabled={Boolean(item.retry_scores)}
                                 onChange={(e) => setBlindScore(item.review_token, key, e.target.value)}
                                 aria-label={`${label} 评分`}
                               >
@@ -1347,9 +1373,9 @@ export default function Management() {
                           type="button"
                           className={styles['action-btn']}
                           disabled={blindSubmitting === item.review_token}
-                          onClick={() => handleBlindSubmit(item.review_token)}
+                          onClick={() => handleBlindSubmit(item)}
                         >
-                          {blindSubmitting === item.review_token ? '提交中…' : '提交评分'}
+                          {blindSubmitting === item.review_token ? '提交中…' : item.retry_scores ? '重试原评分' : '提交评分'}
                         </button>
                       </div>
                     ))}

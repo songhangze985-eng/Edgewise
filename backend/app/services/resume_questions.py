@@ -9,7 +9,9 @@ from uuid import uuid4
 from redis.asyncio import Redis
 
 from app.api.v1.questions import build_question_record
-from app.core.redis_client import get_json, set_json
+from app.core.index_store import index_add_question_id, index_remove_question_id
+from app.core.mongo_client import mongo_store
+from app.core.redis_client import get_json, invalidate_cache_key, set_json
 from app.models.schemas import ResumeParsedData
 
 MAX_QUESTIONS_PER_PROJECT = 2
@@ -121,8 +123,9 @@ async def regenerate_user_resume_questions(
 
     old_ids = await redis.smembers(f"user:{user_id}:resume_questions")
     for qid in old_ids:
-        await redis.delete(f"question:{qid}")
-        await redis.srem("questions:all", qid)
+        await invalidate_cache_key(redis, f"question:{qid}")
+        await mongo_store.delete_by_cache_key(f"question:{qid}")
+        await index_remove_question_id(redis, qid)
         await redis.srem(f"user:{user_id}:resume_questions", qid)
 
     payloads = build_questions_from_resume(resume)
@@ -155,7 +158,7 @@ async def regenerate_user_resume_questions(
         record["ideal"] = None
 
         await set_json(redis, f"question:{question_id}", record)
-        await redis.sadd("questions:all", question_id)
+        await index_add_question_id(redis, question_id)
         await redis.sadd(f"user:{user_id}:resume_questions", question_id)
         new_ids.append(question_id)
 

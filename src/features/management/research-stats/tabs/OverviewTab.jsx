@@ -60,6 +60,7 @@ export default function OverviewTab({ filters, refreshKey }) {
   const k = data.kpis || {}
   return (
     <>
+      <p className={styles.cardSub}>问卷答复和重新同意后的自动指标按周期区分。旧版数据及跨用户指标的来源仍需核验。</p>
       <div className={styles.kpiGrid}>
         <StatCard title="注册用户" value={k.registered_users ?? '—'} sub="研究入口曝光基数" />
         <StatCard
@@ -68,9 +69,9 @@ export default function OverviewTab({ filters, refreshKey }) {
           sub={`${k.consent_rate?.numerator ?? '—'} / ${k.consent_rate?.denominator ?? '—'} · 撤回 ${k.consent_rate?.withdrawn ?? 0}`}
         />
         <StatCard
-          title="合格激活率 (ITT)"
-          value={fmtPct(k.qualified_activation_itt?.rate)}
-          sub={`${k.qualified_activation_itt?.numerator ?? '—'} / ${k.qualified_activation_itt?.denominator ?? '—'}`}
+          title="已观察到的合格激活"
+          value={k.qualified_activation_itt?.numerator ?? '—'}
+          sub={`已分组 ${k.qualified_activation_itt?.denominator ?? '—'} 人，尚未确认 ${k.qualified_activation_itt?.unconfirmed ?? '—'} 人`}
         />
         <StatCard
           title="7 日后测完成率"
@@ -93,14 +94,15 @@ export default function OverviewTab({ filters, refreshKey }) {
         </StatCard>
       </div>
       <StatCard title="各触发点完成情况">
+        <p>展示人数仅统计能关联到题目下发记录的浏览器回执。作答、跳过和拒答按已记录状态统计。</p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th>触发点</th>
                 <th>符合条件</th>
-                <th>已触发</th>
-                <th>已展示</th>
+                <th>已记录触发</th>
+                <th>已记录展示</th>
                 <th>已作答</th>
                 <th>跳过</th>
                 <th>声明不答</th>

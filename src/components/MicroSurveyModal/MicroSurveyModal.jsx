@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import useSurveyStore from '../../stores/surveyStore'
+import { trackResearchEvent } from '../../research/track'
 import styles from './MicroSurveyModal.module.css'
 
 export default function MicroSurveyModal() {
@@ -9,6 +10,8 @@ export default function MicroSurveyModal() {
   const submitting = useSurveyStore((s) => s.submitting)
   const submitAnswers = useSurveyStore((s) => s.submitAnswers)
   const skipAll = useSurveyStore((s) => s.skipAll)
+  const surveyVersion = useSurveyStore((s) => s.surveyVersion)
+  const offerEventId = useSurveyStore((s) => s.offerEventId)
 
   const [answers, setAnswers] = useState({})
 
@@ -16,6 +19,14 @@ export default function MicroSurveyModal() {
   useEffect(() => {
     setAnswers({})
   }, [items])
+
+  useEffect(() => {
+    if (isOpen && items?.length && offerEventId) {
+      trackResearchEvent('survey.shown', {
+        item_ids: items.map((item) => item.id), survey_version: surveyVersion, offer_event_id: offerEventId,
+      })
+    }
+  }, [isOpen, items, surveyVersion, offerEventId])
 
   // Support ESC key to gracefully skip
   useEffect(() => {

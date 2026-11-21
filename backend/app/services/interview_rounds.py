@@ -8,6 +8,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from app.core.index_store import get_all_question_ids
 from app.core.redis_client import get_json
 from app.services.hr_questions import hr_question_session_item, pick_hr_questions
 from app.services.interview_config import DEFAULT_MIX, DEFAULT_ROUND_NAMES, ROUNDS_FORCED_BY_ARM
@@ -192,7 +193,7 @@ async def _load_question_pools(
     *,
     has_resume: bool,
 ) -> tuple[list[dict], list[dict], list[dict]]:
-    all_ids = await redis.smembers("questions:all")
+    all_ids = await get_all_question_ids(redis)
     general: list[dict] = []
     professional: list[dict] = []
     resume_specific: list[dict] = []
@@ -273,7 +274,15 @@ def _pick_resume_with_jd(
 
 
 def _question_session_item(q: dict) -> dict[str, Any]:
+    from app.services.single_interview_taxonomy import classify_single_interview_question
+
     qtype = q.get("type") or "professional"
+    tax = classify_single_interview_question(
+        q.get("title") or "",
+        qtype=qtype,
+        category=q.get("category"),
+        explicit_subtype=q.get("subtype"),
+    )
     return {
         "id": q["id"],
         "type": qtype,
@@ -282,6 +291,7 @@ def _question_session_item(q: dict) -> dict[str, Any]:
         "category": q.get("category"),
         "keywords": q.get("keywords") or [],
         "source_project": q.get("source_project"),
+        **tax,
         "answer": None,
         "score": None,
         "logic_score": None,

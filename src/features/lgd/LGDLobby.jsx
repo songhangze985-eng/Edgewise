@@ -35,11 +35,12 @@ export default function LGDLobby() {
   const [customTopic, setCustomTopic] = useState('')
   const [selectedTopicId, setSelectedTopicId] = useState(memorySnapshot?.topic_id || '')
   const [durationMinutes, setDurationMinutes] = useState(memorySnapshot?.duration_minutes || 20)
-  const [userRole, setUserRole] = useState(memorySnapshot?.user_role || 'member')
-  const [roleMode, setRoleMode] = useState(memorySnapshot?.role_mode || 'pick')
+  const [userRole, setUserRole] = useState(memorySnapshot?.user_role || 'undetermined')
+  const [roleMode, setRoleMode] = useState(memorySnapshot?.role_mode || 'undetermined')
   const [scriptId, setScriptId] = useState(memorySnapshot?.script_id || 'standard_flow')
   const [memoryEnabled, setMemoryEnabled] = useState(memorySnapshot?.memory_enabled ?? true)
   const [apiMode, setApiMode] = useState(memorySnapshot?.api_mode || 'hybrid_sandbox')
+  const [advancementQuota, setAdvancementQuota] = useState(memorySnapshot?.advancement_quota || 3)
 
   const applyMemoryToForm = (mem, topicList = topics) => {
     if (!mem) return
@@ -52,6 +53,7 @@ export default function LGDLobby() {
     if (mem.script_id) setScriptId(mem.script_id)
     if (typeof mem.memory_enabled === 'boolean') setMemoryEnabled(mem.memory_enabled)
     if (mem.api_mode) setApiMode(mem.api_mode)
+    if (mem.advancement_quota) setAdvancementQuota(Number(mem.advancement_quota))
   }
 
   const loadRooms = async () => {
@@ -104,9 +106,17 @@ export default function LGDLobby() {
     try {
       const targetTopicId = overrideMem?.topic_id ?? selectedTopicId
       const targetDuration = overrideMem?.duration_minutes ?? durationMinutes
-      const targetRole = overrideMem?.user_role ?? userRole
       const targetRoleMode = overrideMem?.role_mode ?? roleMode
+      const targetRole =
+        targetRoleMode === 'undetermined'
+          ? 'undetermined'
+          : (overrideMem?.user_role && overrideMem.user_role !== 'undetermined'
+              ? overrideMem.user_role
+              : userRole !== 'undetermined'
+                ? userRole
+                : 'member')
       const targetScriptId = overrideMem?.script_id ?? scriptId
+      const targetQuota = Number(overrideMem?.advancement_quota ?? advancementQuota) || 3
       const picked = topics.find((t) => t.id === targetTopicId) || topics[0]
       const topic =
         customTopic.trim()
@@ -126,6 +136,7 @@ export default function LGDLobby() {
         role_mode: targetRoleMode,
         script_id: targetScriptId,
         api_mode: apiMode,
+        advancement_quota: targetQuota,
         weak_dimensions: memorySnapshot?.weak_dimensions || [],
         last_score: memorySnapshot?.last_score ?? null,
         notes: memorySnapshot?.notes || '',
@@ -147,6 +158,7 @@ export default function LGDLobby() {
         script_id: targetScriptId,
         memory_enabled: memoryEnabled,
         api_mode: apiMode,
+        advancement_quota: targetQuota,
       })
       setShowModal(false)
       setCustomTopic('')
@@ -239,19 +251,31 @@ export default function LGDLobby() {
             </select>
           </div>
           <div className={styles['control-col']}>
-            <label className={styles['modal-label']}>默认角色（4号位）</label>
+            <label className={styles['modal-label']}>席位随机与身份模式</label>
             <select
               className={styles['unified-control']}
-              value={userRole}
+              value={roleMode === 'pick' ? `pick:${userRole !== 'undetermined' ? userRole : 'member'}` : roleMode}
               onChange={(e) => {
-                setUserRole(e.target.value)
-                if (memoryEnabled) updateMemorySnapshot({ user_role: e.target.value })
+                const v = e.target.value
+                if (v.startsWith('pick:')) {
+                  const picked = v.slice(5)
+                  setRoleMode('pick')
+                  setUserRole(picked)
+                  if (memoryEnabled) updateMemorySnapshot({ role_mode: 'pick', user_role: picked })
+                } else {
+                  setRoleMode(v)
+                  const nextRole = v === 'undetermined' ? 'undetermined' : 'member'
+                  setUserRole(nextRole)
+                  if (memoryEnabled) updateMemorySnapshot({ role_mode: v, user_role: nextRole })
+                }
               }}
-              aria-label="默认角色"
+              aria-label="席位随机与身份模式"
             >
+              <option value="undetermined">位置随机 · 身份待定（发言选身份+抢麦排序）</option>
+              <option value="random">位置随机 · 身份随机（入场即分配）</option>
               {USER_ROLES.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
+                <option key={r.id} value={`pick:${r.id}`}>
+                  位置随机 · 指定身份：{r.label}
                 </option>
               ))}
             </select>
@@ -331,6 +355,7 @@ export default function LGDLobby() {
             <div className={styles['room-meta']}>
               <span>{room.participant_count}/{room.max_participants} 人</span>
               <span>{room.duration_minutes} 分钟</span>
+              <span>8进{room.advancement_quota || 3}</span>
               {room.user_role && <span>{ROLE_LABELS[room.user_role] || room.user_role}</span>}
               {room.script_id && <span>{getScriptById(room.script_id).badge}</span>}
             </div>
@@ -402,25 +427,56 @@ export default function LGDLobby() {
             </div>
 
             <div className={styles['modal-field']}>
-              <label className={styles['modal-label']}>角色（4号位）</label>
+              <label className={styles['modal-label']}>三考官 Calibration 晋级配额</label>
+              <select
+                className={styles['modal-input']}
+                value={advancementQuota}
+                onChange={(e) => setAdvancementQuota(Number(e.target.value))}
+                aria-label="三考官 Calibration 晋级配额"
+              >
+                <option value={3}>8 进 3（标准校招晋级率 37.5% · 三考官独立打分+校准）</option>
+                <option value={2}>8 进 2（SP 严苛淘汰率 25% · 零红线容错）</option>
+              </select>
+            </div>
+
+            <div className={styles['modal-field']}>
+              <label className={styles['modal-label']}>入场位置随机 & 身份模式</label>
               <div className={styles['modal-role-options']}>
                 <label className={styles['radio-label']}>
                   <input
                     type="radio"
                     name="roleMode"
-                    checked={roleMode === 'pick'}
-                    onChange={() => setRoleMode('pick')}
+                    checked={roleMode === 'undetermined'}
+                    onChange={() => {
+                      setRoleMode('undetermined')
+                      setUserRole('undetermined')
+                    }}
                   />
-                  指定
+                  待定（发言选身份+抢麦排序）
                 </label>
                 <label className={styles['radio-label']}>
                   <input
                     type="radio"
                     name="roleMode"
                     checked={roleMode === 'random'}
-                    onChange={() => setRoleMode('random')}
+                    onChange={() => {
+                      setRoleMode('random')
+                      if (userRole === 'undetermined') setUserRole('member')
+                    }}
                   />
-                  随机
+                  随机分配
+                </label>
+                <label className={styles['radio-label']}>
+                  <input
+                    type="radio"
+                    name="roleMode"
+                    checked={roleMode === 'pick'}
+                    onChange={() => {
+                      setRoleMode('pick')
+                      if (userRole === 'undetermined') setUserRole('member')
+                    }}
+                  />
+                  指定
                 </label>
                 <label className={styles['radio-label']} style={{ marginLeft: 'auto' }}>
                   <input
@@ -434,7 +490,7 @@ export default function LGDLobby() {
               {roleMode === 'pick' && (
                 <select
                   className={styles['modal-input']}
-                  value={userRole}
+                  value={userRole === 'undetermined' ? 'member' : userRole}
                   onChange={(e) => setUserRole(e.target.value)}
                 >
                   {USER_ROLES.map((r) => (
@@ -444,6 +500,10 @@ export default function LGDLobby() {
                   ))}
                 </select>
               )}
+            </div>
+
+            <div className={styles['focus-checklist-banner']}>
+              💡 考场清场铁律：开启系统免打扰、退出通讯弹窗；入场后可申请共享三栏看板自然掌握议程主导权
             </div>
 
             <div className={styles['modal-actions']}>

@@ -7,12 +7,13 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from app.core.index_store import get_all_question_ids
 from app.core.redis_client import get_json
 from app.data.structured_seed import CATEGORY_DISPLAY, STRUCTURED_CATEGORIES
 
 
 async def _load_structured_questions(redis: Redis) -> list[dict]:
-    ids = await redis.smembers("questions:all")
+    ids = await get_all_question_ids(redis)
     out: list[dict] = []
     for qid in ids:
         q = await get_json(redis, f"question:{qid}")

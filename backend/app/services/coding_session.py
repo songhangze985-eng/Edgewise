@@ -7,14 +7,15 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from app.core.index_store import get_all_question_ids
 from app.core.redis_client import get_json
 from app.data.coding_seed import CODING_FOLLOWUP_TEMPLATES, SEED_CODING_QUESTIONS
 
 
 async def _load_coding_questions(redis: Redis) -> list[dict]:
-    question_ids = await redis.smembers("questions:all")
+    question_ids = await get_all_question_ids(redis)
     pool: list[dict] = []
-    for qid in sorted(question_ids):
+    for qid in question_ids:
         q = await get_json(redis, f"question:{qid}")
         if q and q.get("type") == "coding":
             pool.append(q)

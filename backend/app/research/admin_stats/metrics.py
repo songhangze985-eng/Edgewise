@@ -27,6 +27,8 @@ CATEGORICAL_AUTO = {
 }
 
 COUNT_AUTO = {
+    "H1",
+    "completed_practice_count",
     "steps_to_first_answer",
     "revision_count",
     "invites_sent",
@@ -66,7 +68,8 @@ def compute_overview(rows: list[dict[str, Any]], meta: dict[str, Any]) -> dict[s
         or (r.get("auto") or {}).get("F2a") == 1
     )
     feedback = sum(1 for r in rows if (r.get("auto") or {}).get("feedback_viewed") == 1)
-    qualified = sum(1 for r in rows if (r.get("auto") or {}).get("qualified_activation") == 1)
+    assigned_rows = [r for r in rows if r.get("arm") in ("00", "01", "10", "11")]
+    qualified = sum(1 for r in assigned_rows if (r.get("auto") or {}).get("qualified_activation") == 1)
 
     now = datetime.now(timezone.utc)
     due_users = []
@@ -81,12 +84,10 @@ def compute_overview(rows: list[dict[str, Any]], meta: dict[str, Any]) -> dict[s
             continue
         if due_dt <= now:
             due_users.append(r)
-            if r.get("posttest_completed_at") or (r.get("auto") or {}).get("posttest_status") == "done":
+            if r.get("posttest_completed_at"):
                 posttest_done += 1
 
-    survey_shown = 0
     survey_answered = 0
-    survey_skipped = 0
     for r in rows:
         survey = r.get("survey") or {}
         for rec in survey.values():
@@ -95,10 +96,6 @@ def compute_overview(rows: list[dict[str, Any]], meta: dict[str, Any]) -> dict[s
             st = rec.get("status")
             if st == "answered":
                 survey_answered += 1
-                survey_shown += 1
-            elif st in ("skipped", "no_response", "declined"):
-                survey_skipped += 1
-                survey_shown += 1
 
     funnel = [
         {"step": "同意研究", "n": filtered, "pct_of_consent": 1.0 if filtered else None},
@@ -134,9 +131,11 @@ def compute_overview(rows: list[dict[str, Any]], meta: dict[str, Any]) -> dict[s
             "withdrawn": withdrawn,
         },
         "qualified_activation_itt": {
-            "rate": qualified / filtered if filtered else None,
+            "rate": None,
             "numerator": qualified,
-            "denominator": filtered,
+            "denominator": len(assigned_rows),
+            "unconfirmed": len(assigned_rows) - qualified,
+            "status": "observation_window_unconfirmed",
         },
         "posttest_7d_rate": {
             "rate": posttest_done / len(due_users) if due_users else None,
@@ -145,10 +144,10 @@ def compute_overview(rows: list[dict[str, Any]], meta: dict[str, Any]) -> dict[s
             "attrition_rate": 1 - (posttest_done / len(due_users)) if due_users else None,
         },
         "micro_survey_response": {
-            "rate": survey_answered / survey_shown if survey_shown else None,
+            "rate": None,
             "numerator": survey_answered,
-            "denominator": survey_shown,
-            "skip_rate": survey_skipped / survey_shown if survey_shown else None,
+            "denominator": None,
+            "skip_rate": None,
         },
     }
 
@@ -186,10 +185,10 @@ def _histogram(values: list[float], bins: int = 8) -> list[dict[str, Any]]:
 
 def compute_passive(rows: list[dict[str, Any]]) -> dict[str, Any]:
     fields_out: dict[str, Any] = {}
-    for field in sorted(
-        BINARY_AUTO_FIELDS | CATEGORICAL_AUTO | COUNT_AUTO | DURATION_AUTO | MONEY_AUTO
-        | set(k for r in rows for k in (r.get("auto") or {}).keys())
-    ):
+    numeric_fields = COUNT_AUTO | DURATION_AUTO | MONEY_AUTO
+    observed_fields = {key for row in rows for key in (row.get("auto") or {})}
+    observed_fields -= {"first_practice_completed_at", "return_sessions_7d_window_end", "day14_followup_completed_at"}
+    for field in sorted(BINARY_AUTO_FIELDS | CATEGORICAL_AUTO | numeric_fields | observed_fields):
         values = []
         nulls = 0
         for r in rows:
@@ -202,7 +201,9 @@ def compute_passive(rows: list[dict[str, Any]]) -> dict[str, Any]:
         missing_rate = nulls / n_eligible if n_eligible else None
         entry: dict[str, Any] = {"field": field, "n_eligible": n_eligible, "missing_rate": missing_rate}
 
-        if field in BINARY_AUTO_FIELDS or (values and all(v in (0, 1, True, False, "0", "1") for v in values)):
+        if field in BINARY_AUTO_FIELDS or (
+            field not in numeric_fields and values and all(v in (0, 1, True, False, "0", "1") for v in values)
+        ):
             ones = sum(1 for v in values if v in (1, True, "1"))
             trials = len(values)
             rate = ones / trials if trials else None
@@ -213,7 +214,9 @@ def compute_passive(rows: list[dict[str, Any]]) -> dict[str, Any]:
             entry["rate"] = suppress_rate(ones, trials, rate)
             entry["wilson_low"] = lo
             entry["wilson_high"] = hi
-        elif field in CATEGORICAL_AUTO or (values and all(isinstance(v, str) for v in values)):
+        elif field in CATEGORICAL_AUTO or (
+            field not in numeric_fields and values and all(isinstance(v, str) for v in values)
+        ):
             counter = Counter(str(v) for v in values)
             entry["type"] = "categorical"
             entry["categories"] = [

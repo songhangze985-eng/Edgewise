@@ -37,7 +37,13 @@ async def ensure_experiment_referral_incentive(redis: Redis, user_data: dict[str
     incentive = pick_referral_incentive_for_user(user_data["id"])
     user_data["referral_incentive"] = incentive
     user_data["referral_incentive_assigned"] = True
-    user_data["updated_at"] = _now_iso()
+    assigned_at = _now_iso()
+    user_data["referral_incentive_assignment"] = {
+        "type": incentive,
+        "assigned_at": assigned_at,
+        "source": "user_hash_bucket",
+    }
+    user_data["updated_at"] = assigned_at
     await set_json(redis, f"user:{user_data['id']}", user_data)
     return user_data
 

@@ -348,7 +348,18 @@ input.modal-input {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: 14px;
+}
+
+.focus-checklist-banner {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 10px);
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  color: var(--chalk-dim);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .modal-cancel,

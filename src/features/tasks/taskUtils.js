@@ -43,13 +43,14 @@ export function markTaskViewed(slug) {
   }
 }
 
-export function markTaskCtaClicked(slug) {
+export function markTaskCtaClicked(slug, clickId) {
   try {
     const raw = sessionStorage.getItem(TASK_TIMING_KEY)
     const map = raw ? JSON.parse(raw) : {}
     map[slug] = {
       ...(map[slug] || {}),
       ctaAt: Date.now(),
+      clickId,
       steps: Math.max(map[slug]?.steps || 1, 2),
     }
     sessionStorage.setItem(TASK_TIMING_KEY, JSON.stringify(map))
@@ -58,12 +59,12 @@ export function markTaskCtaClicked(slug) {
   }
 }
 
-export function consumeTaskStepsMetrics(slug) {
+export function consumeTaskStepsMetrics(slug, clickId) {
   try {
     const raw = sessionStorage.getItem(TASK_TIMING_KEY)
     const map = raw ? JSON.parse(raw) : {}
     const entry = map[slug]
-    if (!entry?.viewedAt) return null
+    if (!entry?.viewedAt || (clickId && entry.clickId !== clickId)) return null
     const steps = entry.ctaAt ? 3 : 2
     const elapsedMs = Date.now() - entry.viewedAt
     delete map[slug]

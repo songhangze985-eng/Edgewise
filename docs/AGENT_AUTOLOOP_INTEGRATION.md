@@ -81,11 +81,11 @@ flowchart TD
   - 核验 CSS Token Bridge 核心变量与向前兼容别名、SEO `tasks_manifest.json` 产物新鲜度以及核心路由注册完整性。
 
 ### 3. 学术实证数据与量表信度巡检 (`scripts/autoloop/empirical-monitor.py`)
-- **功能**：面向论文数据收集的每日学术健康度与量表心理测量学审计。
+- **功能**：读取本机配置的 Redis，提供实验分组计数的探索性检查。
 - **指标**：
   - 自动读取 Redis 统计 4 组（00、01、10、11）被试样本量分布，计算卡方检验统计量（$\chi^2$）与失衡比率（Imbalance Ratio）。
-  - 计算 `scale_v1` 五大核心量表构念（`cognitive_trust`、`affective_trust`、`adoption_intent`、`word_of_mouth`、`reuse_intent`）的克隆巴赫系数（Cronbach's $\alpha \ge 0.70$）。
-  - 监控 `blind_pool` 双盲专家评分积压率，生成日报简报卡片。
+  - 当前脚本不计算真实问卷的信度；信度状态为“未评估”，不能用模拟值代替。
+  - 读取盲评待处理集合的当前数量；它不代表双评完成率或评分者一致性。
 
 ### 4. 面经与题库 UGC 内容初审流水线 (`scripts/autoloop/ugc-reviewer.py`)
 - **功能**：连接在线 Redis `experiences:pending` 待审队列（支持离线基线回退），对社区用户上传的面经与题目进行全自动治理。
@@ -100,7 +100,7 @@ flowchart TD
 - **功能**：扫描 `research:blind_pool` 与 `research:blind_reviews:*`，监控双盲评分员完成进度并检验跨评分员一致性（Inter-Rater Reliability）。
 
 ### 7. 论文第4章实证表格同步守卫 (`scripts/autoloop/paper-sync-verifier.py`)
-- **功能**：核验 `docs/paper_empirical_analysis.md` 中表 4-1 至表 4-9 及命题 P1–P6 与 `scripts/run_empirical_analysis.py` 统计引擎 100% 确定性对齐。
+- **功能**：检查模拟分析稿中的表格、命题及脚本函数名称是否存在；不验证样本来源、数据、统计计算或论文结论。
 
 ### 8. 大规模中文面试题库流式 ETL 守卫 (`scripts/autoloop/dataset-etl-watcher.py`)
 - **功能**：监控 `面试数据集/Chinese_interview_large.json`（95万行）与 `backend/app/data/dataset_import_seed.py`、`backend/app/data/pdf_import_seed.py` 的同步状态。

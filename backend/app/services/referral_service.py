@@ -7,7 +7,14 @@ from typing import Any
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
+from app.core.index_store import (
+    get_all_user_ids,
+    get_user_session_ids,
+    index_user_invite_code,
+    lookup_user_id_by_invite_code,
+)
 from app.core.redis_client import get_json, set_json
+from app.core.mongo_client import mongo_store
 from app.research.pipeline import emit_server_event
 
 REFERRAL_INCENTIVES = frozenset({"task_equity", "cash", "none"})
@@ -24,9 +31,8 @@ async def ensure_user_invite_code(redis: Redis, user_data: dict[str, Any]) -> st
         return existing
     for _ in range(8):
         code = generate_invite_code()
-        key = f"user:invite_code:{code}"
-        if not await redis.exists(key):
-            await redis.set(key, user_data["id"])
+        if not await lookup_user_id_by_invite_code(redis, code):
+            await index_user_invite_code(redis, user_id=user_data["id"], invite_code=code)
             user_data["invite_code"] = code
             if user_data.get("referral_incentive") is None:
                 user_data["referral_incentive"] = DEFAULT_REFERRAL_INCENTIVE
@@ -40,10 +46,7 @@ async def ensure_user_invite_code(redis: Redis, user_data: dict[str, Any]) -> st
 
 
 async def resolve_inviter_by_code(redis: Redis, invite_code: str) -> dict[str, Any] | None:
-    normalized = invite_code.strip().upper()
-    if not normalized:
-        return None
-    inviter_id = await redis.get(f"user:invite_code:{normalized}")
+    inviter_id = await lookup_user_id_by_invite_code(redis, invite_code)
     if not inviter_id:
         return None
     inviter = await get_json(redis, f"user:{inviter_id}")
@@ -102,22 +105,33 @@ def session_counts_toward_activation(metadata: dict[str, Any]) -> bool:
     return metadata.get("counts_toward_activation", True) is not False
 
 
+async def get_referral_invitee_ids(redis: Redis, user_id: str) -> set[str]:
+    key = f"research:inviter:{user_id}:invitees"
+    cached = set(await redis.smembers(key))
+    docs = await mongo_store.list_collection_docs("users", {"referred_by": user_id}, limit=10000)
+    recovered = {str(doc["id"]) for doc in docs if doc.get("id")}
+    missing = recovered - cached
+    if missing:
+        await redis.sadd(key, *missing)
+    return cached | recovered
+
+
 async def build_referral_stats(redis: Redis) -> list[dict[str, Any]]:
-    user_ids = await redis.smembers("users:all")
+    user_ids = await get_all_user_ids(redis)
     rows: list[dict[str, Any]] = []
 
     for user_id in user_ids:
         user_data = await get_json(redis, f"user:{user_id}")
         if not user_data or not user_data.get("invite_code"):
             continue
-        invitee_ids = await redis.smembers(f"research:inviter:{user_id}:invitees")
+        invitee_ids = await get_referral_invitee_ids(redis, user_id)
         if not invitee_ids:
             continue
 
         eligible_invitees: set[str] = set()
         net_contribution = 0
         for invitee_id in invitee_ids:
-            session_ids = await redis.zrevrange(f"user:{invitee_id}:sessions", 0, -1)
+            session_ids = await get_user_session_ids(redis, invitee_id)
             invitee_eligible = False
             for session_id in session_ids:
                 session = await get_json(redis, f"session:{session_id}")

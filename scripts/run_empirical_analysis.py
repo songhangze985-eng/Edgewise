@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Empirical Statistical Analysis Runner and Chapter 4 Paper Generator for Edgewise.
+Simulation-only Statistical Analysis Runner for Edgewise.
 
-Executes comprehensive econometric and psychometric analyses on the N = 400
-factorial trial dataset stored in Redis (database 0), including:
+Exercises econometric and psychometric analysis on N = 400 synthetic records
+in a dedicated Redis database. The output is not a real research result, including:
 1. Descriptive Statistics and Randomization Balance Tests across 4 experimental arms (Table 1)
 2. Survey Funnel and Response Rate Diagnostics across Triggers 1~9 (Table 2)
 3. Measurement Model & Scale Reliabilities (Cronbach's alpha, Spearman-Brown, CITC, drop-item alpha) (Table 3)
@@ -22,6 +22,7 @@ factorial trial dataset stored in Redis (database 0), including:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import math
 import os
@@ -685,16 +686,22 @@ def generate_markdown_chapter(
 
     lines.append("# 第四章 实证数据分析与假设检验 (Empirical Data Analysis and Hypothesis Testing)")
     lines.append("")
-    lines.append("> **文档状态**: 出版就绪稿 (Publication-Ready Draft)  ")
-    lines.append("> **数据源**: Edgewise 2×2 完全因子化随机对照试验数据库 (N = 400，Redis live-state load)  ")
-    lines.append("> **分析标准**: MIS Quarterly / Information Systems Research / ACM CHI 规范  ")
+    lines.append("> **仅供测试：以下结果来自模拟样本，并非真实受试者数据，不得作为实证研究结果或论文结论。**")
+    lines.append(">")
+    lines.append("> **注意：部分叙述和统计数值为硬编码演示，不能用于验证实际数据或研究假设。**")
+    lines.append(">")
+    lines.append("> **文档状态**: 模拟分析示例，非出版稿")
+    lines.append(">")
+    lines.append("> **数据源**: Redis 中的模拟参与者记录（目标 N = 400）")
+    lines.append(">")
+    lines.append("> **用途**: 验证分析代码与表格格式")
     lines.append("> **统计工具**: Python 3.12, NumPy 2.1, SciPy 1.14, Statsmodels 0.15  ")
     lines.append("")
     lines.append("---")
     lines.append("")
     lines.append("## 4.1 样本概况与随机化平衡检验 (Sample Overview & Randomization Balance)")
     lines.append("")
-    lines.append("本研究所依赖的实证数据源自 Edgewise 在线求职实训系统部署的 $2 \\times 2$ 完全因子化田野随机对照实验（Field Randomized Controlled Trial）。共有 $N = 400$ 名完整完成前测、产品核心任务、即时反馈及 7 日跟踪回访的受试者纳入最终分析样本。每个实验组严格分配 100 名受试者：")
+    lines.append("以下为程序生成的 $2 \\times 2$ 模拟数据示例，目标样本量为 400，每组 100 条。所有结果仅用于测试分析流程，不代表真实受试者或田野实验。")
     lines.append("- **Arm 00** ($n = 100$): 断续入口触点（$Z_C = 0$） + 被动示范观察（$Z_P = 0$）")
     lines.append("- **Arm 01** ($n = 100$): 断续入口触点（$Z_C = 0$） + 主动构念演练（$Z_P = 1$）")
     lines.append("- **Arm 10** ($n = 100$): 连续入口触点（$Z_C = 1$） + 被动示范观察（$Z_P = 0$）")
@@ -1143,10 +1150,10 @@ def generate_markdown_chapter(
     lines.append("")
     lines.append("## 4.6 本章小结与命题汇总表 (Chapter Summary & Synthesis of Propositions)")
     lines.append("")
-    lines.append("第四章系统汇报了基于 Edgewise $N = 400$ 因子化试验微观数据的实证检验全过程。通过结合经典计量回归、多层计数模型、分层非参数 Bootstrap 检验以及严格的心理测量学信效度诊断，六大研究命题全部获得实证支持。")
+    lines.append("本节汇总模拟样本的分析示例；这些结果不能作为六项研究命题的实证证据。")
     lines.append("")
     lines.append(
-        f"表 13 总结了全部命题的理论阐释、对应路径、预期符号、经验统计量与最终学术结论。研究特别证实了**连续触点与主动构念演练之间具有显著的超加性互补关系（$\\Delta_{{CP}} = {p3['delta_cp']:+.3f}, {p_boot_latex}$）**，为第五章讨论人机协同机制与产品系统设计提供了坚实的实证基石。"
+        f"表 13 为模拟数据下的示例输出（$\\Delta_{{CP}} = {p3['delta_cp']:+.3f}, {p_boot_latex}$），不代表真实研究结论。"
     )
     lines.append("")
     lines.append("### 表 13：六大核心研究命题检验结果综合汇总")
@@ -1172,7 +1179,7 @@ def generate_markdown_chapter(
     return "\n".join(lines)
 
 
-async def run_empirical_pipeline():
+async def run_empirical_pipeline(redis_url: str):
     """Main execution orchestrator."""
     print("=" * 80)
     print("EDGEWISE EMPIRICAL RESEARCH ANALYSIS PIPELINE (CHAPTER 4)")
@@ -1180,7 +1187,7 @@ async def run_empirical_pipeline():
 
     # 1. Load data
     print("\n[Step 1/8] Loading N=400 simulated participant records from Redis...")
-    df, sim_rows, meta = await load_and_prepare_data()
+    df, sim_rows, meta = await load_and_prepare_data(redis_url=redis_url)
     print(f" -> Successfully loaded {len(df)} cohort participant records across 4 arms.")
 
     # 2. Table 1: Demographics & Balance
@@ -1223,7 +1230,7 @@ async def run_empirical_pipeline():
     print(f" -> P6: Task Equity (IRR={math.exp(t12['m2'].params['bonus_practice']):.2f}) > Cash (IRR={math.exp(t12['m2'].params['cash_rebate']):.2f}) on referrals (p < .001)")
 
     # 7. Generate docs/paper_empirical_analysis.md
-    print("\n[Step 7/8] Generating publication-ready Chapter 4 paper draft...")
+    print("\n[Step 7/8] Generating simulation-only Chapter 4 example...")
     markdown_content = generate_markdown_chapter(
         df=df,
         t1=t1,
@@ -1239,7 +1246,7 @@ async def run_empirical_pipeline():
         t12=t12,
     )
 
-    doc_path = PROJECT_ROOT / "docs" / "paper_empirical_analysis.md"
+    doc_path = PROJECT_ROOT / "docs" / "paper_empirical_simulation.md"
     doc_path.parent.mkdir(parents=True, exist_ok=True)
     with open(doc_path, "w", encoding="utf-8") as f:
         f.write(markdown_content)
@@ -1248,7 +1255,7 @@ async def run_empirical_pipeline():
 
     # 8. Verification checks
     print("\n[Step 8/8] Verifying chapter integrity...")
-    assert doc_path.exists(), "Target file docs/paper_empirical_analysis.md was not written!"
+    assert doc_path.exists(), "Simulation report was not written!"
     content = doc_path.read_text(encoding="utf-8")
     for table_num in range(1, 14):
         assert f"表 {table_num}" in content, f"Table {table_num} is missing from markdown output!"
@@ -1261,7 +1268,10 @@ async def run_empirical_pipeline():
 
 
 def main():
-    asyncio.run(run_empirical_pipeline())
+    parser = argparse.ArgumentParser(description="Generate a simulation-only analysis example.")
+    parser.add_argument("--redis-url", required=True, help="URL of the dedicated simulation Redis database")
+    args = parser.parse_args()
+    asyncio.run(run_empirical_pipeline(args.redis_url))
 
 
 if __name__ == "__main__":

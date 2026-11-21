@@ -27,7 +27,10 @@ const isDryRun = args.includes('--dry-run')
 
 function runPythonScript(scriptRelPath, extraArgs = []) {
   return new Promise((resolve) => {
-    const proc = spawn('python3', [path.join(ROOT, scriptRelPath), ...extraArgs], {
+    const venvPython = path.join(ROOT, 'backend/.venv/bin/python')
+    const python = scriptRelPath === 'scripts/autoloop/empirical-monitor.py' && fs.existsSync(venvPython)
+      ? venvPython : 'python3'
+    const proc = spawn(python, [path.join(ROOT, scriptRelPath), ...extraArgs], {
       cwd: ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
     })

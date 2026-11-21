@@ -9,12 +9,16 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from redis.asyncio import Redis
 
-from app.research.events import append_research_event
+from app.core.mongo_client import mongo_store
+from app.core.redis_client import get_json
+from app.research.events import append_research_event, user_has_research_consent
 
 RULES_PATH = Path(__file__).resolve().parent.parent / "data" / "triage_rules.yaml"
 
@@ -267,11 +271,50 @@ async def run_copilot_triage(
     provider: TriageProvider | None = None,
 ) -> dict[str, Any]:
     provider = provider or default_triage_provider
+    from app.services.conversation_memory_service import (
+        append_conversation_turn,
+        build_multi_turn_context_prompt,
+        get_conversation_memory,
+    )
+
+    prior_mem = await get_conversation_memory(redis, user_id, scope="copilot")
+    provider_started = perf_counter()
     result = provider.triage(
         message,
         rejected_need=rejected_need,
         clarify_answer=clarify_answer,
     )
+    # Multi-turn coreference fallback: if current turn alone is unclear, combine with multi-turn memory window
+    if result.get("need") == "unclear" and int(prior_mem.get("turn_count") or 0) > 0 and not clarify_answer:
+        mem_prompt = build_multi_turn_context_prompt(prior_mem)
+        if mem_prompt:
+            retry_res = provider.triage(
+                message,
+                rejected_need=rejected_need,
+                clarify_answer=mem_prompt,
+            )
+            if retry_res.get("need") not in ("unclear", "out_of_scope"):
+                result = retry_res
+
+    provider_elapsed_ms = round((perf_counter() - provider_started) * 1000)
+
+    await append_conversation_turn(
+        redis,
+        user_id,
+        scope="copilot",
+        role="user",
+        content=message,
+        rejected_need=rejected_need,
+    )
+    updated_mem = await append_conversation_turn(
+        redis,
+        user_id,
+        scope="copilot",
+        role="assistant",
+        content=result.get("judgment") or result.get("clarifying_question") or result.get("limitation") or "",
+        intent=result.get("need"),
+    )
+
     triage_id = uuid.uuid4().hex[:12]
     now = datetime.now(timezone.utc).isoformat()
 
@@ -288,16 +331,24 @@ async def run_copilot_triage(
     }
     await append_triage_record(redis, user_id, record)
 
+    user = await get_json(redis, f"user:{user_id}") or {}
+    consent = user.get("research_consent") or {}
+    route = result.get("route") or {}
     await append_research_event(
         redis,
         user_id,
         "copilot.triage",
+        source="copilot_api",
         props={
             "triage_id": triage_id,
             "need": result.get("need"),
             "confidence": result.get("confidence"),
             "rejected_prior": rejected_need,
             "has_clarify": bool(result.get("clarifying_question")),
+            "provider_elapsed_ms": provider_elapsed_ms,
+            "provider": "rules" if type(provider) is RuleTriageProvider else "custom",
+            "consent_accepted_at": consent.get("accepted_at"),
+            "practice_route": route.get("path") if route.get("kind") in ("task_page", "interview_lobby") else None,
         },
     )
 
@@ -317,7 +368,40 @@ async def run_copilot_triage(
             props={"triage_id": triage_id, "scope_id": result.get("scope_id")},
         )
 
-    return {**result, "triage_id": triage_id}
+    return {
+        **result,
+        "triage_id": triage_id,
+        "memory_context": {
+            "turn_count": updated_mem.get("turn_count", 0),
+            "user_facts": updated_mem.get("user_facts", {}),
+            "episodic_summary": updated_mem.get("episodic_summary", {}),
+            "recent_turns": (updated_mem.get("recent_turns") or [])[-4:],
+        },
+    }
+
+
+async def get_copilot_practice_attribution(
+    user_data: dict[str, Any], triage_id: Any, task_id: Any,
+) -> dict[str, str] | None:
+    if not isinstance(triage_id, str) or not re.fullmatch(r"[0-9a-f]{12}", triage_id):
+        return None
+    if not user_has_research_consent(user_data):
+        return None
+    cycle = user_data["research_consent"].get("accepted_at")
+    if not cycle:
+        return None
+    event = await mongo_store.collection("research_events").find_one({
+        "user_id": user_data["id"], "event": "copilot.triage", "event_source": "copilot_api",
+        "props.triage_id": triage_id,
+        "props.consent_accepted_at": cycle,
+    })
+    if not event:
+        return None
+    path = urlsplit((event.get("props") or {}).get("practice_route") or "").path
+    if path == "/interview/lobby" or (task_id and path == f"/tasks/{task_id}"):
+        return {"triage_id": triage_id, "recommendation_recorded_at": event["ts"],
+                "source_event_id": event["stream_entry_id"]}
+    return None
 
 
 async def record_micro_task_done(

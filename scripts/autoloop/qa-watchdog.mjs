@@ -153,6 +153,7 @@ export async function runQaWatchdog(options = {}) {
     'tests/tokens-remediation.test.mjs',
     'tests/ui-primitives.test.mjs',
     'tests/sanitize-html.test.mjs',
+    'tests/single-interview-taxonomy.test.mjs',
   ]
   const unitRes = await runCommand('node', ['--test', ...unitFiles])
 

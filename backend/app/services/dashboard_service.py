@@ -1,21 +1,12 @@
 from __future__ import annotations
 
-import json
 from datetime import date
 
 from redis.asyncio import Redis
 
+from app.core.index_store import get_user_session_ids
 from app.core.redis_client import get_json
 from app.models.schemas import DashboardOverview, SessionResponse
-
-
-def _parse_sessions(session_payloads: list[str | None]) -> list[dict]:
-    sessions: list[dict] = []
-    for payload in session_payloads:
-        if payload:
-            sessions.append(json.loads(payload))
-    sessions.sort(key=lambda item: item.get("created_at", ""), reverse=True)
-    return sessions
 
 
 def _calculate_streak(sessions: list[dict]) -> int:
@@ -38,10 +29,20 @@ def _calculate_streak(sessions: list[dict]) -> int:
     return streak
 
 
+async def _load_user_sessions(redis: Redis, user_id: str, *, limit: int | None = None) -> list[dict]:
+    stop = max(limit - 1, 0) if limit is not None else -1
+    session_ids = await get_user_session_ids(redis, user_id, start=0, stop=stop)
+    sessions: list[dict] = []
+    for session_id in session_ids:
+        doc = await get_json(redis, f"session:{session_id}")
+        if doc:
+            sessions.append(doc)
+    sessions.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+    return sessions[:limit] if limit is not None else sessions
+
+
 async def get_dashboard_overview(redis: Redis, user_id: str) -> DashboardOverview:
-    session_ids = await redis.zrevrange(f"user:{user_id}:sessions", 0, -1)
-    raw_sessions = await redis.mget([f"session:{session_id}" for session_id in session_ids]) if session_ids else []
-    sessions = _parse_sessions(raw_sessions)
+    sessions = await _load_user_sessions(redis, user_id)
     scores = [float(session["score"]) for session in sessions if session.get("score") is not None]
     user = await get_json(redis, f"user:{user_id}") or {}
 
@@ -55,7 +56,5 @@ async def get_dashboard_overview(redis: Redis, user_id: str) -> DashboardOvervie
 
 
 async def get_recent_sessions(redis: Redis, user_id: str, limit: int = 10) -> list[SessionResponse]:
-    session_ids = await redis.zrevrange(f"user:{user_id}:sessions", 0, max(limit - 1, 0))
-    raw_sessions = await redis.mget([f"session:{session_id}" for session_id in session_ids]) if session_ids else []
-    sessions = _parse_sessions(raw_sessions)
-    return [SessionResponse.model_validate(session) for session in sessions[:limit]]
+    sessions = await _load_user_sessions(redis, user_id, limit=limit)
+    return [SessionResponse.model_validate(session) for session in sessions]
