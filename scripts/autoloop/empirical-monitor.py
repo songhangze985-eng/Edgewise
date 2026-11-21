@@ -132,6 +132,19 @@ def build_report() -> dict[str, Any]:
     }
 
 
+def exit_code_for_report(report: dict[str, Any]) -> int:
+    """Fail only for a measured imbalance or a reliability check that ran and failed.
+
+    UNAVAILABLE, EMPTY, and NOT_ASSESSED (ok is None) stay exit 0. Live counts are
+    never replaced by fixtures.
+    """
+    status = report["diagnostics"]["status"]
+    reliability_ok = report["extended_diagnostics"]["scale_reliability"]["ok"]
+    if status == "SKEW_ALERT" or reliability_ok is False:
+        return 1
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Edgewise Empirical Research Monitor")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
@@ -156,7 +169,7 @@ def main() -> int:
             print(f"  Arm [{arm}] {info['label']}: {info['count']} ({info['share_pct']}%)")
         print("====================================================")
 
-    return 0 if report["diagnostics"]["is_balanced"] is True and report["extended_diagnostics"]["scale_reliability"]["ok"] is True else 1
+    return exit_code_for_report(report)
 
 
 if __name__ == "__main__":

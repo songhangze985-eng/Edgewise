@@ -1,8 +1,10 @@
 import json
 import asyncio
+import contextlib
 import csv
 import io
 import importlib.util
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -342,6 +344,45 @@ class ResearchDataRecoveryTests(unittest.IsolatedAsyncioTestCase):
         stored = await mongo_store.find_by_cache_key("survey:shown:u1")
         self.assertEqual(len(stored["offer_times"]), 2)
         self.assertEqual(stored["offer_times"][0], recent)
+
+    async def test_shown_migration_fills_missing_items_without_replacing_mongo(self):
+        recent = 1_700_000_000.0
+        newer = recent + 50
+        await mongo_store.upsert_by_cache_key("survey:shown:u1", {
+            "user_id": "u1",
+            "doc_type": "survey_shown",
+            "items": {"same-offer": newer, "mongo-only": 7.0},
+            "offer_times": [recent, newer],
+        })
+        await self.redis.zadd(survey_shown_key("u1"), {
+            "same-offer": recent,
+            "from-redis": 3.5,
+            "bad.key": 4.0,
+            "$hidden": 5.0,
+        })
+        await self.redis.zadd(survey_shown_key("u2"), {"fresh-item": 8.0, "also.bad": 1.0})
+
+        result = await migrate_redis_to_mongo(self.redis, mongo_store)
+        self.assertEqual(result["errors"], 0)
+        stored = await mongo_store.find_by_cache_key("survey:shown:u1")
+        self.assertEqual(stored["items"]["same-offer"], newer)
+        self.assertEqual(stored["items"]["mongo-only"], 7.0)
+        self.assertEqual(stored["items"]["from-redis"], 3.5)
+        self.assertNotIn("bad", stored["items"])
+        self.assertNotIn("bad.key", stored["items"])
+        self.assertNotIn("$hidden", stored["items"])
+        self.assertEqual(stored["offer_times"], [recent, newer])
+        self.assertEqual(stored["doc_type"], "survey_shown")
+        fresh = await mongo_store.find_by_cache_key("survey:shown:u2")
+        self.assertEqual(fresh["items"], {"fresh-item": 8.0})
+        self.assertEqual(fresh["user_id"], "u2")
+        self.assertNotIn("offer_times", fresh)
+
+        await self.redis.zadd(survey_shown_key("u1"), {"from-redis": 99.0, "same-offer": 1.0})
+        await migrate_redis_to_mongo(self.redis, mongo_store)
+        again = await mongo_store.find_by_cache_key("survey:shown:u1")
+        self.assertEqual(again["items"], stored["items"])
+        self.assertEqual(again["offer_times"], [recent, newer])
 
     async def test_concurrent_report_views_reach_both_survey_thresholds(self):
         collection = mongo_store.collection("surveys")
@@ -1427,6 +1468,29 @@ class ResearchDataRecoveryTests(unittest.IsolatedAsyncioTestCase):
         client.get.return_value = None
         with patch("redis.from_url", return_value=client):
             self.assertEqual(module.fetch_arm_counts_from_redis()[1], "counts_missing")
+        self.assertEqual(module.exit_code_for_report(report), 0)
+
+    async def test_monitor_exits_zero_when_balance_or_reliability_is_unknown(self):
+        script = Path(__file__).resolve().parents[2] / "scripts" / "autoloop" / "empirical-monitor.py"
+        spec = importlib.util.spec_from_file_location("edgewise_empirical_monitor_exit", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        def report(status: str, ok: bool | None) -> dict:
+            return {
+                "diagnostics": {"status": status},
+                "extended_diagnostics": {"scale_reliability": {"ok": ok}},
+            }
+
+        self.assertEqual(module.exit_code_for_report(report("UNAVAILABLE", None)), 0)
+        self.assertEqual(module.exit_code_for_report(report("EMPTY", None)), 0)
+        self.assertEqual(module.exit_code_for_report(report("HEALTHY", None)), 0)
+        self.assertEqual(module.exit_code_for_report(report("HEALTHY", True)), 0)
+        self.assertEqual(module.exit_code_for_report(report("SKEW_ALERT", None)), 1)
+        self.assertEqual(module.exit_code_for_report(report("HEALTHY", False)), 1)
+        with patch("redis.from_url", side_effect=OSError("offline")), patch.object(sys, "argv", ["empirical-monitor.py", "--json"]):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(module.main(), 0)
 
     async def test_paper_check_reports_simulation_structure_only(self):
         script = Path(__file__).resolve().parents[2] / "scripts" / "autoloop" / "paper-sync-verifier.py"

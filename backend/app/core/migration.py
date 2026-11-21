@@ -84,6 +84,44 @@ def _parse_json_or_raw(raw: str) -> Any:
         return raw
 
 
+def _shown_item_path(item_id: Any) -> str | None:
+    """Return a safe `items.<key>` path, skipping names Mongo would treat as nested or as operators."""
+    key = str(item_id)
+    if not key or key.startswith("$") or "." in key or "\x00" in key:
+        return None
+    return f"items.{key}"
+
+
+async def _merge_missing_shown_items(
+    store: MongoDocumentStore, user_id: str, pairs: list[tuple[Any, Any]],
+) -> bool:
+    """Insert Redis shown-item scores only where that item key is absent. Never replace sibling fields."""
+    updates: list[tuple[str, float]] = []
+    for item_id, score in pairs:
+        path = _shown_item_path(item_id)
+        if path is None:
+            logger.warning("Skipping unsafe survey shown item key %r for user %s", item_id, user_id)
+            continue
+        updates.append((path, float(score)))
+    if not updates:
+        return False
+
+    shown_key = f"survey:shown:{user_id}"
+    collection = store.collection("surveys")
+    created = await collection.insert_if_absent(shown_key, {
+        "_cache_key": shown_key, "_collection": "surveys", "user_id": user_id, "doc_type": "survey_shown",
+    })
+    imported = created
+    for path, score in updates:
+        result = await collection.update_one(
+            {"_id": shown_key, path: {"$exists": False}},
+            {"$set": {path: score}},
+            upsert=False,
+        )
+        imported = imported or bool(result["matched_count"])
+    return imported
+
+
 async def _import_missing_survey_fields(
     store: MongoDocumentStore, key: str, user_id: str, doc_type: str, raw_hash: dict[str, str],
 ) -> bool:
@@ -260,15 +298,8 @@ async def migrate_redis_to_mongo(
                 user_id = key[len("research:survey:") : -len(":shown")]
                 pairs = await redis.zrange(key, 0, -1, withscores=True)
                 if pairs:
-                    await target_store.upsert_by_cache_key(
-                        f"survey:shown:{user_id}",
-                        {
-                            "user_id": user_id,
-                            "doc_type": "survey_shown",
-                            "items": {str(pid): float(score) for pid, score in pairs},
-                        },
-                    )
-                    stats["migrated_surveys"] += 1
+                    imported = await _merge_missing_shown_items(target_store, user_id, pairs)
+                    stats["migrated_surveys"] += int(imported)
                 continue
 
             if key.startswith("research:survey:") and hasattr(redis, "hgetall"):
