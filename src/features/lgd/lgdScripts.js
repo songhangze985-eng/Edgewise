@@ -7,21 +7,6 @@ export const USER_ROLES = [
   { id: 'member', label: '普通成员', hint: '按序陈述、自由讨论接话' },
 ]
 
-export const IDENTITY_MODES = [
-  {
-    id: 'undetermined',
-    label: '身份待定',
-    badge: '实战抢位 · 推荐',
-    desc: '入场随机 1~8 号席位，全员初始身份「待定」；你与 AI 均可在发言时选择身份，并加入抢发言队列按顺位发言。',
-  },
-  {
-    id: 'random',
-    label: '身份随机',
-    badge: '入场即定',
-    desc: '入场随机 1~8 号席位，同时立即完成全员 8 人职能身份随机分配，落座后直接进入审题。',
-  },
-]
-
 export const CLAIMABLE_IDENTITIES = [
   { id: 'undetermined', label: '身份待定', short: '待定', icon: '⏳', scorerRole: 'member', hint: '暂不锁定身份，观察局势后再认领' },
   { id: 'leader', label: '控场 Leader', short: '控场者', icon: '👑', scorerRole: 'leader', hint: '统筹议程、拆解框架、推动表决' },
@@ -373,24 +358,6 @@ export function buildExaminerFollowupPrompts({
       prompt: hrQuestion,
     },
   ]
-}
-
-export function pickAgentForFreeDiscussion(scriptId = 'standard_flow') {
-  const roll = Math.random()
-  if (scriptId === 'werewolf_clash' || scriptId === 'anti_teleprompter_probe') {
-    if (roll < 0.38) return AGENTS.find((a) => a.id === 'interrupter')
-    if (roll < 0.72) return AGENTS.find((a) => a.id === 'logician')
-  } else if (scriptId === 'leader_vacancy_brawl') {
-    if (roll < 0.36) return AGENTS.find((a) => a.id === 'ice_breaker')
-    if (roll < 0.72) return AGENTS.find((a) => a.id === 'interrupter')
-  } else if (scriptId === 'convergence_sprint') {
-    if (roll < 0.35) return AGENTS.find((a) => a.id === 'digresser')
-    if (roll < 0.65) return AGENTS.find((a) => a.id === 'timekeeper')
-  } else {
-    if (roll < 0.22) return AGENTS.find((a) => a.id === 'interrupter')
-    if (roll < 0.38) return AGENTS.find((a) => a.id === 'digresser')
-  }
-  return AGENTS[Math.floor(Math.random() * AGENTS.length)]
 }
 
 export const DEFAULT_SEAT_MAP = {

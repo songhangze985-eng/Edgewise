@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 
 const useResearchStatsStore = create((set) => ({
-  tab: 'overview',
   filters: {
     from: '',
     to: '',
@@ -12,7 +11,6 @@ const useResearchStatsStore = create((set) => ({
     rule_version: '',
     survey_version: '',
   },
-  setTab: (tab) => set({ tab }),
   setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
   resetFilters: () =>
     set({

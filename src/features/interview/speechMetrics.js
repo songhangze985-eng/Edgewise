@@ -168,11 +168,6 @@ export function computeCpm(text, speech, lang) {
   return Math.round(units / minutes)
 }
 
-/** Alias: words per minute for English sessions (same numeric field as cpm). */
-export function computeWpm(text, speech, lang) {
-  return computeCpm(text, speech, lang)
-}
-
 /**
  * @param {string} answerText
  * @param {{ segments?: array, first_word_ms?: number|null, total_ms?: number|null }} speech

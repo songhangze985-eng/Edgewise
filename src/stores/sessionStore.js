@@ -152,10 +152,6 @@ const useSessionStore = create((set, get) => ({
     return get().sessions.slice(0, limit)
   },
 
-  getSessionsByType(type) {
-    return get().sessions.filter((s) => s.type === type)
-  },
-
   getSessionById(id) {
     return get().sessions.find((s) => s.id === id) || null
   },

@@ -31,22 +31,6 @@ MAX_CONSECUTIVE_SKIPS = 2
 
 BLOCKED_CONTEXTS = frozenset({"interview_room", "lgd_room"})
 
-TRIGGER_EVENT_MAP = {
-    "research.consent.granted": "consent_granted",
-    "feedback.view": "feedback_view_first",
-    "report.view": "report_view_first",
-    "report.dwell": "report_dwell_or_reopen",
-    "report.reopen": "report_dwell_or_reopen",
-    "interview.complete": "second_session_complete",
-    "share.click": "share_click",
-    "inactive.3d": "inactive_3d",
-    "posttest.open": "posttest_day7",
-    "channel.creator_video": "channel_creator_video",
-    "channel.creator_video_day2": "channel_creator_video_day2",
-    "channel.agent": "channel_agent",
-    "institution": "institution",
-}
-
 
 @lru_cache(maxsize=1)
 def load_survey_items() -> list[dict[str, Any]]:

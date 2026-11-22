@@ -697,7 +697,3 @@ async def init_mongo() -> MongoDocumentStore:
 
 async def close_mongo() -> None:
     await mongo_store.close()
-
-
-def get_mongo_store() -> MongoDocumentStore:
-    return mongo_store
