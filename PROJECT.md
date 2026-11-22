@@ -2,7 +2,7 @@
 
 ## Architecture
 - **Tech Stack**: React 19 SPA, Vite 8, React Router v7, Zustand 5, Recharts, Three.js, Excalidraw, Monaco Editor.
-- **Styling Architecture**: Dual-Compatible Global CSS Token Bridge in `src/index.css` + `src/styles/tokens.css` with 58 scoped CSS Modules (`*.module.css`) and shared UI primitives in `src/components/ui/`.
+- **Styling Architecture**: Dual-Compatible Global CSS Token Bridge in `src/index.css` + `src/styles/tokens.css` with 71 scoped CSS Modules (`*.module.css`) and shared UI primitives in `src/components/ui/`.
 - **Design Language**: Apple Human Interface Guidelines aesthetic blended with `margin-ui-kit` design tokens:
   - Strict 4px/8px modular grid system (`--space-1` = 4px through `--space-12` = 48px).
   - Major Second (1.125) typography scale anchored at 14px body text, utilizing local Geist Sans, Geist Mono, and Instrument Serif fonts.

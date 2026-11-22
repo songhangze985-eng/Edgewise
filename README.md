@@ -29,9 +29,6 @@
 - 知情同意、实验分组、行为事件采集、微问卷弹窗与作答接入（`MicroSurveyModal` / `surveyStore`）、7 天后测、盲评、数据导出
 - 管理员问卷统计页（`/management/research`）、项目框架页（`/management/framework`）
 
-**规划中**
-- 外部语音识别：`src/api/stt.js` 目前只是占位，现在只走浏览器的 Web Speech API
-
 ## 技术栈
 
 | 层 | 技术 |
@@ -77,7 +74,7 @@
     │   ├── data/           # YAML 题库与种子数据
     │   └── models/schemas.py
     ├── scripts/generate_pdf_seed.py
-    └── tests/              # pytest 用例
+    └── tests/              # unittest 用例
 ```
 
 ## 架构
