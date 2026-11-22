@@ -96,7 +96,7 @@ describe('Boost 6 User Requirements & Reviewer Fixes Verification', () => {
     assert.match(challengeJsx, /listJobs/)
     assert.match(challengeJsx, /listStories/)
     assert.match(challengeJsx, /trackResearchEvent/)
-    assert.match(challengeJsx, /checkPendingSurvey\('challenge'\)/)
+    assert.match(challengeJsx, /checkPending\('challenge'\)/)
     assert.doesNotMatch(challengeJsx, /Math\.random\(\)\s*\*\s*35/)
   })
 
